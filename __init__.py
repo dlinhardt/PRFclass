@@ -19,7 +19,7 @@ class PRF:
     from ._maskstuff import maskROI, maskVarExp, maskEcc, maskBetaThresh, _calcMask, maskDartBoard
     from ._loadadditionalstuff import loadStim, loadTC, loadJitter, loadRealign
     from ._calculatestuff import calcKdeDiff, calcPRFprofiles, centralScotBorder, plot_kdeDiff2d
-    from ._plotstuff import plot_covMap, plot_toSurface
+    from ._plotstuff import plot_covMap, plot_toSurface, _calcCovMap, _createmask
 
     def __init__(self, dataFrom, study, subject, session, mat, baseP,
                  analysis=None, task=None, run=None, area=None,
