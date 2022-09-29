@@ -12,11 +12,11 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from os import path
+from copy import deepcopy
 
 try:
     from surfer import Brain
     from mayavi import mlab
-    import neuropythy as ny
 except ModuleNotFoundError:
     print('Package pysurfer not installed!')
     print('Install it or don\'t run plot_toSurface()')
@@ -202,7 +202,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 #----------------------------------------------------------------------------#
 # plot on surface
 
-def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='custom', save=False,
+def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                    forceNewPosition=False, surface='inflated', showBorders=False):
     if self._dataFrom == 'mrVista':
         print('We can not do that with non-docker data!')
@@ -226,16 +226,15 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='custom', save=Fa
 
         # write data array to plot
         plotData  = np.ones(nVertices) * np.nan
-        plotData2 = np.ones(nVertices) * -100
 
-        # load the sulc
-        sulcP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.curv')
-        sulc = nib.freesurfer.io.read_morph_data(sulcP)
-        sulc = np.array(sulc > 0, int)
-        sulcMsk = np.ones(sulc.shape, dtype=bool)
-        sulcMsk[roiIndFsnativeHemi] = ~self.mask[roiIndBoldHemi].astype(bool)
-        plotData2[sulcMsk] = sulc[sulcMsk]
+        # # load the sulc
+        # sulcP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.curv')
+        # sulc = nib.freesurfer.io.read_morph_data(sulcP)
+        # sulc = np.array(sulc > 0, int)
+        # sulcMsk = np.ones(sulc.shape, dtype=bool)
+        # sulcMsk[roiIndFsnativeHemi] = ~self.mask[roiIndBoldHemi].astype(bool)
 
+        # depending on used parameter set the plot data, colormap und ranges
         if param == 'ecc':
             plotData[roiIndFsnativeHemi] = self.r0[roiIndBoldHemi]
             cmap = 'rainbow_r'
@@ -255,25 +254,32 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='custom', save=Fa
             plotData[roiIndFsnativeHemi] = self.varexp0[roiIndBoldHemi]
             cmap = 'hot'
             datMin, datMax = 0, 1
-            plotData2 = np.ones(nVertices) * -100
-            plotData2[~self._roiMsk] = sulc[~self._roiMsk]
         else:
             raise Warning('Parameter string must be in ["ecc", "pol", "sig", "var"]!')
 
-        # do the plotting
+        # set everything outside mask (ROI, VarExp, ...) to nan
+        plotData = deepcopy(plotData)
+        if not param == 'var':
+            plotData[roiIndFsnativeHemi[~self.mask[roiIndBoldHemi]]] = np.nan
+
+        # plot the brain
         brain = Brain(self.subject, f'{hemi[0].lower()}h', surface, subjects_dir=fsP, offscreen='auto')
+        # plot the data
         brain.add_data(plotData, colormap=cmap, min=datMin, max=datMax, smoothing_steps='nearest')
-        brain.add_data(plotData2, transparent=False, colormap='Greys', thresh=-99, colorbar=False,
-                       min=-1, max=2)
+
+        # set nan to transparent
+        brain.data['surfaces'][0].module_manager.scalar_lut_manager.lut.nan_color = 0, 0, 0, 0
+        brain.data['surfaces'][0].update_pipeline()
 
         # print borders (freesurfer)
-        # if showBorders:
-        #     for ar in self._area:
-        try:
-            brain.add_label(f'V1_exvivo.thresh', borders=True, hemi=f'{hemi[0].lower()}h', color='black',
-                            alpha=.7, subdir=path.join(fsP, self.subject, 'label'))
-        except:
-            pass
+        if showBorders:
+            for ar in self._area:
+                try:
+                    brain.add_label('V1_exvivo.thresh', borders=True, hemi=f'{hemi[0].lower()}h',
+                                    color='black', alpha=.7,
+                                    subdir=path.join(fsP, self.subject, 'label'))
+                except:
+                    pass
 
         # save the positioning for left and right once per subject
         posSavePath = path.join(self._baseP, self._study, 'derivatives', 'plots',
