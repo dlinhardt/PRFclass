@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from os import path
 from copy import deepcopy
+from PIL import Image
+from glob import glob
 
 try:
     from surfer import Brain
@@ -201,12 +203,54 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
 #----------------------------------------------------------------------------#
 # plot on surface
+def _get_surfaceSavePath(self, param, hemi):
+    VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
+    Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
+    Pstr  = f'-{param}'
+
+    savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'cortex',
+                          self.subject, self.session)
+    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_cortex'
+
+    if not path.isdir(savePathB):
+        os.makedirs(savePathB)
+
+    return savePathB, savePathF
+
+
+def _make_gif(self, frame_folder, outFilename):
+    # Read the images
+    frames = [Image.open(image) for image in sorted(glob(f"{frame_folder}/frame*.png"))]
+    # Create the gif
+    frame_one = frames[0]
+    frame_one.save(
+        path.join(frame_folder, outFilename),
+        format="GIF",
+        append_images=frames,
+        save_all=True,
+        duration=500,
+        loop=0,
+    )
+    # Delete the png-s
+    [os.remove(image) for image in glob(f"{frame_folder}/frame*.png")]
+
 
 def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
-                   forceNewPosition=False, surface='inflated', showBorders=False):
+                   forceNewPosition=False, surface='inflated', showBorders=False,
+                   interactive=True, create_gif=False):
+
     if self._dataFrom == 'mrVista':
         print('We can not do that with non-docker data!')
     elif self._dataFrom == 'docker':
+
+        # turn of other functionality when creating gif
+        if create_gif:
+            manualPosition = False
+            save = False
+            interactive = False
+        else:
+            manualPosition = True
+
         fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep', f'analysis-{fmriprepAna}',
                         'sourcedata', 'freesurfer')
 
@@ -226,13 +270,6 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
 
         # write data array to plot
         plotData  = np.ones(nVertices) * np.nan
-
-        # # load the sulc
-        # sulcP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.curv')
-        # sulc = nib.freesurfer.io.read_morph_data(sulcP)
-        # sulc = np.array(sulc > 0, int)
-        # sulcMsk = np.ones(sulc.shape, dtype=bool)
-        # sulcMsk[roiIndFsnativeHemi] = ~self.mask[roiIndBoldHemi].astype(bool)
 
         # depending on used parameter set the plot data, colormap und ranges
         if param == 'ecc':
@@ -282,44 +319,57 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     pass
 
         # save the positioning for left and right once per subject
-        posSavePath = path.join(self._baseP, self._study, 'derivatives', 'plots',
-                                'positioning', self.subject)
-        posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}_cortex.npy'
-        posPath  = path.join(posSavePath, posSaveFile)
-        if not path.isdir(posSavePath):
-            os.makedirs(posSavePath)
+        if manualPosition:
+            posSavePath = path.join(self._baseP, self._study, 'derivatives', 'plots',
+                                    'positioning', self.subject)
+            posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}_cortex.npy'
+            posPath  = path.join(posSavePath, posSaveFile)
 
-        if not path.isfile(posPath) or forceNewPosition:
-            if hemi[0].upper() == 'L':
-                brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
-                                 'focalpoint': np.array([-43, -23, -8])}, roll=-130)
-            elif hemi[0].upper() == 'R':
-                brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
-                                 'focalpoint': np.array([-11, -93, -49])}, roll=142)
+            if not path.isdir(posSavePath):
+                os.makedirs(posSavePath)
 
-            mlab.show(stop=True)
-            pos = np.array(brain.show_view(), dtype='object')
-            np.save(posPath, pos.astype('object'), allow_pickle=True)
-            # print(pos)
+            if not path.isfile(posPath) or forceNewPosition:
+                if hemi[0].upper() == 'L':
+                    brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
+                                     'focalpoint': np.array([-43, -23, -8])}, roll=-130)
+                elif hemi[0].upper() == 'R':
+                    brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
+                                     'focalpoint': np.array([-11, -93, -49])}, roll=142)
+
+                mlab.show(stop=True)
+                pos = np.array(brain.show_view(), dtype='object')
+                np.save(posPath, pos.astype('object'), allow_pickle=True)
+                # print(pos)
+            else:
+                pos = np.load(posPath, allow_pickle=True)
+                # print(pos)
+                brain.show_view({'azimuth': pos[0][0], 'elevation': pos[0][1], 'distance': pos[0][2],
+                                 'focalpoint': pos[0][3]}, roll=pos[1])
         else:
-            pos = np.load(posPath, allow_pickle=True)
-            # print(pos)
-            brain.show_view({'azimuth': pos[0][0], 'elevation': pos[0][1], 'distance': pos[0][2],
-                             'focalpoint': pos[0][3]}, roll=pos[1])
+            if create_gif:
+                p, n = self._get_surfaceSavePath(param, hemi)
+
+                for iI, i in enumerate(np.linspace(-1, 89, 10)):
+                    brain.show_view({'azimuth': -i, 'elevation': 90, 'distance': 350,
+                                     'focalpoint': np.array([20, -130, -70])}, roll=-90)
+                    brain.save_image(path.join(p, f'frame-{iI}.png'))
+
+                self._make_gif(p, n + '.gif')
+
+            else:
+                if hemi[0].upper() == 'L':
+                    brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
+                                     'focalpoint': np.array([-43, -23, -8])}, roll=-130)
+                elif hemi[0].upper() == 'R':
+                    brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
+                                     'focalpoint': np.array([-11, -93, -49])}, roll=142)
 
         if save:
-            VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-            Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
-            Pstr  = f'-{param}'
+            p, n = self._get_surfaceSavePath(param, hemi)
+            brain.save_image(path.join(p, n + '.pdf'))
 
-            savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'cortex',
-                                  self.subject, self.session)
-            savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_cortex.svg'
-            savePath  = path.join(savePathB, savePathF)
-
-            if not path.isdir(savePathB):
-                os.makedirs(savePathB)
-            brain.save_image(savePath)
-        else:
-            # pass
+        if interactive:
+            pass
             mlab.show(stop=True)
+        else:
+            mlab.clf()
