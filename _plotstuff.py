@@ -177,7 +177,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         ax.plot((-co, co), (si, -si), color='grey', linewidth=.8)
 
         ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-        ax.yaxis.set_ticks([maxEcc13.round(1), maxEcc23.round(1), self.maxEcc.round(1)])
+        ax.yaxis.set_ticks([np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(self.maxEcc, 1)])
         ax.tick_params(axis="y", direction="in", pad=-fig.get_figheight() * .39 * 96)
 
         plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
