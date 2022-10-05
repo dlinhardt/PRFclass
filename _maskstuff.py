@@ -153,7 +153,7 @@ def maskBetaThresh(self, betaMax=50, doThresh=True, doBorderThresh=False, doHigh
     if doHighBetaThresh:
         self._betaMsk = np.all((self._betaMsk, self.beta0 < betaMax), 0)
 
-    self._isBetaMasked = 1 if doHighBetaThresh else 2 if doBorderThresh else 3
+    self._isBetaMasked = 2 if (doHighBetaThresh and doBorderThresh) else 1 if doHighBetaThresh else 3
 
 #----------------------------------------------------------------------------#
 # calculate the convolved mask

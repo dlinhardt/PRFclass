@@ -115,7 +115,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
         savePathB = path.join(self._baseP, self._study, 'plots', 'cover',
                               self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Bstr}{Sstr}{methodStr}.pdf'
+        savePathF = f'{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Bstr}{Sstr}{methodStr}.svg'
 
     elif self._dataFrom == 'docker':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
@@ -127,7 +127,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covmapData',
                               self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.pdf'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
 
