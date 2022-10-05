@@ -44,25 +44,27 @@ def _calcCovMap(self, method='max', force=False):
 
     # create the filename
     if self._dataFrom == 'mrVista':
-        VEstr = f'_VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-        Bstr  = f'_betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
+        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
+        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '_MPspace' if self._orientation == 'MP' else ''
+        Estr  = '_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
         methodStr = f'_{method}'
 
         savePathB = path.join(self._baseP, self._study, 'plots', 'cover', 'data',
                               self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._analysis}{VEstr}{Bstr}{Sstr}{methodStr}.npy'
+        savePathF = f'{self.subject}_{self.session}_{self._analysis}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
 
     elif self._dataFrom == 'docker':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
+        Estr  = '_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covmapData',
                               self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
 
     savePath  = path.join(savePathB, savePathF)
 
@@ -110,29 +112,32 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '_MPspace' if self._orientation == 'MP' else ''
+        Estr  = '_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
         CBstr = f'_colBar-{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         methodStr = f'_{method}'
 
         savePathB = path.join(self._baseP, self._study, 'plots', 'cover',
                               self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Bstr}{Sstr}{methodStr}.svg'
+        savePathF = f'{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
 
     elif self._dataFrom == 'docker':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
+        Estr  = '_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
         CBstr = f'-colBar{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covmapData',
                               self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
+        
     if not path.isfile(savePath) or show or force:
         methods = ['max', 'mean', 'sumClip']
         if not method in methods:
