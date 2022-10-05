@@ -47,7 +47,7 @@ def _calcCovMap(self, method='max', force=False):
         VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '_MPspace' if self._orientation == 'MP' else ''
-        Estr  = '_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
         methodStr = f'_{method}'
 
         savePathB = path.join(self._baseP, self._study, 'plots', 'cover', 'data',
@@ -58,7 +58,7 @@ def _calcCovMap(self, method='max', force=False):
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
-        Estr  = '_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
 
@@ -112,7 +112,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '_MPspace' if self._orientation == 'MP' else ''
-        Estr  = '_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
         CBstr = f'_colBar-{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         methodStr = f'_{method}'
 
@@ -124,7 +124,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
-        Estr  = '_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
         CBstr = f'-colBar{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
@@ -137,7 +137,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
-        
+
     if not path.isfile(savePath) or show or force:
         methods = ['max', 'mean', 'sumClip']
         if not method in methods:
