@@ -15,6 +15,7 @@ from os import path
 from copy import deepcopy
 from PIL import Image
 from glob import glob
+import matplotlib
 
 try:
     from surfer import Brain
@@ -105,6 +106,7 @@ def _calcCovMap(self, method='max', force=False):
 
 def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False, force=False):
     if not show:
+        matplotlib.use('PDF')
         plt.ioff()
 
     # create the filename
@@ -129,7 +131,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covmapData',
+        savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covMap',
                               self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
