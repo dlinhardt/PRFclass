@@ -253,9 +253,10 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
     elif self._dataFrom == 'docker':
 
         if headless:
-            # pass
             mlab.options.offscreen = True
             # mlab.init_notebook('x3d', 800, 800)
+        else:
+            mlab.options.offscreen = False
 
         if hemi == 'both':
             hemis = ['L', 'R']
@@ -268,7 +269,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if create_gif:
                 manualPosition = False
                 save = False
-                interactive = False
+                interactive = True
             else:
                 manualPosition = True
 
@@ -321,10 +322,8 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                 plotData[roiIndFsnativeHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
             # plot the brain
-            print('plotting the brain...')
             brain = Brain(self.subject, f'{hemi[0].lower()}h', surface, subjects_dir=fsP)
             # plot the data
-            print('addind data...')
             brain.add_data(np.float16(plotData), colormap=cmap, min=datMin, max=datMax,
                             smoothing_steps='nearest', remove_existing=True)
 
@@ -373,11 +372,17 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                 if create_gif:
                     p, n = self._get_surfaceSavePath(param, hemi)
 
-                    for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                        print('creating image {iI}...')
-                        brain.show_view({'azimuth': -i, 'elevation': 90, 'distance': 350,
-                                          'focalpoint': np.array([20, -130, -70])}, roll=-90)
-                        brain.save_image(path.join(p, f'frame-{iI}.png'))
+                    if hemi[0].upper() == 'L':
+                        for iI, i in enumerate(np.linspace(-1, 79, 9)):
+                            brain.show_view({'azimuth': -i, 'elevation': 90, 'distance': 350,
+                                              'focalpoint': np.array([30, -130, -60])}, roll=-90)
+                            brain.save_image(path.join(p, f'frame-{iI}.png'))
+
+                    elif hemi[0].upper() == 'R':
+                        for iI, i in enumerate(np.linspace(-1, 79, 9)):
+                            brain.show_view({'azimuth': i, 'elevation': -90, 'distance': 350,
+                                              'focalpoint': np.array([-30, -130, -60])}, roll=90)
+                            brain.save_image(path.join(p, f'frame-{iI}.png'))
 
                     self._make_gif(p, n + '.gif')
 
