@@ -198,7 +198,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
     if save and not path.isfile(savePath):
         fig.savefig(savePath, bbox_inches='tight')
-        print(f'new Coverage Map saved to {savePath}')
+        print(f'new Coverage Map saved to {savePathF}')
         # plt.close('all')
 
     if not show:
@@ -240,7 +240,7 @@ def _make_gif(self, frameFolder, outFilename):
         duration=500,
         loop=0,
     )
-    print(f'new Cortex Map saved to {path.join(frameFolder, outFilename)}')
+    print(f'new Cortex Map saved to {outFilename}')
     # Delete the png-s
     [os.remove(image) for image in glob(f"{frameFolder}/frame*.png")]
 
