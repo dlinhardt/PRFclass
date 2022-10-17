@@ -5,10 +5,10 @@ Created on Tue Aug 30 09:49:57 2022
 
 @author: dlinhardt
 """
+
 import numpy as np
 
 # class for loading mrVista results
-
 
 class PRF:
 
@@ -19,7 +19,7 @@ class PRF:
     from ._maskstuff import maskROI, maskVarExp, maskEcc, maskBetaThresh, _calcMask, maskDartBoard
     from ._loadadditionalstuff import loadStim, loadTC, loadJitter, loadRealign
     from ._calculatestuff import calcKdeDiff, calcPRFprofiles, centralScotBorder, plot_kdeDiff2d
-    from ._plotstuff import plot_covMap, plot_toSurface, _calcCovMap, _createmask, _get_surfaceSavePath, _make_gif
+    from ._plotstuff import plot_covMap, _calcCovMap, plot_toSurface, _createmask, _get_surfaceSavePath, _make_gif
 
     def __init__(self, dataFrom, study, subject, session, mat, baseP,
                  analysis=None, task=None, run=None, area=None,
