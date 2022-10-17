@@ -227,21 +227,22 @@ def _get_surfaceSavePath(self, param, hemi):
     return savePathB, savePathF
 
 
-def _make_gif(self, frame_folder, outFilename):
+def _make_gif(self, frameFolder, outFilename):
     # Read the images
-    frames = [Image.open(image) for image in sorted(glob(f"{frame_folder}/frame*.png"))]
+    frames = [Image.open(image) for image in sorted(glob(f"{frameFolder}/frame*.png"))]
     # Create the gif
     frame_one = frames[0]
     frame_one.save(
-        path.join(frame_folder, outFilename),
+        path.join(frameFolder, outFilename),
         format="GIF",
         append_images=frames,
         save_all=True,
         duration=500,
         loop=0,
     )
+    print(f'new Cortex Map saved to {path.join(frameFolder, outFilename)}')
     # Delete the png-s
-    [os.remove(image) for image in glob(f"{frame_folder}/frame*.png")]
+    [os.remove(image) for image in glob(f"{frameFolder}/frame*.png")]
 
 
 def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
