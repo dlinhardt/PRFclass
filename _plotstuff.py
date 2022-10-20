@@ -218,14 +218,15 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
 #----------------------------------------------------------------------------#
 # plot on surface
-def _get_surfaceSavePath(self, param, hemi):
+def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
     Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
     Pstr  = f'-{param}'
 
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'cortex',
                           self.subject, self.session)
-    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_cortex'
+    ending = 'sphere' if surface=='sphere' else 'cortex'
+    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_{ending}'
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
@@ -396,7 +397,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     self._make_gif(p, n + '.gif')
 
                 else:
-                    if surface == 'spere':
+                    if surface == 'sphere':
                         if hemi[0].upper() == 'L':
                             brain.show_view({'azimuth': -80, 'elevation': 125, 'distance': 500,
                                              'focalpoint': np.array([0, 0, 0])}, roll=-170)
@@ -413,7 +414,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                                               'focalpoint': np.array([-11, -93, -49])}, roll=142)
 
             if save:
-                p, n = self._get_surfaceSavePath(param, hemi)
+                p, n = self._get_surfaceSavePath(param, hemi, surface)
                 brain.save_image(path.join(p, n + '.pdf'))
 
             if interactive:
