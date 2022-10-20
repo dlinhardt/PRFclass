@@ -374,13 +374,13 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     p, n = self._get_surfaceSavePath(param, hemi)
 
                     if hemi[0].upper() == 'L':
-                        for iI, i in enumerate(np.linspace(-1, 79, 9)):
+                        for iI, i in enumerate(np.linspace(-1, 89, 10)):
                             brain.show_view({'azimuth': -i, 'elevation': 90, 'distance': 350,
                                               'focalpoint': np.array([30, -130, -60])}, roll=-90)
                             brain.save_image(path.join(p, f'frame-{iI}.png'))
 
                     elif hemi[0].upper() == 'R':
-                        for iI, i in enumerate(np.linspace(-1, 79, 9)):
+                        for iI, i in enumerate(np.linspace(-1, 89, 10)):
                             brain.show_view({'azimuth': i, 'elevation': -90, 'distance': 350,
                                               'focalpoint': np.array([-30, -130, -60])}, roll=90)
                             brain.save_image(path.join(p, f'frame-{iI}.png'))
