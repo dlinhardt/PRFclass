@@ -10,6 +10,7 @@ import numpy as np
 import json
 from scipy.io import loadmat
 from os import path
+from glob import glob
 
 
 #-----------------------------------MASKING-----------------------------------#
@@ -73,8 +74,14 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
         with open(optsF, 'r') as fl:
             opts = json.load(fl)
 
-        self._area  = area if isinstance(area, list) else [area]
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
+
+        self._area  = area if isinstance(area, list) else [area]
+        if self._area[0] == 'all':
+            allAreaFiles = glob(path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
+                                 f'analysis-{opts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
+                                 f'{self._subject}_{self._session}_hemi-R_desc-*-{self._atlas[0]}_maskinfo.json'))
+            self._area = [path.basename(a).split('desc-')[1].split('-')[0] for a in allAreaFiles]
 
         self._roiMsk = np.zeros(self.x0.shape)
 
