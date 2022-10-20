@@ -89,7 +89,7 @@ def loadJitter(self):
             raise Warning('No jitter file found!')
 
     elif self._dataFrom == 'docker':
-        self.jitterP = path.join(self._baseP, self._study, 'BIDS', self.subject, self.session, 'etdata',
+        self.jitterP = path.join(self._baseP, self._study, 'BIDS', 'etdata', self.subject, self.session,
                                  f'{self.subject}_{self.session}_task-{self._task.split("-")[0]}_run-0{self._run}_gaze.mat')
 
         if path.exists(self.jitterP):
