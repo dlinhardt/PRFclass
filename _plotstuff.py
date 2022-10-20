@@ -265,20 +265,23 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
         else:
             mlab.options.offscreen = False
 
+        if surface == 'sphere':
+            create_gif     = False
+
+        # turn of other functionality when creating gif
+        if create_gif:
+            manualPosition = False
+            save = False
+            interactive = True
+        else:
+            manualPosition = True if not surface == 'sphere' else False
+
         if hemi == 'both':
             hemis = ['L', 'R']
         else:
             hemis = [hemi]
 
         for hemi in hemis:
-
-            # turn of other functionality when creating gif
-            if create_gif:
-                manualPosition = False
-                save = False
-                interactive = True
-            else:
-                manualPosition = True
 
             fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep', f'analysis-{fmriprepAna}',
                             'sourcedata', 'freesurfer')
@@ -343,7 +346,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                 for ar in self._area:
                     try:
                         brain.add_label(label(ar, hemi, self._roiIndFsnative, self._roiWhichHemi, self._roiWhichArea),
-                                        borders=1, color='black', alpha=.7)
+                                        borders=1, color='black', alpha=.4)
                     except:
                         pass
 
@@ -387,18 +390,27 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     elif hemi[0].upper() == 'R':
                         for iI, i in enumerate(np.linspace(-1, 89, 10)):
                             brain.show_view({'azimuth': i, 'elevation': -90, 'distance': 350,
-                                              'focalpoint': np.array([-30, -130, -60])}, roll=90)
+                                             'focalpoint': np.array([-30, -130, -60])}, roll=90)
                             brain.save_image(path.join(p, f'frame-{iI}.png'))
 
                     self._make_gif(p, n + '.gif')
 
                 else:
-                    if hemi[0].upper() == 'L':
-                        brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
-                                          'focalpoint': np.array([-43, -23, -8])}, roll=-130)
-                    elif hemi[0].upper() == 'R':
-                        brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
-                                          'focalpoint': np.array([-11, -93, -49])}, roll=142)
+                    if surface == 'spere':
+                        if hemi[0].upper() == 'L':
+                            brain.show_view({'azimuth': -80, 'elevation': 125, 'distance': 500,
+                                             'focalpoint': np.array([0, 0, 0])}, roll=-170)
+                        elif hemi[0].upper() == 'R':
+                            brain.show_view({'azimuth': 80, 'elevation': -125, 'distance': 500,
+                                             'focalpoint': np.array([0, 0, 0])}, roll=170)
+
+                    else:
+                        if hemi[0].upper() == 'L':
+                            brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
+                                              'focalpoint': np.array([-43, -23, -8])}, roll=-130)
+                        elif hemi[0].upper() == 'R':
+                            brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
+                                              'focalpoint': np.array([-11, -93, -49])}, roll=142)
 
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi)
