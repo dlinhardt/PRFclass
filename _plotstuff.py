@@ -28,6 +28,12 @@ except ModuleNotFoundError:
     print('Install it or don\'t run plot_toSurface()')
 
 
+class label():
+    def __init__(self, ar, he, roiIndFsnative, roiWhichHemi, roiWhichArea):
+        self.name = ar
+        self.hemi = he.lower()[0] + 'h'
+        self.vertices = roiIndFsnative[np.all((roiWhichHemi==he.upper()[0], roiWhichArea==ar), 0)]
+
 #----------------------------------------------------------------------------#
 # calculate and plot the coverage maps
 def _createmask(self, shape, otherRratio=None):
@@ -336,9 +342,8 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if showBorders:
                 for ar in self._area:
                     try:
-                        brain.add_label('V1_exvivo.thresh', borders=True, hemi=f'{hemi[0].lower()}h',
-                                        color='black', alpha=.7,
-                                        subdir=path.join(fsP, self.subject, 'label'))
+                        brain.add_label(label(ar, hemi, self._roiIndFsnative, self._roiWhichHemi, self._roiWhichArea),
+                                        borders=1, color='black', alpha=.7)
                     except:
                         pass
 

@@ -81,11 +81,13 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
         self._roiIndBold     = np.empty(0, dtype=int)
         self._roiIndFsnative = np.empty(0, dtype=int)
         self._roiWhichHemi   = np.empty(0)
+        self._roiWhichArea   = np.empty(0)
+        self._areaJsons      = []
 
         hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
         for ar in self._area:
             for at in self._atlas:
-                self._areaJsons = []
+                areaJsonTmps = []
                 for h in hs:
 
                     areaJson = path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
@@ -94,17 +96,19 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
                     with open(areaJson, 'r') as fl:
                         maskinfo = json.load(fl)
 
+                    areaJsonTmps.append(maskinfo)
                     self._areaJsons.append(maskinfo)
 
                     self._roiIndBold     = np.hstack((self._roiIndBold, maskinfo['roiIndBold']))
                     self._roiIndFsnative = np.hstack((self._roiIndFsnative, maskinfo['roiIndFsnative']))
-                    self._roiWhichHemi   = np.hstack((self._roiWhichHemi, np.tile(h, len(maskinfo['roiIndFsnative']))))
+                    self._roiWhichHemi   = np.hstack((self._roiWhichHemi, np.tile(h,  len(maskinfo['roiIndFsnative']))))
+                    self._roiWhichArea   = np.hstack((self._roiWhichArea, np.tile(ar, len(maskinfo['roiIndFsnative']))))
 
-                self._roiMsk[self._areaJsons[0]['roiIndBold']] = 1
-                if len(self._areaJsons) == 2:
-                    self._roiMsk[np.array(self._areaJsons[1]['roiIndBold']) + self._areaJsons[0]['thisHemiSize']] = 1
+                self._roiMsk[areaJsonTmps[0]['roiIndBold']] = 1
+                if len(areaJsonTmps) == 2:
+                    self._roiMsk[np.array(areaJsonTmps[1]['roiIndBold']) + areaJsonTmps[0]['thisHemiSize']] = 1
 
-        self._hemi0size  = self._areaJsons[0]['thisHemiSize']
+        self._hemi0size  = areaJsonTmps[0]['thisHemiSize']
         self._roiIndBold[self._roiWhichHemi == 'R'] += self._hemi0size
         self._isROIMasked = 1
 
