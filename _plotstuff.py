@@ -358,6 +358,8 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     ats = [showBorders]
                 elif showBorders == True:
                     ats = ['benson']
+                elif showBorders == False:
+                    ats = []
 
                 for at in ats:
                     for ar in self._area:
