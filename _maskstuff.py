@@ -77,16 +77,19 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
 
         self._area  = area if isinstance(area, list) else [area]
-        self._allAreaFiles = []
-        for at in self._atlas:
-            self._allAreaFiles += glob(path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
-                             f'analysis-{opts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
-                             f'{self._subject}_{self._session}_hemi-R_desc-*-{at}_maskinfo.json'))
+
+        self._allAreaFiles = glob(path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
+                         f'analysis-{opts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
+                         f'{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json'))
 
         self._allAreas = np.array([path.basename(a).split('desc-')[1].split('-')[0] for a in self._allAreaFiles])
+        self._allAtlas = np.unique([path.basename(a).split('desc-')[1].split('-')[1].split('_')[0] for a in self._allAreaFiles])
 
         if self._area[0] == 'all':
             self._area = self._allAreas
+
+        if self._atlas[0] == 'all':
+            self._atlas = self._allAtlas
 
 
         self._roiMsk = np.zeros(self.x0.shape)
@@ -101,36 +104,54 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
         for ar in self._area:
             for at in self._atlas:
                 areaJsonTmps = []
+                noFound = 0
                 for h in hs:
                     try:
-                        areaJson = path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
-                                             f'analysis-{opts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
-                                             f'{self._subject}_{self._session}_hemi-{h.upper()}_desc-{ar}-{at}_maskinfo.json')
+                        areaJson =  [j for j in self._allAreaFiles if h.upper() in path.basename(j) and
+                                                                      ar in path.basename(j) and
+                                                                      at in path.basename(j)][0]
                         with open(areaJson, 'r') as fl:
                             maskinfo = json.load(fl)
 
                         areaJsonTmps.append(maskinfo)
                         self._areaJsons.append(maskinfo)
 
-                        self._roiIndBold     = np.hstack((self._roiIndBold, maskinfo['roiIndBold']))
-                        self._roiIndFsnative = np.hstack((self._roiIndFsnative, maskinfo['roiIndFsnative']))
-                        self._roiWhichHemi   = np.hstack((self._roiWhichHemi, np.tile(h,  len(maskinfo['roiIndFsnative']))))
-                        self._roiWhichArea   = np.hstack((self._roiWhichArea, np.tile(ar, len(maskinfo['roiIndFsnative']))))
-                    except:
-                        pass
-                try:
-                    self._roiMsk[areaJsonTmps[0]['roiIndBold']] = 1
-                    if len(areaJsonTmps) == 2:
-                        self._roiMsk[np.array(areaJsonTmps[1]['roiIndBold']) + areaJsonTmps[0]['thisHemiSize']] = 1
-                except:
-                    pass
-        try:
-            self._hemi0size  = areaJsonTmps[0]['thisHemiSize']
-            self._roiIndBold[self._roiWhichHemi == 'R'] += self._hemi0size
-            self._isROIMasked = 1
-        except:
-            pass
+                        doubleMask = [i not in self._roiIndFsnative[self._roiWhichHemi==h] for i in maskinfo['roiIndFsnative']]
 
+                        if h == 'L':
+                            self._roiIndBold = np.hstack((self._roiIndBold,     np.array(maskinfo['roiIndBold'])[doubleMask]))
+                            lHemiSize = maskinfo['thisHemiSize']
+                        elif h == 'R':
+                            self._roiIndBold = np.hstack((self._roiIndBold,     np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
+
+                        self._roiIndFsnative = np.hstack((self._roiIndFsnative, np.array(maskinfo['roiIndFsnative'])[doubleMask]))
+                        self._roiWhichHemi   = np.hstack((self._roiWhichHemi,   np.tile(h,  sum(doubleMask))))
+                        self._roiWhichArea   = np.hstack((self._roiWhichArea,   np.tile(ar, sum(doubleMask))))
+
+                        if h == 'L':
+                            self._roiMsk[maskinfo['roiIndBold']] = 1
+                        elif h == 'R':
+                            self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1
+
+                    except:
+                        noFound += 1
+
+            #     if noFound < 2:
+            #         self._roiMsk[areaJsonTmps[0]['roiIndBold']] = 1
+            #         if len(areaJsonTmps) == 2:
+            #             self._roiMsk[np.array(areaJsonTmps[1]['roiIndBold']) + areaJsonTmps[0]['thisHemiSize']] = 1
+
+            # try:
+            #     self._hemi0size  = areaJsonTmps[0]['thisHemiSize']
+        # self._roiIndBold[self._roiWhichHemi == 'R' ] += self._hemi0size
+            # except:
+            #     pass
+        self._isROIMasked = 1
+
+        # self._roiIndFsnative, ind = np.unique(self._roiIndFsnative, return_index=True)
+        # self._roiIndBold    = self._roiIndBold[ind]
+        # self._roiWhichHemi  = self._roiWhichHemi[ind]
+        # self._roiWhichArea  = self._roiWhichArea[ind]
 
 #----------------------------------------------------------------------------#
 # remove all voxels that are infs or nans in varexp and apply VarExp threshold

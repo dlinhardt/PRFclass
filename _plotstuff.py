@@ -16,6 +16,7 @@ from os import path
 from copy import deepcopy
 from PIL import Image
 from glob import glob
+import json
 
 try:
     from mayavi import mlab
@@ -29,10 +30,17 @@ except ModuleNotFoundError:
 
 
 class label():
-    def __init__(self, ar, he, roiIndFsnative, roiWhichHemi, roiWhichArea):
+    def __init__(self, ar, at, he, allAreaFiles):
         self.name = ar
         self.hemi = he.lower()[0] + 'h'
-        self.vertices = roiIndFsnative[np.all((roiWhichHemi==he.upper()[0], roiWhichArea==ar), 0)]
+
+        vJsonName = [j for j in allAreaFiles if he.upper() in path.basename(j) and
+                                                ar in path.basename(j) and
+                                                at in path.basename(j)][0]
+        with open(vJsonName, 'r') as fl:
+            maskinfo = json.load(fl)
+
+        self.vertices = np.array(maskinfo['roiIndFsnative'])
 
 #----------------------------------------------------------------------------#
 # calculate and plot the coverage maps
@@ -253,7 +261,7 @@ def _make_gif(self, frameFolder, outFilename):
 
 
 def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
-                    forceNewPosition=False, surface='inflated', showBorders=False,
+                    forceNewPosition=False, surface='inflated', showBorders=None,
                     interactive=True, create_gif=False, headless=False):
 
     if self._dataFrom == 'mrVista':
@@ -343,13 +351,21 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             brain.data['surfaces'][0].update_pipeline()
 
             # print borders (freesurfer)
-            if showBorders:
-                for ar in self._area:
-                    try:
-                        brain.add_label(label(ar, hemi, self._roiIndFsnative, self._roiWhichHemi, self._roiWhichArea),
-                                        borders=1, color='black', alpha=.4)
-                    except:
-                        pass
+            if showBorders is not None:
+                if isinstance(showBorders, list):
+                    ats = showBorders
+                elif isinstance(showBorders, str):
+                    ats = [showBorders]
+                elif showBorders == True:
+                    ats = ['benson']
+
+                for at in ats:
+                    for ar in self._area:
+                        try:
+                            brain.add_label(label(ar, at, hemi, self._allAreaFiles),
+                                            borders=True, color='black', alpha=.5)
+                        except:
+                            pass
 
             # save the positioning for left and right once per subject
             if manualPosition:
