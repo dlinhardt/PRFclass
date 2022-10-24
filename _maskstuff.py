@@ -116,7 +116,10 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
                         areaJsonTmps.append(maskinfo)
                         self._areaJsons.append(maskinfo)
 
-                        doubleMask = [i not in self._roiIndFsnative[self._roiWhichHemi==h] for i in maskinfo['roiIndFsnative']]
+                        if self._roiWhichHemi:
+                            doubleMask = [i not in self._roiIndFsnative[self._roiWhichHemi==h] for i in maskinfo['roiIndFsnative']]
+                        else:
+                            doubleMask = np.ones(len(maskinfo['roiIndBold']))
 
                         if h == 'L':
                             self._roiIndBold = np.hstack((self._roiIndBold,     np.array(maskinfo['roiIndBold'])[doubleMask]))

@@ -234,7 +234,13 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'cortex',
                           self.subject, self.session)
     ending = 'sphere' if surface=='sphere' else 'cortex'
-    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_{ending}'
+
+    if len(self._area) > 10:
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-multipleAreas{VEstr}{Bstr}{Pstr}_{ending}'
+    else:
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_{ending}'
+
+
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
@@ -373,7 +379,10 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if manualPosition:
                 posSavePath = path.join(self._baseP, self._study, 'derivatives', 'plots',
                                         'positioning', self.subject)
-                posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}_cortex.npy'
+                if len(self._area) > 10:
+                    posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-multipleAreas_cortex.npy'
+                else:
+                    posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}_cortex.npy'
                 posPath  = path.join(posSavePath, posSaveFile)
 
                 if not path.isdir(posSavePath):
@@ -434,6 +443,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
                 brain.save_image(path.join(p, n + '.pdf'))
+                print(f'new Cortex Map saved to {path.join(p, n + ".pdf")}')
 
             if interactive:
                 mlab.show(stop=True)
