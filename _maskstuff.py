@@ -120,6 +120,7 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
                             doubleMask = [i not in self._roiIndFsnative[self._roiWhichHemi==h] for i in maskinfo['roiIndFsnative']]
                         else:
                             doubleMask = np.ones(len(maskinfo['roiIndBold']))
+                        doubleMask = doubleMask.astype(bool)
 
                         if h == 'L':
                             self._roiIndBold = np.hstack((self._roiIndBold,     np.array(maskinfo['roiIndBold'])[doubleMask]))
