@@ -11,7 +11,7 @@ import scipy.stats as st
 import os
 import nibabel as nib
 import matplotlib.pyplot as plt
-from scipy.io import loadmat
+# from scipy.io import loadmat
 from os import path
 from copy import deepcopy
 from PIL import Image
@@ -43,8 +43,11 @@ class label():
         self.vertices = np.array(maskinfo['roiIndFsnative'])
 
 #----------------------------------------------------------------------------#
-# calculate and plot the coverage maps
+
+
 def _createmask(self, shape, otherRratio=None):
+    # calculate and plot the coverage maps
+
     x0, y0 = shape[0] // 2, shape[1] // 2
     n = shape[0]
     if otherRratio is not None:
@@ -55,10 +58,9 @@ def _createmask(self, shape, otherRratio=None):
     y, x = np.ogrid[-x0:n - x0, -y0:n - y0]
     return x * x + y * y <= r * r
 
-# plot a coverage map
-
 
 def _calcCovMap(self, method='max', force=False):
+    # plot a coverage map
 
     # create the filename
     if self._dataFrom == 'mrVista':
@@ -158,7 +160,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
     if not path.isfile(savePath) or show or force:
         methods = ['max', 'mean', 'sumClip']
-        if not method in methods:
+        if method not in methods:
             raise Warning(f'Chosen method "{method}" is not a available methods {methods}.')
 
         # calculate the coverage map
@@ -177,8 +179,9 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         fig = plt.figure(constrained_layout=True)
         ax  = plt.gca()
 
-        im = ax.imshow(self.covMap, cmap='hot', extent=(-self.maxEcc, self.maxEcc, -self.maxEcc, self.maxEcc),
-                        origin='lower', vmin=cmapMin, vmax=vmax)
+        im = ax.imshow(self.covMap, cmap='hot',
+                       extent=(-self.maxEcc, self.maxEcc, -self.maxEcc, self.maxEcc),
+                       origin='lower', vmin=cmapMin, vmax=vmax)
         ax.scatter(self.x[self.r < self.maxEcc], self.y[self.r < self.maxEcc], s=.3, c='grey')
         ax.set_xlim((-self.maxEcc, self.maxEcc))
         ax.set_ylim((-self.maxEcc, self.maxEcc))
@@ -233,7 +236,7 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
 
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'cortex',
                           self.subject, self.session)
-    ending = 'sphere' if surface=='sphere' else 'cortex'
+    ending = 'sphere' if surface == 'sphere' else 'cortex'
 
     if len(self._area) > 10:
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-multipleAreas{VEstr}{Bstr}{Pstr}_{ending}'
@@ -298,8 +301,8 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
 
         for hemi in hemis:
 
-            fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep', f'analysis-{fmriprepAna}',
-                            'sourcedata', 'freesurfer')
+            fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep',
+                            f'analysis-{fmriprepAna}', 'sourcedata', 'freesurfer')
 
             pialP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.pial')
             pial  = nib.freesurfer.read_geometry(pialP)
@@ -350,7 +353,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             brain = Brain(self.subject, f'{hemi[0].lower()}h', surface, subjects_dir=fsP)
             # plot the data
             brain.add_data(np.float16(plotData), colormap=cmap, min=datMin, max=datMax,
-                            smoothing_steps='nearest', remove_existing=True)
+                           smoothing_steps='nearest', remove_existing=True)
 
             # set nan to transparent
             brain.data['surfaces'][0].module_manager.scalar_lut_manager.lut.nan_color = 0, 0, 0, 0
@@ -362,9 +365,9 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     ats = showBorders
                 elif isinstance(showBorders, str):
                     ats = [showBorders]
-                elif showBorders == True:
+                elif showBorders is True:
                     ats = ['benson']
-                elif showBorders == False:
+                elif showBorders is False:
                     ats = []
 
                 for at in ats:
@@ -391,10 +394,10 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                 if not path.isfile(posPath) or forceNewPosition:
                     if hemi[0].upper() == 'L':
                         brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
-                                          'focalpoint': np.array([-43, -23, -8])}, roll=-130)
+                                         'focalpoint': np.array([-43, -23, -8])}, roll=-130)
                     elif hemi[0].upper() == 'R':
                         brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
-                                          'focalpoint': np.array([-11, -93, -49])}, roll=142)
+                                         'focalpoint': np.array([-11, -93, -49])}, roll=142)
 
                     mlab.show(stop=True)
                     pos = np.array(brain.show_view(), dtype='object')
@@ -404,7 +407,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     pos = np.load(posPath, allow_pickle=True)
                     # print(pos)
                     brain.show_view({'azimuth': pos[0][0], 'elevation': pos[0][1], 'distance': pos[0][2],
-                                      'focalpoint': pos[0][3]}, roll=pos[1])
+                                     'focalpoint': pos[0][3]}, roll=pos[1])
             else:
                 if create_gif:
                     p, n = self._get_surfaceSavePath(param, hemi)
@@ -412,7 +415,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     if hemi[0].upper() == 'L':
                         for iI, i in enumerate(np.linspace(-1, 89, 10)):
                             brain.show_view({'azimuth': -i, 'elevation': 90, 'distance': 350,
-                                              'focalpoint': np.array([30, -130, -60])}, roll=-90)
+                                             'focalpoint': np.array([30, -130, -60])}, roll=-90)
                             brain.save_image(path.join(p, f'frame-{iI}.png'))
 
                     elif hemi[0].upper() == 'R':
@@ -435,10 +438,10 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     else:
                         if hemi[0].upper() == 'L':
                             brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
-                                              'focalpoint': np.array([-43, -23, -8])}, roll=-130)
+                                             'focalpoint': np.array([-43, -23, -8])}, roll=-130)
                         elif hemi[0].upper() == 'R':
                             brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
-                                              'focalpoint': np.array([-11, -93, -49])}, roll=142)
+                                             'focalpoint': np.array([-11, -93, -49])}, roll=142)
 
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
