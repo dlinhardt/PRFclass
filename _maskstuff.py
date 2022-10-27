@@ -13,7 +13,7 @@ from os import path
 from glob import glob
 
 
-#-----------------------------------MASKING-----------------------------------#
+# ----------------------------------MASKING-----------------------------------#
 # limit the used voxels to the ROI
 
 def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
@@ -21,22 +21,28 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
         if isinstance(area, list):
             Warning('You can not give area lists for mrVista data!')
         if doV123:
-            self._roiV1 = loadmat(path.join(self._baseP, self._study, 'ROIs', self.subject + '_V1_Combined.mat'),
+            self._roiV1 = loadmat(path.join(self._baseP, self._study, 'ROIs',
+                                            self.subject + '_V1_Combined.mat'),
                                   simplify_cells=True)['ROI']['coords'].astype('uint16')
-            self._roiV2 = loadmat(path.join(self._baseP, self._study, 'ROIs', self.subject + '_V2_Combined.mat'),
+            self._roiV2 = loadmat(path.join(self._baseP, self._study, 'ROIs',
+                                            self.subject + '_V2_Combined.mat'),
                                   simplify_cells=True)['ROI']['coords'].astype('uint16')
-            self._roiV3 = loadmat(path.join(self._baseP, self._study, 'ROIs', self.subject + '_V3_Combined.mat'),
+            self._roiV3 = loadmat(path.join(self._baseP, self._study, 'ROIs',
+                                            self.subject + '_V3_Combined.mat'),
                                   simplify_cells=True)['ROI']['coords'].astype('uint16')
 
             dtypeV1 = {'names': ['f{}'.format(i) for i in range(3)], 'formats': 3 * [self._roiV1.dtype]}
             dtypeV2 = {'names': ['f{}'.format(i) for i in range(3)], 'formats': 3 * [self._roiV2.dtype]}
             dtypeV3 = {'names': ['f{}'.format(i) for i in range(3)], 'formats': 3 * [self._roiV3.dtype]}
 
-            self._roiIndV1 = np.intersect1d(self._coords.T.view(dtypeV1).T, self._roiV1.T.view(dtypeV1).T,
+            self._roiIndV1 = np.intersect1d(self._coords.T.view(dtypeV1).T,
+                                            self._roiV1.T.view(dtypeV1).T,
                                             return_indices=True)[1]
-            self._roiIndV2 = np.intersect1d(self._coords.T.view(dtypeV2).T, self._roiV2.T.view(dtypeV2).T,
+            self._roiIndV2 = np.intersect1d(self._coords.T.view(dtypeV2).T,
+                                            self._roiV2.T.view(dtypeV2).T,
                                             return_indices=True)[1]
-            self._roiIndV3 = np.intersect1d(self._coords.T.view(dtypeV3).T, self._roiV3.T.view(dtypeV3).T,
+            self._roiIndV3 = np.intersect1d(self._coords.T.view(dtypeV3).T,
+                                            self._roiV3.T.view(dtypeV3).T,
                                             return_indices=True)[1]
 
             m1 = np.zeros(self.x0.shape)
@@ -55,7 +61,8 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
                 self._roi = (loadmat(forcePath, simplify_cells=True)
                              ['ROI']['coords']).astype('uint16')
             else:
-                self._roi = (loadmat(path.join(self._baseP, self._study, 'ROIs', self.subject + '_V1_Combined.mat'),
+                self._roi = (loadmat(path.join(self._baseP, self._study, 'ROIs',
+                                               self.subject + '_V1_Combined.mat'),
                                      simplify_cells=True)['ROI']['coords']).astype('uint16')
 
             dtype = {'names': ['f{}'.format(i) for i in range(3)], 'formats': 3 * [self._roi.dtype]}
@@ -70,7 +77,8 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
             self._isROIMasked = 1
 
     elif self._dataFrom == 'docker':
-        optsF = path.join(self._baseP, self._study, 'derivatives', self._prfanaMe, self._prfanaAn, 'options.json')
+        optsF = path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
+                          self._prfanaAn, 'options.json')
         with open(optsF, 'r') as fl:
             opts = json.load(fl)
 
@@ -116,21 +124,29 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
                         areaJsonTmps.append(maskinfo)
                         self._areaJsons.append(maskinfo)
 
-                        if self._roiWhichHemi:
-                            doubleMask = [i not in self._roiIndFsnative[self._roiWhichHemi==h] for i in maskinfo['roiIndFsnative']]
-                        else:
+                        if len(self._roiWhichHemi) == 0:
                             doubleMask = np.ones(len(maskinfo['roiIndBold']))
+                        else:
+                            doubleMask = np.array([i not in self._roiIndFsnative[self._roiWhichHemi == h]
+                                                   for i in maskinfo['roiIndFsnative']])
                         doubleMask = doubleMask.astype(bool)
 
                         if h == 'L':
-                            self._roiIndBold = np.hstack((self._roiIndBold,     np.array(maskinfo['roiIndBold'])[doubleMask]))
+                            self._roiIndBold = np.hstack((self._roiIndBold,
+                                                          np.array(maskinfo['roiIndBold'])[doubleMask]))
                             lHemiSize = maskinfo['thisHemiSize']
                         elif h == 'R':
-                            self._roiIndBold = np.hstack((self._roiIndBold,     np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
+                            self._roiIndBold = np.hstack((self._roiIndBold,
+                                                          np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
 
-                        self._roiIndFsnative = np.hstack((self._roiIndFsnative, np.array(maskinfo['roiIndFsnative'])[doubleMask]))
-                        self._roiWhichHemi   = np.hstack((self._roiWhichHemi,   np.tile(h,  sum(doubleMask))))
-                        self._roiWhichArea   = np.hstack((self._roiWhichArea,   np.tile(ar, sum(doubleMask))))
+                        self._roiIndFsnative = np.hstack((self._roiIndFsnative,
+                                                          np.array(maskinfo['roiIndFsnative'])[doubleMask]))
+
+                        self._roiWhichHemi   = np.hstack((self._roiWhichHemi,
+                                                          np.tile(h,  sum(doubleMask))))
+
+                        self._roiWhichArea   = np.hstack((self._roiWhichArea,
+                                                          np.tile(ar, sum(doubleMask))))
 
                         if h == 'L':
                             self._roiMsk[maskinfo['roiIndBold']] = 1
@@ -140,25 +156,11 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
                     except:
                         noFound += 1
 
-            #     if noFound < 2:
-            #         self._roiMsk[areaJsonTmps[0]['roiIndBold']] = 1
-            #         if len(areaJsonTmps) == 2:
-            #             self._roiMsk[np.array(areaJsonTmps[1]['roiIndBold']) + areaJsonTmps[0]['thisHemiSize']] = 1
-
-            # try:
-            #     self._hemi0size  = areaJsonTmps[0]['thisHemiSize']
-        # self._roiIndBold[self._roiWhichHemi == 'R' ] += self._hemi0size
-            # except:
-            #     pass
         self._isROIMasked = 1
 
-        # self._roiIndFsnative, ind = np.unique(self._roiIndFsnative, return_index=True)
-        # self._roiIndBold    = self._roiIndBold[ind]
-        # self._roiWhichHemi  = self._roiWhichHemi[ind]
-        # self._roiWhichArea  = self._roiWhichArea[ind]
-
-#----------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------#
 # remove all voxels that are infs or nans in varexp and apply VarExp threshold
+
 
 def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
     if spmPath:
@@ -180,8 +182,9 @@ def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
     self._isVarExpMasked = varExpThresh
 
 
-#----------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------#
 # mask with given eccentricity value for coveragePlot
+
 
 def maskEcc(self, rad, doThresh=True):
 
@@ -189,7 +192,7 @@ def maskEcc(self, rad, doThresh=True):
 
     self._isEccMasked = rad
 
-#----------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------#
 # mask with beta threshold and high sigmas as calculated from macfunc18-c01 & c02 zeroth as below
 
 
@@ -204,7 +207,7 @@ def maskBetaThresh(self, betaMax=50, doThresh=True, doBorderThresh=False, doHigh
 
     self._isBetaMasked = 2 if (doHighBetaThresh and doBorderThresh) else 1 if doHighBetaThresh else 3
 
-#----------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------#
 # calculate the convolved mask
 
 
@@ -225,7 +228,7 @@ def _calcMask(self, doROIMsk=True, doVarExpMsk=True,
 
     return self._mask
 
-#----------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------#
 # return number of voxels per dartboard element
 # possible values for split: 8, 8tilt, 4, 4tilt
 
@@ -246,9 +249,11 @@ def maskDartBoard(self, split='8'):
         for i in range(2):
             for j in range(8):
                 if i == 0:
-                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi4, self.phi <= (j + 1) * pi4], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi4,
+                                                 self.phi <= (j + 1) * pi4], 0))
                 elif i == 1:
-                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi4, self.phi <= (j + 1) * pi4], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi4,
+                                                 self.phi <= (j + 1) * pi4], 0))
                 k += 1
 
         # outer
@@ -264,9 +269,11 @@ def maskDartBoard(self, split='8'):
         for i in range(2):
             for j in range(16):
                 if i == 0:
-                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi >= j * pi8, self.phi < (j + 1) * pi8], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi >= j * pi8,
+                                                 self.phi < (j + 1) * pi8], 0))
                 elif i == 1:
-                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi >= j * pi8, self.phi < (j + 1) * pi8], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi >= j * pi8,
+                                                 self.phi < (j + 1) * pi8], 0))
                 k += 1
 
         # outer
@@ -286,9 +293,11 @@ def maskDartBoard(self, split='8'):
         for i in range(2):
             for j in range(8):
                 if i == 0:
-                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi4, self.phi <= (j + 1) * pi4], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi4,
+                                                 self.phi <= (j + 1) * pi4], 0))
                 elif i == 1:
-                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi4, self.phi <= (j + 1) * pi4], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi4,
+                                                 self.phi <= (j + 1) * pi4], 0))
                 k += 1
 
         # outer
@@ -306,9 +315,11 @@ def maskDartBoard(self, split='8'):
         for i in range(2):
             for j in range(4):
                 if i == 0:
-                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi2, self.phi <= (j + 1) * pi2], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi2,
+                                                 self.phi <= (j + 1) * pi2], 0))
                 elif i == 1:
-                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi2, self.phi <= (j + 1) * pi2], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi2,
+                                                 self.phi <= (j + 1) * pi2], 0))
                 k += 1
 
         # outer
@@ -328,9 +339,11 @@ def maskDartBoard(self, split='8'):
         for i in range(2):
             for j in range(4):
                 if i == 0:
-                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi2, self.phi <= (j + 1) * pi2], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 2, self.r <= 4.5, self.phi > j * pi2,
+                                                 self.phi <= (j + 1) * pi2], 0))
                 elif i == 1:
-                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi2, self.phi <= (j + 1) * pi2], 0))
+                    nVoxDart[k] = np.sum(np.all([self.r > 4.5, self.r <= 7, self.phi > j * pi2,
+                                                 self.phi <= (j + 1) * pi2], 0))
                 k += 1
 
         # outer
