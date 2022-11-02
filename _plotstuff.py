@@ -70,8 +70,8 @@ def _calcCovMap(self, method='max', force=False):
         Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
         methodStr = f'_{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'plots', 'cover', 'data',
-                              self.subject, self.session)
+        savePathB = path.join(self._baseP, self._study, 'prfresult', self._analysis,
+                              'cover', 'data', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._analysis}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
 
     elif self._dataFrom == 'docker':
@@ -82,8 +82,8 @@ def _calcCovMap(self, method='max', force=False):
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covMapData',
-                              self.subject, self.session)
+        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
+                              self._analysis, 'covMapData', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
 
     savePath  = path.join(savePathB, savePathF)
@@ -136,8 +136,8 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         CBstr = f'_colBar-{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         methodStr = f'_{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'plots', 'cover',
-                              self.subject, self.session)
+        savePathB = path.join(self._baseP, self._study, 'prfresult', self._analysis,
+                              'cover', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
 
     elif self._dataFrom == 'docker':
@@ -149,8 +149,8 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'covMap',
-                              self.subject, self.session)
+        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
+                              self._analysis, 'covMap', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
@@ -234,8 +234,8 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
     Pstr  = f'-{param}'
 
-    savePathB = path.join(self._baseP, self._study, 'derivatives', 'plots', 'cortex',
-                          self.subject, self.session)
+    savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
+                          self._analysis, 'cortex', self.subject, self.session)
     ending = 'sphere' if surface == 'sphere' else 'cortex'
 
     if len(self._area) > 10:
@@ -380,7 +380,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
 
             # save the positioning for left and right once per subject
             if manualPosition:
-                posSavePath = path.join(self._baseP, self._study, 'derivatives', 'plots',
+                posSavePath = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                                         'positioning', self.subject)
                 if len(self._area) > 10:
                     posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-multipleAreas_cortex.npy'
