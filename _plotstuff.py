@@ -81,10 +81,12 @@ def _calcCovMap(self, method='max', force=False):
         Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
+        areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
                               self._analysis, 'covMapData', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
+
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
 
     savePath  = path.join(savePathB, savePathF)
 
@@ -148,10 +150,11 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         CBstr = f'-colBar{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
+        areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
                               self._analysis, 'covMap', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{"".join(self._area)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
 
@@ -237,13 +240,9 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                           self._analysis, 'cortex', self.subject, self.session)
     ending = 'sphere' if surface == 'sphere' else 'cortex'
+    areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
-    if len(self._area) > 10:
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-multipleAreas{VEstr}{Bstr}{Pstr}_{ending}'
-    else:
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}{VEstr}{Bstr}{Pstr}_{ending}'
-
-
+    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
@@ -382,10 +381,9 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if manualPosition:
                 posSavePath = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                                         'positioning', self.subject)
-                if len(self._area) > 10:
-                    posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-multipleAreas_cortex.npy'
-                else:
-                    posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{"".join(self._area)}_cortex.npy'
+                areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
+
+                posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy'
                 posPath  = path.join(posSavePath, posSaveFile)
 
                 if not path.isdir(posSavePath):
