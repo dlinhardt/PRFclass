@@ -154,7 +154,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
                               self._analysis, 'covMap', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr)}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
 
