@@ -70,9 +70,9 @@ def _calcCovMap(self, method='max', force=False):
         Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
         methodStr = f'_{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'prfresult', self._analysis,
+        savePathB = path.join(self._baseP, self._study, 'prfresult', self._prfanaAn,
                               'cover', 'data', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._analysis}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
+        savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
 
     elif self._dataFrom == 'docker':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
@@ -84,7 +84,7 @@ def _calcCovMap(self, method='max', force=False):
         areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
-                              self._analysis, 'covMapData', self.subject, self.session)
+                              self._prfanaAn, 'covMapData', self.subject, self.session)
 
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
 
@@ -138,9 +138,9 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         CBstr = f'_colBar-{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         methodStr = f'_{method}'
 
-        savePathB = path.join(self._baseP, self._study, 'prfresult', self._analysis,
+        savePathB = path.join(self._baseP, self._study, 'prfresult', self._prfanaAn,
                               'cover', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
+        savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
 
     elif self._dataFrom == 'docker':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
@@ -153,7 +153,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
-                              self._analysis, 'covMap', self.subject, self.session)
+                              self._prfanaAn, 'covMap', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
@@ -238,7 +238,7 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     Pstr  = f'-{param}'
 
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
-                          self._analysis, 'cortex', self.subject, self.session)
+                          self._prfanaAn, 'cortex', self.subject, self.session)
     ending = 'sphere' if surface == 'sphere' else 'cortex'
     areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
