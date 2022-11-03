@@ -16,7 +16,7 @@ from glob import glob
 # ----------------------------------MASKING-----------------------------------#
 # limit the used voxels to the ROI
 
-def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
+def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
     if self._dataFrom == 'mrVista':
         if isinstance(area, list):
             Warning('You can not give area lists for mrVista data!')
@@ -158,10 +158,9 @@ def maskROI(self, doV123=False, forcePath=False, area='V1', atlas='benson'):
 
         self._isROIMasked = 1
 
+
 # ---------------------------------------------------------------------------#
 # remove all voxels that are infs or nans in varexp and apply VarExp threshold
-
-
 def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
     if spmPath:
         if not hasattr(self, 'tValues'):
@@ -184,18 +183,15 @@ def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
 
 # ---------------------------------------------------------------------------#
 # mask with given eccentricity value for coveragePlot
-
-
 def maskEcc(self, rad, doThresh=True):
 
     self._eccMsk = self.r0 < rad
 
     self._isEccMasked = rad
 
+
 # ---------------------------------------------------------------------------#
 # mask with beta threshold and high sigmas as calculated from macfunc18-c01 & c02 zeroth as below
-
-
 def maskBetaThresh(self, betaMax=50, doThresh=True, doBorderThresh=False, doHighBetaThresh=True):
 
     self._betaMsk = np.ones(self.x0.shape)
@@ -207,10 +203,9 @@ def maskBetaThresh(self, betaMax=50, doThresh=True, doBorderThresh=False, doHigh
 
     self._isBetaMasked = 2 if (doHighBetaThresh and doBorderThresh) else 1 if doHighBetaThresh else 3
 
+
 # ---------------------------------------------------------------------------#
 # calculate the convolved mask
-
-
 def _calcMask(self, doROIMsk=True, doVarExpMsk=True,
               doBetaMsk=True, doEccMsk=True):
     self._mask = np.ones(self.x0.shape)
@@ -228,11 +223,10 @@ def _calcMask(self, doROIMsk=True, doVarExpMsk=True,
 
     return self._mask
 
+
 # ---------------------------------------------------------------------------#
 # return number of voxels per dartboard element
 # possible values for split: 8, 8tilt, 4, 4tilt
-
-
 def maskDartBoard(self, split='8'):
     ppi = 2 * np.pi
     pi2 = np.pi / 2
@@ -353,9 +347,8 @@ def maskDartBoard(self, split='8'):
 
     return nVoxDart
 
+
 # load mat file from SPM analysis for tValues, convert nii to mat first in MakeAllImages.m
-
-
 def loadSPMmat(self, path):
     self.tValues = loadmat(path, squeeze_me=True)['bar']
 
