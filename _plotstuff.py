@@ -293,15 +293,15 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
         else:
             manualPosition = True if not surface == 'sphere' else False
 
+        fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep',
+                        f'analysis-{fmriprepAna}', 'sourcedata', 'freesurfer')
+
         if hemi == 'both':
             hemis = ['L', 'R']
         else:
             hemis = [hemi]
 
         for hemi in hemis:
-
-            fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep',
-                            f'analysis-{fmriprepAna}', 'sourcedata', 'freesurfer')
 
             pialP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.pial')
             pial  = nib.freesurfer.read_geometry(pialP)
