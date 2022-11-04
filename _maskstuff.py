@@ -116,7 +116,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                 for h in hs:
                     try:
                         areaJson =  [j for j in self._allAreaFiles if f'hemi-{h.upper()}' in path.basename(j) and
-                                                                      f'desc-{ar}' in path.basename(j) and
+                                                                      f'desc-{ar}-' in path.basename(j) and
                                                                       at in path.basename(j)][0]
                         with open(areaJson, 'r') as fl:
                             maskinfo = json.load(fl)

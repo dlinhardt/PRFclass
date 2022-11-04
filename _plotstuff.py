@@ -32,11 +32,12 @@ except ModuleNotFoundError:
 class label():
     def __init__(self, ar, at, he, allAreaFiles):
         self.name = ar
-        self.hemi = he.lower()[0] + 'h'
+        self.hemi = he[0].lower()[0] + 'h'
 
-        vJsonName = [j for j in allAreaFiles if he.upper() in path.basename(j) and
-                                                ar in path.basename(j) and
+        vJsonName = [j for j in allAreaFiles if f'hemi-{he[0].upper()}_' in path.basename(j) and
+                                                f'desc-{ar}-' in path.basename(j) and
                                                 at in path.basename(j)][0]
+        print(vJsonName)
         with open(vJsonName, 'r') as fl:
             maskinfo = json.load(fl)
 
@@ -269,7 +270,8 @@ def _make_gif(self, frameFolder, outFilename):
 
 
 def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
-                    forceNewPosition=False, surface='inflated', showBorders=None,
+                    forceNewPosition=False, surface='inflated', 
+                    showBordersAtlas=None, showBordersArea=None, 
                     interactive=True, create_gif=False, headless=False):
 
     if self._dataFrom == 'mrVista':
@@ -369,21 +371,26 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             brain.data['surfaces'][0].update_pipeline()
 
             # print borders (freesurfer)
-            if showBorders is not None:
-                if isinstance(showBorders, list):
-                    ats = showBorders
-                elif isinstance(showBorders, str):
-                    ats = [showBorders]
-                elif showBorders is True:
+            if showBordersArea is not None and showBordersAtlas is not None:
+                if showBordersAtlas == 'all':
+                    ats = self._atlas
+                elif isinstance(showBordersAtlas, list):
+                    ats = showBordersAtlas
+                elif isinstance(showBordersAtlas, str):
+                    ats = [showBordersAtlas]
+                elif showBordersAtlas is True:
                     ats = ['benson']
-                elif showBorders is False:
-                    ats = []
 
+                if isinstance(showBordersArea, list):
+                    ars = showBordersArea
+                else:
+                    ars = self._area
+                    
                 for at in ats:
-                    for ar in self._area:
+                    for ar in ars:
                         try:
                             brain.add_label(label(ar, at, hemi, self._allAreaFiles),
-                                            borders=True, color='black', alpha=.5)
+                                            borders=True, color='black', alpha=.7)
                         except:
                             pass
 
