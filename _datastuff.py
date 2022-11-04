@@ -35,23 +35,25 @@ def initVariables(self):
         self._maxEcc = self._params['analysis']['fieldSize']
 
     elif self._dataFrom == 'docker':
-        self._x0      = np.hstack([m['x0'] for m in self._model])
+        self._x0      = np.hstack([m['x0'][0][0][0] for m in self._model])
 
         if self._orientation == 'VF':
-            self._y0  = - np.hstack([m['y0'] for m in self._model])  # negative for same flip as in the coverage plots
+            self._y0  = - np.hstack([m['y0'][0][0][0] for m in self._model])  # negative for same flip as in the coverage plots
         elif self._orientation == 'MP':
-            self._y0  = np.hstack([m['y0'] for m in self._model])  # same orientation as MP
+            self._y0  = np.hstack([m['y0'][0][0][0] for m in self._model])  # same orientation as MP
 
-        a = np.hstack([m['sigma']['minor'] for m in self._model])
-        b = np.hstack([m['exponent'] for m in self._model])
+        a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
+        b = np.hstack([m['exponent'][0][0][0] for m in self._model])
         self._s0      = np.divide(a, b, out=a, where=b != 0)
 
-        self._beta0   = np.hstack([m['beta'][:, 0] for m in self._model])  # the model beta should be the first index, rest are trends
+        self._beta0   = np.hstack([m['beta'][0][0][0][:,0,0] for m in self._model])  # the model beta should be the first index, rest are trends
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            self._varexp0  = np.hstack([(1. - m['rss'] / m['rawrss']).squeeze() for m in self._model])
+            self._rss0    = np.hstack([m['rss'][0][0][0] for m in self._model])
+            self._rawrss0 = np.hstack([m['rawrss'][0][0][0] for m in self._model])
+            self._varexp0 = 1. - self._rss0 / self._rawrss0
 
-        self._maxEcc = np.hstack([p['analysis']['fieldSize'] for p in self._params])
+        self._maxEcc = np.hstack([p['analysis']['fieldSize'][0][0][0][0] for p in self._params])
         if self._hemis == '':
             if self._maxEcc[0] != self._maxEcc[1]:
                 raise Warning('maxEcc for both hemispheres is different!')
@@ -127,7 +129,7 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
         if not path.isfile(resP):
             raise Warning(f'file is not existant: {resP}')
 
-        thisMat = loadmat(resP, simplify_cells=True)['results']
+        thisMat = loadmat(resP)['results']
 
         mat.append(thisMat)
 

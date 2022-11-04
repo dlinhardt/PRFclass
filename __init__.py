@@ -59,8 +59,8 @@ class PRF:
             self._model  = mat['model']
             self._params = mat['params']
         elif self._dataFrom == 'docker':
-            self._model  = [m['model'] for m in self._mat]
-            self._params = [m['params'] for m in self._mat]
+            self._model  = [m['model'][0][0][0][0]  for m in self._mat]
+            self._params = [m['params'][0][0][0][0] for m in self._mat]
 
         # initialize
         self.initVariables()
