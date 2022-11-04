@@ -302,6 +302,16 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             hemis = [hemi]
 
         for hemi in hemis:
+            
+            if save:
+                p, n = self._get_surfaceSavePath(param, hemi, surface)
+                if path.isfile(path.join(p, n + '.pdf')):
+                    return
+            
+            if create_gif:
+                p, n = self._get_surfaceSavePath(param, hemi)
+                if path.isfile(path.join(p, n + '.gif')):
+                    return
 
             pialP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.pial')
             pial  = nib.freesurfer.read_geometry(pialP)
