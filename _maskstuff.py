@@ -77,17 +77,21 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
             self._isROIMasked = 1
 
     elif self._dataFrom == 'docker':
-        optsF = path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
+        prfanalyzeOptsF = path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
                           self._prfanaAn, 'options.json')
-        with open(optsF, 'r') as fl:
-            opts = json.load(fl)
+        with open(prfanalyzeOptsF, 'r') as fl:
+            prfanalyzeOpts = json.load(fl)
+
+        prfprepareOptsF = path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
+                          f'analysis-{prfanalyzeOpts["prfprepareAnalysis"]}', 'options.json')
+        with open(prfprepareOptsF, 'r') as fl:
+            prfprepareOpts = json.load(fl)
 
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
-
         self._area  = area if isinstance(area, list) else [area]
 
         self._allAreaFiles = glob(path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
-                         f'analysis-{opts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
+                         f'analysis-{prfanalyzeOpts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
                          f'{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json'))
 
         self._allAreas = np.array([path.basename(a).split('desc-')[1].split('-')[0] for a in self._allAreaFiles])
@@ -99,20 +103,26 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
         if self._atlas[0] == 'all':
             self._atlas = self._allAtlas
 
-
         self._roiMsk = np.zeros(self.x0.shape)
 
-        self._roiIndBold     = np.empty(0, dtype=int)
-        self._roiIndFsnative = np.empty(0, dtype=int)
-        self._roiWhichHemi   = np.empty(0)
-        self._roiWhichArea   = np.empty(0)
-        self._areaJsons      = []
+        self._analysisSpace = prfprepareOpts['analysisSpace']
+        
+        if self._analysisSpace == 'fsnative':
+            roiIndOrigName = 'roiIndFsnative'
+            roiIndOrigShape = (0)
+        elif self._analysisSpace == 'volume':
+            roiIndOrigName = 'roiPos3D'
+            roiIndOrigShape = (0,3)
+                            
+        self._roiIndBold   = np.empty(0, dtype=int)
+        self._roiIndOrig   = np.empty(roiIndOrigShape, dtype=int)
+        self._roiWhichHemi = np.empty(0)
+        self._roiWhichArea = np.empty(0)
+        self._areaJsons    = []
 
         hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
         for ar in self._area:
             for at in self._atlas:
-                areaJsonTmps = []
-                noFound = 0
                 for h in hs:
                     try:
                         areaJson =  [j for j in self._allAreaFiles if f'hemi-{h.upper()}' in path.basename(j) and
@@ -121,14 +131,13 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                         with open(areaJson, 'r') as fl:
                             maskinfo = json.load(fl)
 
-                        areaJsonTmps.append(maskinfo)
                         self._areaJsons.append(maskinfo)
 
                         if len(self._roiWhichHemi) == 0:
                             doubleMask = np.ones(len(maskinfo['roiIndBold']))
                         else:
-                            doubleMask = np.array([i not in self._roiIndFsnative[self._roiWhichHemi == h]
-                                                   for i in maskinfo['roiIndFsnative']])
+                            doubleMask = np.array([i not in self._roiIndOrig[self._roiWhichHemi == h]
+                                                   for i in maskinfo[roiIndOrigName]])
                         doubleMask = doubleMask.astype(bool)
 
                         if h == 'L':
@@ -139,8 +148,8 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                             self._roiIndBold = np.hstack((self._roiIndBold,
                                                           np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
 
-                        self._roiIndFsnative = np.hstack((self._roiIndFsnative,
-                                                          np.array(maskinfo['roiIndFsnative'])[doubleMask]))
+                        self._roiIndOrig = np.vstack((self._roiIndOrig,
+                                                          np.array(maskinfo[roiIndOrigName])[doubleMask]))
 
                         self._roiWhichHemi   = np.hstack((self._roiWhichHemi,
                                                           np.tile(h,  sum(doubleMask))))
@@ -154,7 +163,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                             self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1
 
                     except:
-                        noFound += 1
+                        pass
 
         self._isROIMasked = 1
 

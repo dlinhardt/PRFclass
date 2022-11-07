@@ -41,7 +41,7 @@ class label():
         with open(vJsonName, 'r') as fl:
             maskinfo = json.load(fl)
 
-        self.vertices = np.array(maskinfo['roiIndFsnative'])
+        self.vertices = np.array(maskinfo['roiIndOrig'])
 
 #----------------------------------------------------------------------------#
 
@@ -278,6 +278,11 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
         print('We can not do that with non-docker data!')
     elif self._dataFrom == 'docker':
 
+        if self._analysisSpace == 'volume':
+            print('We can not yet do that with volumentric data!')
+            return
+            
+
         if headless:
             mlab.options.offscreen = True
             # mlab.init_notebook('x3d', 800, 800)
@@ -326,7 +331,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             elif hemi[0].upper() == 'R':
                 hemiM = self._roiWhichHemi == 'R'
 
-            roiIndFsnativeHemi = self._roiIndFsnative[hemiM]
+            roiIndOrigHemi = self._roiIndOrig[hemiM]
             roiIndBoldHemi     = self._roiIndBold[hemiM]
 
             # write data array to plot
@@ -334,22 +339,22 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
 
             # depending on used parameter set the plot data, colormap und ranges
             if param == 'ecc':
-                plotData[roiIndFsnativeHemi] = self.r0[roiIndBoldHemi]
+                plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
                 cmap = 'rainbow_r'
                 datMin, datMax = 0, self.maxEcc
 
             elif param == 'pol':
-                plotData[roiIndFsnativeHemi] = self.phi0[roiIndBoldHemi]
+                plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
                 cmap = 'hsv'
                 datMin, datMax = 0, 2 * np.pi
 
             elif param == 'sig':
-                plotData[roiIndFsnativeHemi] = self.s0[roiIndBoldHemi]
+                plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
                 cmap = 'rainbow_r'
                 datMin, datMax = 0, 4
 
             elif param == 'var':
-                plotData[roiIndFsnativeHemi] = self.varexp0[roiIndBoldHemi]
+                plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
                 cmap = 'hot'
                 datMin, datMax = 0, 1
             else:
@@ -358,7 +363,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             # set everything outside mask (ROI, VarExp, ...) to nan
             plotData = deepcopy(plotData)
             if not param == 'var':
-                plotData[roiIndFsnativeHemi[~self.mask[roiIndBoldHemi]]] = np.nan
+                plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
             # plot the brain
             brain = Brain(self.subject, f'{hemi[0].lower()}h', surface, subjects_dir=fsP)
