@@ -6,16 +6,23 @@ Created on Tue Aug 30 10:04:25 2022
 @author: dlinhardt
 """
 
-import numpy as np
-from os import path
 from glob import glob
+from os import path
+
+import numpy as np
 from scipy.io import loadmat
 
 
 #----------------------------------------------------------------------------#
-# load the stim images and build TCs
-
 def loadStim(self, buildTC=True):
+    """
+    loads the stimulus images from the reults.mat and builds the model TC
+    for all positions on the stimulus
+
+    Args:
+        buildTC (bool, optional): Should we calculate the model TC. Defaults to True.
+    """
+    
     if self._dataFrom == 'mrVista':
         self.window = self.params['stim']['stimwindow'].flatten().reshape(101, 101).astype('bool')
         self.stimImages = self.params['analysis']['allstimimages'].T
@@ -46,10 +53,20 @@ def loadStim(self, buildTC=True):
             self.TC = pRF.dot(self.stimImages)
 
 #----------------------------------------------------------------------------#
-# load the TCs file
-
-
 def loadTC(self, doMask=True):
+    """
+    loads the tSeries mat file used by mrVista containing all the input
+    TC. Only possible for data from mrVista.
+    TODO: implement this for from_docker data, its found in the results
+    folder as _testdata.nii.gz
+
+    Args:
+        doMask (bool, optional): This is probalblz not working I guess, should apply the ROI and VarExp masks. Defaults to True.
+
+    Returns:
+        self.voxelTC: the input TC
+    """
+    
     if self._dataFrom == 'mrVista':
         TCs = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
                                      'mrVista', self._analysis, 'Gray/*/TSeries/Scan1/tSeries1.mat'))[0],
@@ -71,9 +88,16 @@ def loadTC(self, doMask=True):
 
 
 #----------------------------------------------------------------------------#
-# load the jitter file
-
 def loadJitter(self):
+    """
+    loads the EyeTracker file when converted to .mat.
+    Needs to be passed to the analysis when data from mrVista (jitter)
+    Needs to be in BIDS/sourcedata/etdata/ in BIDS format for docker
+
+    Returns:
+        self.jitterX, self.jitterY: both dimensions jitter
+    """
+    
     if self._dataFrom == 'mrVista':
         self.jitterP = path.join(self._baseP, self._study, 'subjects', self.subject,
                                  self.session, 'mrVista', self._analysis, 'Stimuli',
@@ -105,11 +129,18 @@ def loadJitter(self):
 
 
 #----------------------------------------------------------------------------#
-# load the realignment parameters
-
 def loadRealign(self):
-    # framewise displacement
-    displ  = np.loadtxt(path.join(self.niiFolder, 'rp_avols.txt'))
-    displ  = np.abs(np.diff(displ * [1, 1, 1, 50, 50, 50], axis=0))
-    self.dispS = displ.sum()
-    self.dispM = displ.mean()
+    """
+    loads realignment parameter and calculated framewise displacement
+    For nor only working with custom_preproc data where rp_avols.txt is available
+
+    """
+
+    if self._dataFrom == 'mrVista':
+        # framewise displacement
+        displ  = np.loadtxt(path.join(self.niiFolder, 'rp_avols.txt'))
+        displ  = np.abs(np.diff(displ * [1, 1, 1, 50, 50, 50], axis=0))
+        self.dispS = displ.sum()
+        self.dispM = displ.mean()
+    else:
+        raise Warning('[loadStim] is only possible with data from mrVista!')

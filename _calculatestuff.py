@@ -6,16 +6,22 @@ Created on Tue Aug 30 10:11:50 2022
 @author: dlinhardt
 """
 
+import matplotlib.colors as col
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as st
-import matplotlib.pyplot as plt
-import matplotlib.colors as col
+
 
 #----------------------------------------------------------------------------#
-# calculate the KDE differentials as in Hummer et al.
-
-
 def calcKdeDiff(self):
+    """
+    calculate the KDE differentials as in Hummer et al.
+
+    Returns:
+        self.kdeX: lispace (x-axis)
+        self.kdeDiff: the difference (y-axis)
+    """
+    
     kde = st.gaussian_kde(self.r)
     sstim = 'eightbars' if 'bar' in self._analysis else 'wedgesrings' if 'wedge' in self._analysis else ''
     kdeRefR = np.load(f'/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data/retcomp17/scripts/KDE_Turtle/meanKDE_{sstim}.npy')
@@ -28,9 +34,17 @@ def calcKdeDiff(self):
 
 
 #----------------------------------------------------------------------------#
-# calculate the central scotoma border as in Hummer et al.
-
 def centralScotBorder(self, scotVal=.1):
+    """
+    calculate the central scotoma border as in Hummer et al.
+
+    Args:
+        scotVal (float, optional): Threshold value to define Scotoma border. Defaults to .1.
+
+    Returns:
+        self.border: Scotoma border-line
+    """
+    
     if not hasattr(self, 'kdeDiff'):
         self.calcKdeDiff()
 
@@ -44,9 +58,14 @@ def centralScotBorder(self, scotVal=.1):
 
 
 #----------------------------------------------------------------------------#
-# calculate PRF profiles
-
 def calcPRFprofiles(self):
+    """
+    calculate PRF profiles as in Urale et al. 2022
+
+    Returns:
+        self.PRFprofiles: the calculated profile
+    """
+    
     from scipy.signal import detrend
     if not hasattr(self, 'stimImages'):
         self.loadStim(buildTC=False)
@@ -76,10 +95,17 @@ def calcPRFprofiles(self):
     return self.PRFprofiles
 
 #----------------------------------------------------------------------------#
-# calculate the 2D KDE differentials
-
-
 def _calcKdeDiff2d(self, scotVal=.1):
+    """
+    calculate the 2D KDE differentials
+
+    Args:
+        scotVal (float, optional): Threshold value to define Scotoma border. Defaults to .1.
+
+    Returns:
+        self.kdeDiff2d: returns the difference of 2D KDE
+    """
+    
     sstim = 'eightbars' if 'bar' in self._analysis else 'wedgesrings' if 'wedge' in self._analysis else ''
     kdeRef2d = np.load(f'/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data/retcomp17/scripts/KDE_Turtle/meanKDE2d_{sstim}.npy')
 
@@ -94,6 +120,17 @@ def _calcKdeDiff2d(self, scotVal=.1):
 
 
 def plot_kdeDiff2d(self, title=None, scotVal=.1):
+    """
+    plots the 2D KDE difference
+
+    Args:
+        title (str, optional): Title of the plot. Defaults to None.
+        scotVal (float, optional): Threshold value to define Scotoma border. Defaults to .1.
+
+    Returns:
+        fig: figure handle
+    """
+    
     if not hasattr(self, 'kdeDiff2d'):
         self._calcKdeDiff2d(scotVal)
 

@@ -6,15 +6,18 @@ Created on Tue Aug 30 09:57:44 2022
 @author: dlinhardt
 """
 
-import numpy as np
-from os import path
-from scipy.io import loadmat
 from glob import glob
+from os import path
 
-# initiate variables
+import numpy as np
+from scipy.io import loadmat
 
 
 def initVariables(self):
+    """
+    Initializes the variables loaded by the PRF.from_ amethods
+    """
+    
     if self._dataFrom == 'mrVista':
         self._x0      = self._model['x0']
 
@@ -70,10 +73,25 @@ def initVariables(self):
 
 
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
-# alternative constructor for standard vista output
+def from_mrVista(cls, study, subject, session, analysis, server='ceph', 
+                 forcePath=None, orientation='VF', fit='fFit-fFit-fFit'):
+    """
+    With this constructor you can load results that were analyzed 
+    with matlab based vistasoft pRF analysis in Vienna.
 
-def from_mrVista(cls, study, subject, session, analysis, server='ceph', forcePath=None,
-                 orientation='VF', fit='fFit-fFit-fFit'):
+    Args:
+        study (str): Study name
+        subject (str): Subject name
+        session (str): Session name
+        analysis (str): Name of the full analysis as found in the subjects mrVista folder
+        server (str, optional): Defines the server name. Defaults to 'ceph'.
+        forcePath (str, optional): Set a path for the coords.mat file when not in the correct position. Defaults to None.
+        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+        fit (str, optional): Changes the loaded mrVista name. Defaults to 'fFit-fFit-fFit'.
+
+    Returns:
+        cls: Instance of the PRF class with all the results
+    """
 
     if server == 'ceph':
         baseP = '/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data'
@@ -103,12 +121,31 @@ def from_mrVista(cls, study, subject, session, analysis, server='ceph', forcePat
     return cls('mrVista', study, subject, session, mat, baseP, analysis=analysis, coords=coords,
                orientation=orientation)
 
+
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
-# alternative constructor for Gari Docker output
-
-
 def from_docker(cls, study, subject, session, task, run, method='vista',
                 analysis='01', hemi='', baseP=None, orientation='VF'):
+    """
+    With this constructor you can load results that were analyzed 
+    with dockerized solution published in Lerma-Usabiaga 2020 and available
+    at github.com/vistalab/PRFmodel
+
+    Args:
+        study (str): Study name (e.g. 'stimsim')
+        subject (str): Subject name (e.g. 'p001')
+        session (str): Session name (e.g. '001')
+        task (str): Task name (e.g. 'prf')
+        run (str): Run number (e.g. '01')
+        method (str, optional): Different methods from the prfanalyze docker possibler, I think. Defaults to 'vista'.
+        analysis (str, optional): Number of the analysis within derivatives/prfanalyze. Defaults to '01'.
+        hemi (str, optional): When you want to load only one hemisphere ('L' or 'R'), empty when both. Defaults to ''.
+        forcePath (str, optional): If the analysis can be found in another location than standard (/z/fmri/data/)this changes the base path. Defaults to None.
+        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+
+    Returns:
+        cls: Instance of the PRF class with all the results
+    """
+    
     prfanaMe = method if method.startswith('prfanalyze-') else f'prfanalyze-{method}'
     prfanaAn = analysis if analysis.startswith('analysis-') else f'analysis-{analysis}'
     subject  = subject if subject.startswith('sub-') else f'sub-{subject}'

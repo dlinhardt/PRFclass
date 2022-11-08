@@ -11,6 +11,11 @@ import numpy as np
 # class for loading mrVista results
 
 class PRF:
+    """
+    This class loads data from PRF mapping analysis done with a matlab 
+    based mrVista analysis or the prfanalyze-vistasoft docker.
+    Initialize with PRF.from_mrVista or PRF.from_docker method!
+    """
 
     # load in all the other files with functions
     from ._datastuff import initVariables, from_docker, from_mrVista

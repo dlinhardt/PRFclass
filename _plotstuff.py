@@ -30,6 +30,9 @@ except ModuleNotFoundError:
 
 
 class label():
+    """
+    Mini class that defines a label, needed to plot borders
+    """
     def __init__(self, ar, at, he, allAreaFiles):
         self.name = ar
         self.hemi = he[0].lower()[0] + 'h'
@@ -46,7 +49,16 @@ class label():
 
 #----------------------------------------------------------------------------#
 def _createmask(self, shape, otherRratio=None):
-    # calculate and plot the coverage maps
+    """
+    This creates a round mask of given size 
+
+    Args:
+        shape (tuple): Tuple giving the shape of the mask (squared)
+        otherRratio (float, optional): Ratio of area to mask, otherwise full size. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
 
     x0, y0 = shape[0] // 2, shape[1] // 2
     n = shape[0]
@@ -60,8 +72,17 @@ def _createmask(self, shape, otherRratio=None):
 
 
 def _calcCovMap(self, method='max', force=False):
-    # plot a coverage map
+    """
+    Calculates the coverage map
 
+    Args:
+        method (str, optional): Used method to calc, choose from [max, mean]. Defaults to 'max'.
+        force (bool, optional): Force overwire if file already exists. Defaults to False.
+
+    Returns:
+        self.covMap: the array that describes the coverage map
+    """
+    
     # create the filename
     if self._dataFrom == 'mrVista':
         VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
@@ -126,6 +147,21 @@ def _calcCovMap(self, method='max', force=False):
 
 
 def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False, force=False):
+    """
+    This plots the coverage map and eventually saves it
+
+    Args:
+        method (str, optional): Used method to calc, choose from [max, mean]. Defaults to 'max'.
+        cmapMin (float, optional): Define where the covMap colorbar should start on the bottom. Defaults to 0.
+        title (str, optional): Set a title. Defaults to None.
+        show (bool, optional): Should we show the figure as popup. Defaults to True.
+        save (bool, optional): Should we save the figure to standard path. Defaults to False.
+        force (bool, optional): Should we overwrite. Defaults to False.
+
+    Returns:
+        figure: if not save this is the figure handle
+    """
+    
     if not show:
         plt.ioff()
 
@@ -231,8 +267,20 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
 
 #----------------------------------------------------------------------------#
-# plot on surface
 def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
+    """
+    Defines the path and filename to save the Cortex plot 
+
+    Args:
+        param (str): The plotted parameter
+        hemi (str): The shown hemisphere
+        surface (str, optional): The used surface to plot to. Defaults to 'cortex'.
+
+    Returns:
+        savePathB: The folder we save to
+        savePathF: The filename we save to, without extension
+    """
+    
     VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
     Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
     Pstr  = f'-{param}'
@@ -251,6 +299,14 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
 
 
 def _make_gif(self, frameFolder, outFilename):
+    """
+    Reads the single frames and creates GIF from them
+
+    Args:
+        frameFolder (str): Folder containing the frames as well as output folder
+        outFilename (str): file name without extension
+    """
+    
     # Read the images
     frames = [Image.open(image) for image in sorted(glob(f"{frameFolder}/frame*.png"))]
     # Create the gif
@@ -272,6 +328,24 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     forceNewPosition=False, surface='inflated', 
                     showBordersAtlas=None, showBordersArea=None, 
                     interactive=True, create_gif=False, headless=False):
+    """
+    If we have docker data that was analyzed in fsnative space we can plot 
+    a given parameter to the cortex of one hemisphere and create a 
+    screenshot or gif.
+
+    Args:
+        param (str, optional): The parameter to plot to the surface, choose from [ecc,pol,sig,var]. Defaults to 'ecc'.
+        hemi (str, optional): Hemisphere to show, choose from [both,L,R]. Defaults to 'left'.
+        fmriprepAna (str, optional): The analysis number of fMRIPrep, so we can find the freesurfer folder. Defaults to '01'.
+        save (bool, optional): Should we save the screenshot. Defaults to False.
+        forceNewPosition (bool, optional): If manual positioning was done already this forces us to define this anew. Defaults to False.
+        surface (str, optional): Choose the freesurfer surface to plot on, if sphere gif and manualPosition is disabeled. Defaults to 'inflated'.
+        showBordersAtlas (list, optional): Define the atlas to show the area borders from. Defaults to None.
+        showBordersArea (list, optional): Define the areas to show borders. Defaults to None.
+        interactive (bool, optional): Set if we should be able to interactively move the plot. Defaults to True.
+        create_gif (bool, optional): Should we create a GIF, this disabels manual positioning. Defaults to False.
+        headless (bool, optional): This supresses all pop-ups. Defaults to False.
+    """
 
     if self._dataFrom == 'mrVista':
         print('We can not do that with non-docker data!')

@@ -6,17 +6,26 @@ Created on Tue Aug 30 10:00:59 2022
 @author: dlinhardt
 """
 
-import numpy as np
 import json
-from scipy.io import loadmat
-from os import path
 from glob import glob
+from os import path
+
+import numpy as np
+from scipy.io import loadmat
 
 
 # ----------------------------------MASKING-----------------------------------#
-# limit the used voxels to the ROI
-
 def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
+    """
+    Masks the data with defined ROIs
+
+    Args:
+        area (str or list, optional): Define the areas to load. Only used when docker data. Use 'all' for all available areas. Defaults to 'V1'.
+        atlas (str or list, optional): Define atlases to load (benson, wang, custom annots). Only used when docker data. Use 'all' for all available areas.. Defaults to 'benson'.
+        doV123 (bool, optional): Load V1, V2 and V3, otherwise only V1. Only used when matlab mrVista data. Defaults to False.
+        forcePath (bool, optional): Force path for coords.mat, again?. Only used when matlab mrVista data. Defaults to False.
+    """
+    
     if self._dataFrom == 'mrVista':
         if isinstance(area, list):
             Warning('You can not give area lists for mrVista data!')
@@ -178,8 +187,16 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
 
 
 # ---------------------------------------------------------------------------#
-# remove all voxels that are infs or nans in varexp and apply VarExp threshold
 def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
+    """
+    defines the mask for data points above the given variance explained Threshold
+
+    Args:
+        varExpThresh (float): variance explained threshold within [0,1]
+        highThresh (float, optional): Threshold for masking high VarExp voxels. Defaults to None.
+        spmPath (str, optional): Defines an SPM output (fullfield) as mask. Only use when matlab mrVista data. Defaults to None.
+    """
+    
     if spmPath:
         if not hasattr(self, 'tValues'):
             self.loadSPMmat(spmPath)
@@ -200,8 +217,13 @@ def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
 
 
 # ---------------------------------------------------------------------------#
-# mask with given eccentricity value for coveragePlot
-def maskEcc(self, rad, doThresh=True):
+def maskEcc(self, rad):
+    """
+    mask the data with given eccentricitz
+
+    Args:
+        rad (float): Threshold
+    """
 
     self._eccMsk = self.r0 < rad
 
@@ -209,8 +231,15 @@ def maskEcc(self, rad, doThresh=True):
 
 
 # ---------------------------------------------------------------------------#
-# mask with beta threshold and high sigmas as calculated from macfunc18-c01 & c02 zeroth as below
-def maskBetaThresh(self, betaMax=50, doThresh=True, doBorderThresh=False, doHighBetaThresh=True):
+def maskBetaThresh(self, betaMax=50, doBorderThresh=False, doHighBetaThresh=True):
+    """
+    mask with beta threshold and high sigmas as calculated from macfunc18-c01 & c02 zeroth as below
+
+    Args:
+        betaMax (int, optional): Threshold for beta values (above will be excluded). Defaults to 50.
+        doBorderThresh (bool, optional): Don't do this. Defaults to False.
+        doHighBetaThresh (bool, optional): Threshold for beta values (below will be excluded). Defaults to True.
+    """
 
     self._betaMsk = np.ones(self.x0.shape)
 
@@ -223,9 +252,19 @@ def maskBetaThresh(self, betaMax=50, doThresh=True, doBorderThresh=False, doHigh
 
 
 # ---------------------------------------------------------------------------#
-# calculate the convolved mask
-def _calcMask(self, doROIMsk=True, doVarExpMsk=True,
-              doBetaMsk=True, doEccMsk=True):
+def _calcMask(self):
+    """
+    This convolvs all the defined masks, you can set masks to true or false
+    by changing the parameter for:
+        self.doROIMsk
+        self.doVarExpMsk
+        self.doBetaMsk
+        self.doEccMsk
+
+    Returns:
+        self._mask: the total mask
+    """
+    
     self._mask = np.ones(self.x0.shape)
 
     if self._isROIMasked and self.doROIMsk:
@@ -243,9 +282,18 @@ def _calcMask(self, doROIMsk=True, doVarExpMsk=True,
 
 
 # ---------------------------------------------------------------------------#
-# return number of voxels per dartboard element
-# possible values for split: 8, 8tilt, 4, 4tilt
 def maskDartBoard(self, split='8'):
+    """
+    calculate number of voxels in the dartboard elemets as used for
+    Linhardt et al. 2021
+
+    Args:
+        split (str, optional): possible: 8, 8tilt, 4, 4tilt . Defaults to '8'.
+
+    Returns:
+        nVoxDart: the count in the dartboard
+    """
+    
     ppi = 2 * np.pi
     pi2 = np.pi / 2
     pi4 = np.pi / 4
@@ -366,8 +414,15 @@ def maskDartBoard(self, split='8'):
     return nVoxDart
 
 
-# load mat file from SPM analysis for tValues, convert nii to mat first in MakeAllImages.m
 def loadSPMmat(self, path):
+    """
+    load mat file from SPM analysis for tValues, convert nii to mat first in MakeAllImages.m
+    I guess this is not working.
+
+    Args:
+        path (str): path to SPM tValues mat file
+    """
+    
     self.tValues = loadmat(path, squeeze_me=True)['bar']
 
     if self.isROIMasked:
