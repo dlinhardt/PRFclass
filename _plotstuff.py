@@ -6,17 +6,17 @@ Created on Tue Aug 30 10:18:56 2022
 @author: dlinhardt
 """
 
+import json
+import os
+from copy import deepcopy
+from glob import glob
+from os import path
+
+import matplotlib.pyplot as plt
+import nibabel as nib
 import numpy as np
 import scipy.stats as st
-import os
-import nibabel as nib
-import matplotlib.pyplot as plt
-# from scipy.io import loadmat
-from os import path
-from copy import deepcopy
 from PIL import Image
-from glob import glob
-import json
 
 try:
     from mayavi import mlab
@@ -43,9 +43,8 @@ class label():
 
         self.vertices = np.array(maskinfo['roiIndOrig'])
 
+
 #----------------------------------------------------------------------------#
-
-
 def _createmask(self, shape, otherRratio=None):
     # calculate and plot the coverage maps
 
@@ -240,7 +239,7 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
 
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                           self._prfanaAn, 'cortex', self.subject, self.session)
-    ending = 'sphere' if surface == 'sphere' else 'cortex'
+    ending = surface
     areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
     savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'

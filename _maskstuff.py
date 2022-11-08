@@ -121,49 +121,58 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
         self._areaJsons    = []
 
         hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
-        for ar in self._area:
-            for at in self._atlas:
+        for at in self._atlas:
+            for ar in self._area:
                 for h in hs:
                     try:
                         areaJson =  [j for j in self._allAreaFiles if f'hemi-{h.upper()}' in path.basename(j) and
                                                                       f'desc-{ar}-' in path.basename(j) and
                                                                       at in path.basename(j)][0]
-                        with open(areaJson, 'r') as fl:
-                            maskinfo = json.load(fl)
+                    except:
+                        continue
+                    
+                    with open(areaJson, 'r') as fl:
+                        maskinfo = json.load(fl)
 
-                        self._areaJsons.append(maskinfo)
+                    self._areaJsons.append(maskinfo)
 
-                        if len(self._roiWhichHemi) == 0:
-                            doubleMask = np.ones(len(maskinfo['roiIndBold']))
+                    if len(self._roiWhichHemi) == 0:
+                        doubleMask = np.ones(len(maskinfo['roiIndBold']))
+                    else:
+                        if self._analysisSpace == 'volume':
+                            doubleMask = np.invert(np.any([np.all(i==self._roiIndOrig[self._roiWhichHemi == h], axis=1) 
+                                        for i in maskinfo[roiIndOrigName]], axis=1))
                         else:
                             doubleMask = np.array([i not in self._roiIndOrig[self._roiWhichHemi == h]
-                                                   for i in maskinfo[roiIndOrigName]])
-                        doubleMask = doubleMask.astype(bool)
+                                                    for i in maskinfo[roiIndOrigName]])
+                    doubleMask = doubleMask.astype(bool)
 
-                        if h == 'L':
-                            self._roiIndBold = np.hstack((self._roiIndBold,
-                                                          np.array(maskinfo['roiIndBold'])[doubleMask]))
-                            lHemiSize = maskinfo['thisHemiSize']
-                        elif h == 'R':
-                            self._roiIndBold = np.hstack((self._roiIndBold,
-                                                          np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
+                    if h == 'L':
+                        self._roiIndBold = np.hstack((self._roiIndBold,
+                                                        np.array(maskinfo['roiIndBold'])[doubleMask]))
+                        lHemiSize = maskinfo['thisHemiSize']
+                    elif h == 'R':
+                        self._roiIndBold = np.hstack((self._roiIndBold,
+                                                        np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
 
-                        self._roiIndOrig = np.vstack((self._roiIndOrig,
-                                                          np.array(maskinfo[roiIndOrigName])[doubleMask]))
+                    if self._analysisSpace == 'volume':
+                        self._roiIndOrig = np.vstack((self._roiIndOrig, 
+                                                        np.array(maskinfo[roiIndOrigName])[doubleMask]))
+                    else:
+                        self._roiIndOrig = np.hstack((self._roiIndOrig, 
+                                                        np.array(maskinfo[roiIndOrigName])[doubleMask]))
+                        
 
-                        self._roiWhichHemi   = np.hstack((self._roiWhichHemi,
-                                                          np.tile(h,  sum(doubleMask))))
+                    self._roiWhichHemi   = np.hstack((self._roiWhichHemi,
+                                                        np.tile(h,  sum(doubleMask))))
 
-                        self._roiWhichArea   = np.hstack((self._roiWhichArea,
-                                                          np.tile(ar, sum(doubleMask))))
+                    self._roiWhichArea   = np.hstack((self._roiWhichArea,
+                                                        np.tile(ar, sum(doubleMask))))
 
-                        if h == 'L':
-                            self._roiMsk[maskinfo['roiIndBold']] = 1
-                        elif h == 'R':
-                            self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1
-
-                    except:
-                        pass
+                    if h == 'L':
+                        self._roiMsk[maskinfo['roiIndBold']] = 1
+                    elif h == 'R':
+                        self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1
 
         self._isROIMasked = 1
 
