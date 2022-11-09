@@ -9,6 +9,7 @@ Created on Tue Aug 30 10:04:25 2022
 from glob import glob
 from os import path
 
+import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
 
@@ -38,28 +39,28 @@ def loadStim(self, buildTC=True):
             self.TC = pRF.dot(self.stimImages)
 
     else:
-        size = np.sqrt(len(self.params[0]['stim']['stimwindow'])).astype(int)
-        self.window = self.params[0]['stim']['stimwindow'].flatten().reshape(size, size).astype('bool')
-        self.stimImages = self.params[0]['analysis']['allstimimages'].T
-        self.stimImagesUnConv = self.params[0]['analysis']['allstimimages_unconvolved'].T
+        size = np.sqrt(len(self.params[0]['stim']['stimwindow'][0][0])).astype(int)
+        self.window = self.params[0]['stim']['stimwindow'][0][0].flatten().reshape(size, size).astype('bool')
+        self.stimImages = self.params[0]['analysis']['allstimimages'][0][0].T
+        self.stimImagesUnConv = self.params[0]['analysis']['allstimimages_unconvolved'][0][0].T
 
         if buildTC:
-            self.X0 = self.params[0]['analysis']['X']
-            self.Y0 = self.params[0]['analysis']['Y']
+            self.X0 = self.params[0]['analysis']['X'][0][0].flatten()
+            self.Y0 = self.params[0]['analysis']['Y'][0][0].flatten()
 
-            pRF = np.exp(((self.x[:, None] - self.X0[None, :])**2 + (self.y[:, None] - self.Y0[None, :])**2)
-                         / (-2 * self.s[:, None]**2))
+            pRF = np.exp(((-self.y0[:, None] - self.Y0[None, :])**2 + (self.x0[:, None] - self.X0[None, :])**2)
+                         / (-2 * self.s0[:, None]**2))
 
-            self.TC = pRF.dot(self.stimImages)
+            self.loadTC()
+            self.TC = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTCpsc.mean(1)[:,None]
 
+            
 #----------------------------------------------------------------------------#
 def loadTC(self, doMask=True):
     """
     loads the tSeries mat file used by mrVista containing all the input
-    TC. Only possible for data from mrVista.
-    TODO: implement this for from_docker data, its found in the results
-    folder as _testdata.nii.gz
-
+    TC.
+    
     Args:
         doMask (bool, optional): This is probalblz not working I guess, should apply the ROI and VarExp masks. Defaults to True.
 
@@ -82,10 +83,17 @@ def loadTC(self, doMask=True):
             # TCs = (TCs / TCs.mean(0) - 1) * 100
             self.voxelTC = TCs.T
 
-        return self.voxelTC
-    else:
-        raise Warning('[loadStim] is only possible with data from mrVista!')
+    elif self._dataFrom == 'docker':
+        
+        hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
+        TCs = []
+        for h in hs:
+            TCs.append(nib.load(path.join(self._baseP, self._study, 'derivatives', self._prfanaMe, 
+                                           self._prfanaAn, self.subject, self.session,
+                                           f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{h.upper()}_testdata.nii.gz')).get_fdata().squeeze())
+        self.voxelTC = np.vstack(TCs)
 
+    self.voxelTCpsc = self.voxelTC / self.voxelTC.mean(1)[:,None] * 100
 
 #----------------------------------------------------------------------------#
 def loadJitter(self):
