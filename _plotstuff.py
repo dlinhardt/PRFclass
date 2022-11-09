@@ -50,7 +50,7 @@ class label():
 #----------------------------------------------------------------------------#
 def _createmask(self, shape, otherRratio=None):
     """
-    This creates a round mask of given size 
+    This creates a round mask of given size
 
     Args:
         shape (tuple): Tuple giving the shape of the mask (squared)
@@ -82,7 +82,7 @@ def _calcCovMap(self, method='max', force=False):
     Returns:
         self.covMap: the array that describes the coverage map
     """
-    
+
     # create the filename
     if self._dataFrom == 'mrVista':
         VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
@@ -104,7 +104,7 @@ def _calcCovMap(self, method='max', force=False):
         methodStr = f'-{method}'
         areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
+        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                               self._prfanaAn, 'covMapData', self.subject, self.session)
 
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
@@ -161,7 +161,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
     Returns:
         figure: if not save this is the figure handle
     """
-    
+
     if not show:
         plt.ioff()
 
@@ -188,7 +188,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         methodStr = f'-{method}'
         areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult', 
+        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                               self._prfanaAn, 'covMap', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
@@ -269,7 +269,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 #----------------------------------------------------------------------------#
 def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     """
-    Defines the path and filename to save the Cortex plot 
+    Defines the path and filename to save the Cortex plot
 
     Args:
         param (str): The plotted parameter
@@ -280,7 +280,7 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
         savePathB: The folder we save to
         savePathF: The filename we save to, without extension
     """
-    
+
     VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
     Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
     Pstr  = f'-{param}'
@@ -306,7 +306,7 @@ def _make_gif(self, frameFolder, outFilename):
         frameFolder (str): Folder containing the frames as well as output folder
         outFilename (str): file name without extension
     """
-    
+
     # Read the images
     frames = [Image.open(image) for image in sorted(glob(f"{frameFolder}/frame*.png"))]
     # Create the gif
@@ -325,12 +325,12 @@ def _make_gif(self, frameFolder, outFilename):
 
 
 def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
-                    forceNewPosition=False, surface='inflated', 
-                    showBordersAtlas=None, showBordersArea=None, 
+                    forceNewPosition=False, surface='inflated',
+                    showBordersAtlas=None, showBordersArea=None,
                     interactive=True, create_gif=False, headless=False):
     """
-    If we have docker data that was analyzed in fsnative space we can plot 
-    a given parameter to the cortex of one hemisphere and create a 
+    If we have docker data that was analyzed in fsnative space we can plot
+    a given parameter to the cortex of one hemisphere and create a
     screenshot or gif.
 
     Args:
@@ -354,7 +354,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
         if self._analysisSpace == 'volume':
             print('We can not yet do that with volumentric data!')
             return
-            
+
 
         if headless:
             mlab.options.offscreen = True
@@ -382,12 +382,12 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             hemis = [hemi]
 
         for hemi in hemis:
-            
+
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
                 if path.isfile(path.join(p, n + '.pdf')):
                     return
-            
+
             if create_gif:
                 p, n = self._get_surfaceSavePath(param, hemi)
                 if path.isfile(path.join(p, n + '.gif')):
@@ -463,7 +463,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                     ars = showBordersArea
                 else:
                     ars = self._area
-                    
+
                 for at in ats:
                     for ar in ars:
                         try:

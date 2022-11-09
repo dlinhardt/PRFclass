@@ -17,7 +17,7 @@ def initVariables(self):
     """
     Initializes the variables loaded by the PRF.from_ amethods
     """
-    
+
     if self._dataFrom == 'mrVista':
         self._x0      = self._model['x0']
 
@@ -73,10 +73,10 @@ def initVariables(self):
 
 
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
-def from_mrVista(cls, study, subject, session, analysis, server='ceph', 
+def from_mrVista(cls, study, subject, session, analysis, server='ceph',
                  forcePath=None, orientation='VF', fit='fFit-fFit-fFit'):
     """
-    With this constructor you can load results that were analyzed 
+    With this constructor you can load results that were analyzed
     with matlab based vistasoft pRF analysis in Vienna.
 
     Args:
@@ -126,7 +126,7 @@ def from_mrVista(cls, study, subject, session, analysis, server='ceph',
 def from_docker(cls, study, subject, session, task, run, method='vista',
                 analysis='01', hemi='', baseP=None, orientation='VF'):
     """
-    With this constructor you can load results that were analyzed 
+    With this constructor you can load results that were analyzed
     with dockerized solution published in Lerma-Usabiaga 2020 and available
     at github.com/vistalab/PRFmodel
 
@@ -145,7 +145,7 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
     Returns:
         cls: Instance of the PRF class with all the results
     """
-    
+
     prfanaMe = method if method.startswith('prfanalyze-') else f'prfanalyze-{method}'
     prfanaAn = analysis if analysis.startswith('analysis-') else f'analysis-{analysis}'
     subject  = subject if subject.startswith('sub-') else f'sub-{subject}'

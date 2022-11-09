@@ -25,7 +25,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
         doV123 (bool, optional): Load V1, V2 and V3, otherwise only V1. Only used when matlab mrVista data. Defaults to False.
         forcePath (bool, optional): Force path for coords.mat, again?. Only used when matlab mrVista data. Defaults to False.
     """
-    
+
     if self._dataFrom == 'mrVista':
         if isinstance(area, list):
             Warning('You can not give area lists for mrVista data!')
@@ -115,14 +115,14 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
         self._roiMsk = np.zeros(self.x0.shape)
 
         self._analysisSpace = prfprepareOpts['analysisSpace']
-        
+
         if self._analysisSpace == 'fsnative':
             roiIndOrigName = 'roiIndFsnative'
             roiIndOrigShape = (0)
         elif self._analysisSpace == 'volume':
             roiIndOrigName = 'roiPos3D'
             roiIndOrigShape = (0,3)
-                            
+
         self._roiIndBold   = np.empty(0, dtype=int)
         self._roiIndOrig   = np.empty(roiIndOrigShape, dtype=int)
         self._roiWhichHemi = np.empty(0)
@@ -139,7 +139,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                                                                       at in path.basename(j)][0]
                     except:
                         continue
-                    
+
                     with open(areaJson, 'r') as fl:
                         maskinfo = json.load(fl)
 
@@ -149,7 +149,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                         doubleMask = np.ones(len(maskinfo['roiIndBold']))
                     else:
                         if self._analysisSpace == 'volume':
-                            doubleMask = np.invert(np.any([np.all(i==self._roiIndOrig[self._roiWhichHemi == h], axis=1) 
+                            doubleMask = np.invert(np.any([np.all(i==self._roiIndOrig[self._roiWhichHemi == h], axis=1)
                                         for i in maskinfo[roiIndOrigName]], axis=1))
                         else:
                             doubleMask = np.array([i not in self._roiIndOrig[self._roiWhichHemi == h]
@@ -165,12 +165,12 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                                                         np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
 
                     if self._analysisSpace == 'volume':
-                        self._roiIndOrig = np.vstack((self._roiIndOrig, 
+                        self._roiIndOrig = np.vstack((self._roiIndOrig,
                                                         np.array(maskinfo[roiIndOrigName])[doubleMask]))
                     else:
-                        self._roiIndOrig = np.hstack((self._roiIndOrig, 
+                        self._roiIndOrig = np.hstack((self._roiIndOrig,
                                                         np.array(maskinfo[roiIndOrigName])[doubleMask]))
-                        
+
 
                     self._roiWhichHemi   = np.hstack((self._roiWhichHemi,
                                                         np.tile(h,  sum(doubleMask))))
@@ -196,7 +196,7 @@ def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
         highThresh (float, optional): Threshold for masking high VarExp voxels. Defaults to None.
         spmPath (str, optional): Defines an SPM output (fullfield) as mask. Only use when matlab mrVista data. Defaults to None.
     """
-    
+
     if spmPath:
         if not hasattr(self, 'tValues'):
             self.loadSPMmat(spmPath)
@@ -264,7 +264,7 @@ def _calcMask(self):
     Returns:
         self._mask: the total mask
     """
-    
+
     self._mask = np.ones(self.x0.shape)
 
     if self._isROIMasked and self.doROIMsk:
@@ -293,7 +293,7 @@ def maskDartBoard(self, split='8'):
     Returns:
         nVoxDart: the count in the dartboard
     """
-    
+
     ppi = 2 * np.pi
     pi2 = np.pi / 2
     pi4 = np.pi / 4
@@ -422,7 +422,7 @@ def loadSPMmat(self, path):
     Args:
         path (str): path to SPM tValues mat file
     """
-    
+
     self.tValues = loadmat(path, squeeze_me=True)['bar']
 
     if self.isROIMasked:

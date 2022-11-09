@@ -23,7 +23,7 @@ def loadStim(self, buildTC=True):
     Args:
         buildTC (bool, optional): Should we calculate the model TC. Defaults to True.
     """
-    
+
     if self._dataFrom == 'mrVista':
         self.window = self.params['stim']['stimwindow'].flatten().reshape(101, 101).astype('bool')
         self.stimImages = self.params['analysis']['allstimimages'].T
@@ -54,20 +54,20 @@ def loadStim(self, buildTC=True):
             self.loadTC()
             self.TC = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTCpsc.mean(1)[:,None]
 
-            
+
 #----------------------------------------------------------------------------#
 def loadTC(self, doMask=True):
     """
     loads the tSeries mat file used by mrVista containing all the input
     TC.
-    
+
     Args:
         doMask (bool, optional): This is probalblz not working I guess, should apply the ROI and VarExp masks. Defaults to True.
 
     Returns:
         self.voxelTC: the input TC
     """
-    
+
     if self._dataFrom == 'mrVista':
         TCs = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
                                      'mrVista', self._analysis, 'Gray/*/TSeries/Scan1/tSeries1.mat'))[0],
@@ -84,11 +84,11 @@ def loadTC(self, doMask=True):
             self.voxelTC = TCs.T
 
     elif self._dataFrom == 'docker':
-        
+
         hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
         TCs = []
         for h in hs:
-            TCs.append(nib.load(path.join(self._baseP, self._study, 'derivatives', self._prfanaMe, 
+            TCs.append(nib.load(path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
                                            self._prfanaAn, self.subject, self.session,
                                            f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{h.upper()}_testdata.nii.gz')).get_fdata().squeeze())
         self.voxelTC = np.vstack(TCs)
@@ -105,7 +105,7 @@ def loadJitter(self):
     Returns:
         self.jitterX, self.jitterY: both dimensions jitter
     """
-    
+
     if self._dataFrom == 'mrVista':
         self.jitterP = path.join(self._baseP, self._study, 'subjects', self.subject,
                                  self.session, 'mrVista', self._analysis, 'Stimuli',
