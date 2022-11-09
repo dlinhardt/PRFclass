@@ -49,7 +49,7 @@ def initVariables(self):
         b = np.hstack([m['exponent'][0][0][0] for m in self._model])
         self._s0      = np.divide(a, b, out=a, where=b != 0)
 
-        self._beta0   = np.hstack([m['beta'][0][0][0][:,0,0] for m in self._model])  # the model beta should be the first index, rest are trends
+        self._beta0   = np.hstack([np.maximum(m['beta'][0][0][0][:,0,0],0) for m in self._model])  # the model beta should be the first index, rest are trends
 
         with np.errstate(divide='ignore', invalid='ignore'):
             self._rss0    = np.hstack([m['rss'][0][0][0] for m in self._model])
