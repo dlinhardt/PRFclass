@@ -272,7 +272,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
 
 #----------------------------------------------------------------------------#
-def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
+def _get_surfaceSavePath(self, param, hemi, surface='cortex', plain=False):
     """
     Defines the path and filename to save the Cortex plot
 
@@ -295,7 +295,10 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     ending = surface
     areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
-    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
+    if not plain:
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
+    else:
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{ending}'
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
