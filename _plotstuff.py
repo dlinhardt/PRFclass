@@ -298,7 +298,7 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex', plain=False):
     if not plain:
         savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
     else:
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{ending}'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc{Pstr}_{ending}'
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
