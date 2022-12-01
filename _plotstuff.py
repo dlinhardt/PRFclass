@@ -46,7 +46,7 @@ class label():
         if 'roiIndOrig' in maskinfo.keys():
             self.vertices = np.array(maskinfo['roiIndOrig'])
         else:
-            self.vertices = np.array(maskinfo['roiIndFsaverage'])
+            self.vertices = np.array(maskinfo['roiIndFsnative'])
 
 
 #----------------------------------------------------------------------------#
