@@ -40,11 +40,13 @@ class label():
         vJsonName = [j for j in allAreaFiles if f'hemi-{he[0].upper()}_' in path.basename(j) and
                                                 f'desc-{ar}-' in path.basename(j) and
                                                 at in path.basename(j)][0]
-        print(vJsonName)
         with open(vJsonName, 'r') as fl:
             maskinfo = json.load(fl)
 
-        self.vertices = np.array(maskinfo['roiIndOrig'])
+        if 'roiIndOrig' in maskinfo.keys():
+            self.vertices = np.array(maskinfo['roiIndOrig'])
+        else:
+            self.vertices = np.array(maskinfo['roiIndFsaverage'])
 
 
 #----------------------------------------------------------------------------#

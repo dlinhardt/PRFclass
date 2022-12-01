@@ -156,11 +156,11 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                                                     for i in maskinfo[roiIndOrigName]])
                     doubleMask = doubleMask.astype(bool)
 
-                    if h == 'L':
+                    if h.upper() == 'L':
                         self._roiIndBold = np.hstack((self._roiIndBold,
                                                         np.array(maskinfo['roiIndBold'])[doubleMask]))
                         lHemiSize = maskinfo['thisHemiSize']
-                    elif h == 'R':
+                    elif h.upper() == 'R':
                         self._roiIndBold = np.hstack((self._roiIndBold,
                                                         np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
 
@@ -178,9 +178,9 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                     self._roiWhichArea   = np.hstack((self._roiWhichArea,
                                                         np.tile(ar, sum(doubleMask))))
 
-                    if h == 'L':
+                    if h.upper() == 'L':
                         self._roiMsk[maskinfo['roiIndBold']] = 1
-                    elif h == 'R':
+                    elif h.upper() == 'R':
                         self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1
 
         self._isROIMasked = 1
