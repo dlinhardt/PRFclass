@@ -105,10 +105,17 @@ class PRF:
         return p
 
     @property
-    def pol0(self):
+    def phi0_orig(self):
         p = np.arctan2(self.y0, self.x0)
-        p[p < 0] += 2 * np.pi
         return p
+
+    @property
+    def pol0(self):
+        return self.phi0
+
+    @property
+    def pol0_orig(self):
+        return self.phi0_orig
 
     @property
     def beta0(self):

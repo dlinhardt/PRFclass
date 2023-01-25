@@ -40,11 +40,13 @@ class label():
         vJsonName = [j for j in allAreaFiles if f'hemi-{he[0].upper()}_' in path.basename(j) and
                                                 f'desc-{ar}-' in path.basename(j) and
                                                 at in path.basename(j)][0]
-        print(vJsonName)
         with open(vJsonName, 'r') as fl:
             maskinfo = json.load(fl)
 
-        self.vertices = np.array(maskinfo['roiIndOrig'])
+        if 'roiIndOrig' in maskinfo.keys():
+            self.vertices = np.array(maskinfo['roiIndOrig'])
+        else:
+            self.vertices = np.array(maskinfo['roiIndFsnative'])
 
 
 #----------------------------------------------------------------------------#
@@ -118,23 +120,28 @@ def _calcCovMap(self, method='max', force=False):
         if not path.isdir(savePathB):
             os.makedirs(savePathB)
 
-        xx = np.linspace(-self.maxEcc, self.maxEcc, int(self.maxEcc * 30))
+        xx = np.linspace(-1*self.maxEcc, self.maxEcc, int(self.maxEcc * 30))
 
         covMap = np.zeros((len(xx), len(xx)))
 
+        jj = 0
         for i in range(len(self.x)):
             kern1dx = st.norm.pdf(xx, self.x[i], self.s[i])
             kern1dy = st.norm.pdf(xx, self.y[i], self.s[i])
             kern2d  = np.outer(kern1dx, kern1dy)
-            kern2d /= kern2d.max()
 
-            if method == 'max':
-                covMap = np.max((covMap, kern2d), 0)
-            elif method == 'mean' or method == 'sumClip':
-                covMap = np.sum((covMap, kern2d), 0)
+            if np.max(kern2d)>0:
+                jj += 1
+
+                kern2d /= np.max(kern2d)
+
+                if method == 'max':
+                    covMap = np.max((covMap, kern2d), 0)
+                elif method == 'mean' or method == 'sumClip':
+                    covMap = np.sum((covMap, kern2d), 0)
 
         if method == 'mean':
-            covMap /= len(self.x)
+            covMap /= jj
 
         msk = self._createmask(covMap.shape)
         covMap[~msk] = 0
@@ -219,11 +226,11 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         ax  = plt.gca()
 
         im = ax.imshow(self.covMap, cmap='hot',
-                       extent=(-self.maxEcc, self.maxEcc, -self.maxEcc, self.maxEcc),
+                       extent=(-1*self.maxEcc, self.maxEcc, -1*self.maxEcc, self.maxEcc),
                        origin='lower', vmin=cmapMin, vmax=vmax)
         ax.scatter(self.x[self.r < self.maxEcc], self.y[self.r < self.maxEcc], s=.3, c='grey')
-        ax.set_xlim((-self.maxEcc, self.maxEcc))
-        ax.set_ylim((-self.maxEcc, self.maxEcc))
+        ax.set_xlim((-1*self.maxEcc, self.maxEcc))
+        ax.set_ylim((-1*self.maxEcc, self.maxEcc))
         ax.set_aspect('equal', 'box')
         fig.colorbar(im, location='right', ax=ax)
 
@@ -236,8 +243,8 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         for e in [maxEcc13, maxEcc23, self.maxEcc]:
             ax.add_patch(plt.Circle((0, 0), e, color='grey', fill=False, linewidth=.8))
 
-        ax.plot((-self.maxEcc, self.maxEcc), (0, 0), color='grey', linewidth=.8)
-        ax.plot((0, 0), (-self.maxEcc, self.maxEcc), color='grey', linewidth=.8)
+        ax.plot((-1*self.maxEcc, self.maxEcc), (0, 0), color='grey', linewidth=.8)
+        ax.plot((0, 0), (-1*self.maxEcc, self.maxEcc), color='grey', linewidth=.8)
         ax.plot((-co, co), (-si, si), color='grey', linewidth=.8)
         ax.plot((-co, co), (si, -si), color='grey', linewidth=.8)
 
@@ -267,7 +274,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
 
 #----------------------------------------------------------------------------#
-def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
+def _get_surfaceSavePath(self, param, hemi, surface='cortex', plain=False):
     """
     Defines the path and filename to save the Cortex plot
 
@@ -290,7 +297,10 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex'):
     ending = surface
     areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
 
-    savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
+    if not plain:
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
+    else:
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc{Pstr}_{ending}'
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
