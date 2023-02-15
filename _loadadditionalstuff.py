@@ -91,9 +91,9 @@ def loadTC(self, doMask=True):
             TCs.append(nib.load(path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
                                            self._prfanaAn, self.subject, self.session,
                                            f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{h.upper()}_testdata.nii.gz')).get_fdata().squeeze())
-        self.voxelTC = np.vstack(TCs)
+        self._voxelTC0 = np.vstack(TCs)
 
-    self.voxelTCpsc = self.voxelTC / self.voxelTC.mean(1)[:,None] * 100
+    self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
 
 #----------------------------------------------------------------------------#
 def loadJitter(self):

@@ -126,6 +126,10 @@ class PRF:
         return self._varexp0
 
     @property
+    def voxelTC0(self):
+        return self._voxelTC0
+
+    @property
     def maxEcc(self):
         return self._maxEcc
 
@@ -208,6 +212,10 @@ class PRF:
     @property
     def varexp(self):
         return self._varexp0[self.mask]
+
+    @property
+    def voxelTC(self):
+        return self._voxelTC0[self.mask,:]
 
     @property
     def meanVarExp(self):
