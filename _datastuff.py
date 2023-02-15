@@ -164,7 +164,7 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
                          f'{subject}_{session}_{task}_{run}_hemi-{h.upper()}_results.mat')
 
         if not path.isfile(resP):
-            raise Warning(f'file is not existant: {resP}')
+            raise Warning(f'file is not existent: {resP}')
 
         thisMat = loadmat(resP)['results']
 
