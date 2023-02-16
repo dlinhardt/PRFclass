@@ -93,6 +93,7 @@ def loadTC(self, doMask=True):
                                            f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{h.upper()}_testdata.nii.gz')).get_fdata().squeeze())
         self._voxelTC0 = np.vstack(TCs)
 
+    np.seterr(invalid='ignore')
     self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
 
 #----------------------------------------------------------------------------#
