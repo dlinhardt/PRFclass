@@ -27,7 +27,10 @@ def initVariables(self):
             self._y0  = self._model['y0']  # same orientation as MP
 
         a = self._model['sigma']['minor']
-        b = np.sqrt(self._model['exponent'])
+        try:
+            b = np.sqrt(self._model['exponent'])
+        except:
+            b = np.ones(a.shape)
         self._s0      = np.divide(a, b, out=a, where=b != 0)
 
         self._beta0   = self._model['beta'][:, 0]  # the model beta should be the first index, rest are trends
