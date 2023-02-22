@@ -27,7 +27,10 @@ def loadStim(self, buildTC=True):
     if self._dataFrom == 'mrVista':
         self.window = self.params['stim']['stimwindow'].flatten().reshape(101, 101).astype('bool')
         self.stimImages = self.params['analysis']['allstimimages'].T
-        self.stimImagesUnConv = self.params['analysis']['allstimimages_unconvolved'].T
+        try:
+            self.stimImagesUnConv = self.params['analysis']['allstimimages_unconvolved'].T
+        except:
+            print('could not load allstimimages_unconvolved!')
 
         if buildTC:
             self.X0 = self.params['analysis']['X']
@@ -36,7 +39,7 @@ def loadStim(self, buildTC=True):
             pRF = np.exp(((self.x[:, None] - self.X0[None, :])**2 + (self.y[:, None] - self.Y0[None, :])**2)
                          / (-2 * self.s[:, None]**2))
 
-            self.TC = pRF.dot(self.stimImages)
+            self.modelTC = pRF.dot(self.stimImages)
 
     else:
         size = np.sqrt(len(self.params[0]['stim']['stimwindow'][0][0])).astype(int)
@@ -52,7 +55,7 @@ def loadStim(self, buildTC=True):
                          / (-2 * self.s0[:, None]**2))
 
             self.loadTC()
-            self.TC = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTCpsc.mean(1)[:,None]
+            self.modelTC = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTCpsc.mean(1)[:,None]
 
 
 #----------------------------------------------------------------------------#
@@ -69,19 +72,9 @@ def loadTC(self, doMask=True):
     """
 
     if self._dataFrom == 'mrVista':
-        TCs = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
+        self._voxelTC0 = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
                                      'mrVista', self._analysis, 'Gray/*/TSeries/Scan1/tSeries1.mat'))[0],
-                      simplify_cells=True)['tSeries']
-
-        if not doMask:
-            self.voxelTC = TCs.T
-        else:
-            if self.isROIMasked:
-                TCs = TCs[:, self.roiMsk]
-            if self._isVarExpMasked:
-                TCs = TCs[:, self._varExpMsk]
-            # TCs = (TCs / TCs.mean(0) - 1) * 100
-            self.voxelTC = TCs.T
+                      simplify_cells=True)['tSeries'].T
 
     elif self._dataFrom == 'docker':
 
