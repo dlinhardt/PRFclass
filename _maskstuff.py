@@ -70,9 +70,15 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                 self._roi = (loadmat(forcePath, simplify_cells=True)
                              ['ROI']['coords']).astype('uint16')
             else:
-                self._roi = (loadmat(path.join(self._baseP, self._study, 'ROIs',
-                                               self.subject + '_V1_Combined.mat'),
-                                     simplify_cells=True)['ROI']['coords']).astype('uint16')
+                if path.isdir(path.join(self._baseP, self._study,
+                                        'ROIs', self.subject)):
+                    self._roi = (loadmat(path.join(self._baseP, self._study, 'ROIs',
+                                                self.subject, self.subject + '_V1.mat'),
+                                        simplify_cells=True)['ROI']['coords']).astype('uint16')
+                else:
+                    self._roi = (loadmat(path.join(self._baseP, self._study, 'ROIs',
+                                                self.subject + '_V1_Combined.mat'),
+                                        simplify_cells=True)['ROI']['coords']).astype('uint16')
 
             dtype = {'names': ['f{}'.format(i) for i in range(3)], 'formats': 3 * [self._roi.dtype]}
             self._roiInd = np.intersect1d(self._coords.T.view(dtype).T, self._roi.T.view(dtype).T,
