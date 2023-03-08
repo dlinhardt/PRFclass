@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Aug 30 10:18:56 2022
-
-@author: dlinhardt
-"""
-
 import json
 import os
 from copy import deepcopy

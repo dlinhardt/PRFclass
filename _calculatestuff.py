@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Aug 30 10:11:50 2022
-
-@author: dlinhardt
-"""
-
 import matplotlib.colors as col
 import matplotlib.pyplot as plt
 import numpy as np

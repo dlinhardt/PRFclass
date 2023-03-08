@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Aug 30 09:57:44 2022
-
-@author: dlinhardt
-"""
-
 from glob import glob
 from os import path
 
