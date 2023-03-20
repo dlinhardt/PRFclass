@@ -156,7 +156,7 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
     for h in hs:
 
         resP = path.join(baseP, study, 'derivatives', prfanaMe, prfanaAn, subject, session,
-                         f'{subject}_{session}_{task}_{run}_hemi-{h.upper()}_results.mat')
+                         f'{subject}_{session}_{task}_{run}_hemi-{h}_results.mat')
 
         if not path.isfile(resP):
             raise Warning(f'file is not existent: {resP}')
