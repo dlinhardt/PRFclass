@@ -130,6 +130,11 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
         hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
         for at in self._atlas:
             for ar in self._area:
+
+                # load the left hemi size if only looking at right
+                if not 'L' in hs:
+                    lHemiSize = 0
+
                 for h in hs:
                     try:
                         areaJson =  [j for j in self._allAreaFiles if f'hemi-{h.upper()}' in path.basename(j) and
