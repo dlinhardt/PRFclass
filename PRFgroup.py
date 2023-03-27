@@ -59,7 +59,7 @@ class PRFgroup():
             baseP = '/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data'
 
         anas = glob(path.join(baseP, study, 'derivatives', f'prfanalyze-{method}',
-                              f'analysis-{prfanalyze}', '*', '*', '*_results.mat'))
+                              f'analysis-{prfanalyze}', '*', '*', '*_estimates.json'))
 
         su = [path.basename(a).split('_')[0].split('-')[-1] for a in anas]
         se = [path.basename(a).split('_')[1].split('-')[-1] for a in anas]

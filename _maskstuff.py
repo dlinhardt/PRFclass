@@ -101,14 +101,14 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                          f'analysis-{prfanalyzeOpts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
                          f'{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json'))
 
-        self._allAreas = np.array([path.basename(a).split('desc-')[1].split('-')[0] for a in self._allAreaFiles])
-        self._allAtlas = np.unique([path.basename(a).split('desc-')[1].split('-')[1].split('_')[0] for a in self._allAreaFiles])
+        _allAreas = np.array([path.basename(a).split('desc-')[1].split('-')[0] for a in self._allAreaFiles])
+        _allAtlas = np.unique([path.basename(a).split('desc-')[1].split('-')[1].split('_')[0] for a in self._allAreaFiles])
 
         if self._area[0] == 'all':
-            self._area = self._allAreas
+            self._area = _allAreas
 
         if self._atlas[0] == 'all':
-            self._atlas = self._allAtlas
+            self._atlas = _allAtlas
 
         self._roiMsk = np.zeros(self.x0.shape)
 
@@ -137,7 +137,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
 
                 for h in hs:
                     try:
-                        areaJson =  [j for j in self._allAreaFiles if f'hemi-{h.upper()}' in path.basename(j) and
+                        areaJson =  [j for j in self._allAreaFiles if f'hemi-{h}' in path.basename(j) and
                                                                       f'desc-{ar}-' in path.basename(j) and
                                                                       at in path.basename(j)][0]
                     except:
@@ -166,6 +166,9 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                     elif h.upper() == 'R':
                         self._roiIndBold = np.hstack((self._roiIndBold,
                                                         np.array(maskinfo['roiIndBold'])[doubleMask] + lHemiSize))
+                    elif h.upper() == 'BOTH':
+                        self._roiIndBold = np.hstack((self._roiIndBold,
+                                                        np.array(maskinfo['roiIndBold'])[doubleMask]))
 
                     if self._analysisSpace == 'volume':
                         self._roiIndOrig = np.vstack((self._roiIndOrig,
@@ -181,7 +184,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                     self._roiWhichArea   = np.hstack((self._roiWhichArea,
                                                         np.tile(ar, sum(doubleMask))))
 
-                    if h.upper() == 'L':
+                    if h.upper() == 'L' or h.upper() == 'BOTH':
                         self._roiMsk[maskinfo['roiIndBold']] = 1
                     elif h.upper() == 'R':
                         self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1

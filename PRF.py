@@ -19,8 +19,8 @@ class PRF:
     from_docker  = classmethod(from_docker)
     from_mrVista = classmethod(from_mrVista)
 
-    def __init__(self, dataFrom, study, subject, session, mat, baseP,
-                 analysis=None, task=None, run=None, area=None,
+    def __init__(self, dataFrom, study, subject, session, baseP, mat=None,
+                 est=None, analysis=None, task=None, run=None, area=None,
                  coords=None, niftiFolder=None, hemis=None, prfanaMe=None,
                  prfanaAn=None, orientation='VF'):
 
@@ -29,10 +29,13 @@ class PRF:
         self._study    = study
         self._subject  = subject
         self._session  = session
-        self._mat      = mat
         self._baseP    = baseP
         self._area     = 'full'
 
+        if mat:
+            self._mat      = mat
+        if est:
+            self._estimates = est
         if analysis:
             self._analysis = analysis
         if task:
@@ -58,8 +61,9 @@ class PRF:
             self._model  = mat['model']
             self._params = mat['params']
         elif self._dataFrom == 'docker':
-            self._model  = [m['model'][0][0][0][0]  for m in self._mat]
-            self._params = [m['params'][0][0][0][0] for m in self._mat]
+            if hasattr(self, '_mat'):
+                self._model  = [m['model'][0][0][0][0]  for m in self._mat]
+                self._params = [m['params'][0][0][0][0] for m in self._mat]
 
         # initialize
         self.initVariables()

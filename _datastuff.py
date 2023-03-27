@@ -1,6 +1,6 @@
 from glob import glob
 from os import path
-
+import json
 import numpy as np
 from scipy.io import loadmat
 
@@ -33,30 +33,33 @@ def initVariables(self):
         self._maxEcc = self._params['analysis']['fieldSize']
 
     elif self._dataFrom == 'docker':
-        self._x0      = np.hstack([m['x0'][0][0][0] for m in self._model])
+        self._x0      = [-e['Centerx0'] for ee in self._estimates for e in ee]
 
         if self._orientation == 'VF':
-            self._y0  = - np.hstack([m['y0'][0][0][0] for m in self._model])  # negative for same flip as in the coverage plots
+            self._y0  = [-e['Centery0'] for ee in self._estimates for e in ee] # negative for same flip as in the coverage plots
         elif self._orientation == 'MP':
-            self._y0  = np.hstack([m['y0'][0][0][0] for m in self._model])  # same orientation as MP
+            self._y0  = [e['Centery0'] for ee in self._estimates for e in ee] # same orientation as MP
 
-        a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
-        b = np.hstack([m['exponent'][0][0][0] for m in self._model])
-        self._s0      = np.divide(a, b, out=a, where=b != 0)
+        self._s0 = [e['sigmaMajor'] for ee in self._estimates for e in ee]
+        self._R2 = [e['R2'] for ee in self._estimates for e in ee]
 
-        self._beta0   = np.hstack([np.maximum(m['beta'][0][0][0][:,0,0],0) for m in self._model])  # the model beta should be the first index, rest are trends
+        if hasattr(self, '_mat'):
+            a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
+            b = np.hstack([m['exponent'][0][0][0] for m in self._model])
+            self._s0      = np.divide(a, b, out=a, where=b != 0)
 
-        with np.errstate(divide='ignore', invalid='ignore'):
-            self._rss0    = np.hstack([m['rss'][0][0][0] for m in self._model])
-            self._rawrss0 = np.hstack([m['rawrss'][0][0][0] for m in self._model])
-            self._varexp0 = 1. - self._rss0 / self._rawrss0
+            self._beta0   = [e['Centerx0'] for ee in self._estimates for e in ee]  # the model beta should be the first index, rest are trends
 
-        self._maxEcc = np.hstack([p['analysis']['fieldSize'][0][0][0][0] for p in self._params])
-        if self._hemis == '':
-            if self._maxEcc[0] != self._maxEcc[1]:
-                raise Warning('maxEcc for both hemispheres is different!')
-        self._maxEcc = self._maxEcc[0]
+            with np.errstate(divide='ignore', invalid='ignore'):
+                self._rss0    = np.hstack([m['rss'][0][0][0] for m in self._model])
+                self._rawrss0 = np.hstack([m['rawrss'][0][0][0] for m in self._model])
+                self._varexp0 = 1. - self._rss0 / self._rawrss0
 
+            self._maxEcc = np.hstack([p['analysis']['fieldSize'][0][0][0][0] for p in self._params])
+            if self._hemis == '':
+                if self._maxEcc[0] != self._maxEcc[1]:
+                    raise Warning('maxEcc for both hemispheres is different!')
+            self._maxEcc = self._maxEcc[0]
     self._isROIMasked    = None
     self._isVarExpMasked = None
     self._isBetaMasked   = None
@@ -151,19 +154,30 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
     if not baseP:
         baseP = '/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data'
 
-    mat = []
+    mat = [] if method == 'vista' else None
+    est = []
     hs = ['L', 'R'] if hemi == '' else [hemi]
     for h in hs:
 
-        resP = path.join(baseP, study, 'derivatives', prfanaMe, prfanaAn, subject, session,
-                         f'{subject}_{session}_{task}_{run}_hemi-{h}_results.mat')
+        estimates = path.join(baseP, study, 'derivatives', prfanaMe, prfanaAn, subject, session,
+                            f'{subject}_{session}_{task}_{run}_hemi-{h}_estimates.json')
 
-        if not path.isfile(resP):
-            raise Warning(f'file is not existent: {resP}')
+        with open(estimates, 'r') as fl:
+            this_est = json.load(fl)
 
-        thisMat = loadmat(resP)['results']
+        est.append(this_est)
 
-        mat.append(thisMat)
+        if method == 'vista':
+            resP = path.join(baseP, study, 'derivatives', prfanaMe, prfanaAn, subject, session,
+                            f'{subject}_{session}_{task}_{run}_hemi-{h}_results.mat')
 
-    return cls('docker', study, subject, session, mat, baseP, task=task, run=run,
-               hemis=hemi, prfanaMe=prfanaMe, prfanaAn=prfanaAn, orientation=orientation)
+            if not path.isfile(resP):
+                raise Warning(f'file is not existent: {resP}')
+
+            thisMat = loadmat(resP)['results']
+
+            mat.append(thisMat)
+
+    return cls('docker', study, subject, session, baseP, task=task, run=run,
+               hemis=hemi, prfanaMe=prfanaMe, prfanaAn=prfanaAn, orientation=orientation,
+               mat=mat, est=est)
