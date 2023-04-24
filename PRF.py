@@ -58,8 +58,8 @@ class PRF:
         self._orientation = orientation
 
         if self._dataFrom == 'mrVista':
-            self._model  = mat['model']
-            self._params = mat['params']
+            self._model  = self._mat['model']
+            self._params = self._mat['params']
         elif self._dataFrom == 'docker':
             if hasattr(self, '_mat'):
                 self._model  = [m['model'][0][0][0][0]  for m in self._mat]

@@ -33,19 +33,21 @@ def initVariables(self):
         self._maxEcc = self._params['analysis']['fieldSize']
 
     elif self._dataFrom == 'docker':
-        self._x0      = [-e['Centerx0'] for ee in self._estimates for e in ee]
+        self._x0      = np.array([-e['Centerx0'] for ee in self._estimates for e in ee])
 
         if self._orientation == 'VF':
-            self._y0  = [-e['Centery0'] for ee in self._estimates for e in ee] # negative for same flip as in the coverage plots
+            self._y0  = np.array([-e['Centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
         elif self._orientation == 'MP':
-            self._y0  = [e['Centery0'] for ee in self._estimates for e in ee] # same orientation as MP
+            self._y0  = np.array([e['Centery0'] for ee in self._estimates for e in ee]) # same orientation as MP
 
-        self._s0 = [e['sigmaMajor'] for ee in self._estimates for e in ee]
-        self._R2 = [e['R2'] for ee in self._estimates for e in ee]
+        self._s0      = np.array([e['sigmaMajor'] for ee in self._estimates for e in ee])
+
+        self._varexp0 = np.array([e['R2'] for ee in self._estimates for e in ee])
 
         if hasattr(self, '_mat'):
             a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
             b = np.hstack([m['exponent'][0][0][0] for m in self._model])
+
             self._s0      = np.divide(a, b, out=a, where=b != 0)
 
             self._beta0   = [e['Centerx0'] for ee in self._estimates for e in ee]  # the model beta should be the first index, rest are trends
@@ -116,7 +118,7 @@ def from_mrVista(cls, study, subject, session, analysis, server='ceph',
         coords = loadmat(path.join(baseP, study, 'subjects', subject, session, 'mrVista', analysis,
                                    'Gray', 'coords.mat'), simplify_cells=True)['coords'].astype('uint16')
 
-    return cls('mrVista', study, subject, session, mat, baseP, analysis=analysis, coords=coords,
+    return cls('mrVista', study, subject, session, mat=mat, baseP=baseP, analysis=analysis, coords=coords,
                orientation=orientation)
 
 
