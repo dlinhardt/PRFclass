@@ -84,7 +84,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
             self._isROIMasked = 1
 
     elif self._dataFrom == 'docker':
-        prfanalyzeOptsF = path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
+        prfanalyzeOptsF = path.join(self._baseP, self._study, 'derivatives', self._prfanalyze_method,
                           self._prfanaAn, 'options.json')
         with open(prfanalyzeOptsF, 'r') as fl:
             prfanalyzeOpts = json.load(fl)

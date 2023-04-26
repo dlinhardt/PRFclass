@@ -42,7 +42,10 @@ def initVariables(self):
 
         self._s0      = np.array([e['sigmaMajor'] for ee in self._estimates for e in ee])
 
-        self._varexp0 = np.array([e['R2'] for ee in self._estimates for e in ee])
+        try:
+            self._varexp0 = np.array([e['R2'] for ee in self._estimates for e in ee])
+        except:
+            print('no varexp information')
 
         if hasattr(self, '_mat'):
             a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
@@ -182,4 +185,4 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
 
     return cls('docker', study, subject, session, baseP, task=task, run=run,
                hemis=hemi, prfanaMe=prfanaMe, prfanaAn=prfanaAn, orientation=orientation,
-               mat=mat, est=est)
+               mat=mat, est=est, method=method)

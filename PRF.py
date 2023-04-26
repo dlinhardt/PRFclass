@@ -22,7 +22,7 @@ class PRF:
     def __init__(self, dataFrom, study, subject, session, baseP, mat=None,
                  est=None, analysis=None, task=None, run=None, area=None,
                  coords=None, niftiFolder=None, hemis=None, prfanaMe=None,
-                 prfanaAn=None, orientation='VF'):
+                 prfanaAn=None, orientation='VF', method=None):
 
 
         self._dataFrom = dataFrom
@@ -45,7 +45,7 @@ class PRF:
         if area:
             self._area     = area
         if prfanaMe:
-            self._prfanaMe = prfanaMe
+            self._prfanalyze_method = prfanaMe
         if prfanaAn:
             self._prfanaAn = prfanaAn
         if niftiFolder:
