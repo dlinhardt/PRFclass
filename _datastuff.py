@@ -33,7 +33,7 @@ def initVariables(self):
         self._maxEcc = self._params['analysis']['fieldSize']
 
     elif self._dataFrom == 'docker':
-        self._x0      = np.array([-e['Centerx0'] for ee in self._estimates for e in ee])
+        self._x0      = np.array([e['Centerx0'] for ee in self._estimates for e in ee])
 
         if self._orientation == 'VF':
             self._y0  = np.array([-e['Centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
