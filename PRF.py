@@ -145,6 +145,7 @@ class PRF:
         if not hasattr(self, '_voxelTC0'):
             if self._dataFrom == 'mrVista':
                 print('No modelpred with data_from mrVista')
+                return None
             elif self._dataFrom == 'docker':
                 self._modelpred0 = np.array([e['modelpred'] for ee in self._estimates for e in ee])
 
