@@ -145,14 +145,10 @@ class PRF:
         if not hasattr(self, '_voxelTC0'):
             if self._dataFrom == 'mrVista':
                 print('No modelpred with data_from mrVista')
-
             elif self._dataFrom == 'docker':
-                self._voxelTC0 = np.array([e['testdata'] for ee in self._estimates for e in ee])
+                self._modelpred0 = np.array([e['modelpred'] for ee in self._estimates for e in ee])
 
-            np.seterr(invalid='ignore')
-            self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
-
-        return self._voxelTC0
+        return self._modelpred0
 
     @property
     def maxEcc(self):
@@ -241,6 +237,10 @@ class PRF:
     @property
     def voxelTC(self):
         return self.voxelTC0[self.mask,:]
+
+    @property
+    def modelpred(self):
+        return self.modelpred[self.mask,:]
 
     @property
     def meanVarExp(self):
