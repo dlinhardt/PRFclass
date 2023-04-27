@@ -51,37 +51,6 @@ def loadStim(self, buildTC=True):
 
 
 #----------------------------------------------------------------------------#
-def loadTC(self, doMask=True):
-    """
-    loads the tSeries mat file used by mrVista containing all the input
-    TC.
-
-    Args:
-        doMask (bool, optional): This is probalblz not working I guess, should apply the ROI and VarExp masks. Defaults to True.
-
-    Returns:
-        self.voxelTC: the input TC
-    """
-
-    if self._dataFrom == 'mrVista':
-        self._voxelTC0 = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
-                                     'mrVista', self._analysis, 'Gray/*/TSeries/Scan1/tSeries1.mat'))[0],
-                      simplify_cells=True)['tSeries'].T
-
-    elif self._dataFrom == 'docker':
-
-        hs = ['L', 'R'] if self._hemis == '' else [self._hemis]
-        TCs = []
-        for h in hs:
-            TCs.append(nib.load(path.join(self._baseP, self._study, 'derivatives', self._prfanaMe,
-                                           self._prfanaAn, self.subject, self.session,
-                                           f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{h.upper()}_testdata.nii.gz')).get_fdata().squeeze())
-        self._voxelTC0 = np.vstack(TCs)
-
-    np.seterr(invalid='ignore')
-    self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
-
-#----------------------------------------------------------------------------#
 def loadJitter(self):
     """
     loads the EyeTracker file when converted to .mat.

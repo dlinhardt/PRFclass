@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.io import loadmat
 
 # class for loading mrVista results
 
@@ -125,6 +126,32 @@ class PRF:
 
     @property
     def voxelTC0(self):
+        if not hasattr(self, '_voxelTC0'):
+            if self._dataFrom == 'mrVista':
+                self._voxelTC0 = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
+                                            'mrVista', self._analysis, 'Gray/*/TSeries/Scan1/tSeries1.mat'))[0],
+                            simplify_cells=True)['tSeries'].T
+
+            elif self._dataFrom == 'docker':
+                self._voxelTC0 = np.array([e['testdata'] for ee in self._estimates for e in ee])
+
+            np.seterr(invalid='ignore')
+            self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
+
+        return self._voxelTC0
+
+    @property
+    def modelpred0(self):
+        if not hasattr(self, '_voxelTC0'):
+            if self._dataFrom == 'mrVista':
+                print('No modelpred with data_from mrVista')
+
+            elif self._dataFrom == 'docker':
+                self._voxelTC0 = np.array([e['testdata'] for ee in self._estimates for e in ee])
+
+            np.seterr(invalid='ignore')
+            self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
+
         return self._voxelTC0
 
     @property
@@ -205,15 +232,15 @@ class PRF:
 
     @property
     def beta(self):
-        return self._beta0[self.mask]
+        return self.beta0[self.mask]
 
     @property
     def varexp(self):
-        return self._varexp0[self.mask]
+        return self.varexp0[self.mask]
 
     @property
     def voxelTC(self):
-        return self._voxelTC0[self.mask,:]
+        return self.voxelTC0[self.mask,:]
 
     @property
     def meanVarExp(self):
