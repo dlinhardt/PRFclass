@@ -13,7 +13,7 @@ class PRF:
     # load in all the other files with functions
     from ._datastuff import initVariables, from_docker, from_mrVista
     from ._maskstuff import maskROI, maskVarExp, maskEcc, maskBetaThresh, _calcMask, maskDartBoard
-    from ._loadadditionalstuff import loadStim, loadTC, loadJitter, loadRealign
+    from ._loadadditionalstuff import loadStim, loadJitter, loadRealign
     from ._calculatestuff import calcKdeDiff, calcPRFprofiles, centralScotBorder, plot_kdeDiff2d
     from ._plotstuff import plot_covMap, _calcCovMap, plot_toSurface, _createmask, _get_surfaceSavePath, _make_gif
 
@@ -142,7 +142,7 @@ class PRF:
 
     @property
     def modelpred0(self):
-        if not hasattr(self, '_voxelTC0'):
+        if not hasattr(self, '_modelpred0'):
             if self._dataFrom == 'mrVista':
                 print('No modelpred with data_from mrVista')
                 return None
@@ -195,6 +195,7 @@ class PRF:
     def doEccMsk(self, value):
         self._doEccMsk = value
 
+#-------------------------- MASKED STUFF --------------------------#
     @property
     def mask(self):
         return self._calcMask()
@@ -241,7 +242,7 @@ class PRF:
 
     @property
     def modelpred(self):
-        return self.modelpred[self.mask,:]
+        return self.modelpred0[self.mask,:]
 
     @property
     def meanVarExp(self):
