@@ -48,12 +48,12 @@ def initVariables(self):
             print('no varexp information')
 
         if hasattr(self, '_mat'):
-            a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
-            b = np.hstack([m['exponent'][0][0][0] for m in self._model])
+            # a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
+            # b = np.hstack([m['exponent'][0][0][0] for m in self._model])
 
-            self._s0      = np.divide(a, b, out=a, where=b != 0)
+            # self._s0      = np.divide(a, b, out=a, where=b != 0)
 
-            self._beta0   = [e['Centerx0'] for ee in self._estimates for e in ee]  # the model beta should be the first index, rest are trends
+            self._beta0   = np.hstack([np.maximum(m['beta'][0][0][0][:,0,0],0) for m in self._model]) # the model beta should be the first index, rest are trends
 
             with np.errstate(divide='ignore', invalid='ignore'):
                 self._rss0    = np.hstack([m['rss'][0][0][0] for m in self._model])
