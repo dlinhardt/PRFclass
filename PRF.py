@@ -78,6 +78,14 @@ class PRF:
         return self._session
 
     @property
+    def task(self):
+        return self._task
+
+    @property
+    def run(self):
+        return self._run
+
+    @property
     def y0(self):
         return self._y0
 
@@ -125,6 +133,45 @@ class PRF:
         return self._varexp0
 
     @property
+    def varexp_easy0(self):
+        if not hasattr(self, '_varexp_easy'):
+            print(f'calculating varexp_easy for {self.subject}_{self.session}_{self.task}_{self.run}...')
+            l = self.voxelTC0.shape[-1]
+            trends = np.vstack((np.ones(l),
+                     np.linspace(-1,1, l),
+                     np.linspace(-1,1, l) ** 2,
+                     np.linspace(-1,1, l) ** 3,
+                     ))
+
+            beta_easy = np.empty((len(self.modelpred0), len(trends)+1))
+            varexp_easy = np.empty((len(self.modelpred0)))
+
+            def fitter(mod, tc):
+                l = len(mod)
+                X = np.vstack((mod,
+                               trends))
+                
+                pinvX = np.linalg.pinv(X)
+                b = pinvX.T @ tc
+                return b
+
+            for i,(mod,tc) in enumerate(zip(self.modelpred0, self.voxelTC0)):
+                mod -= mod.mean()
+                b = fitter(mod,tc)
+
+                rawrss = np.sum(np.square(tc - b[1:] @ trends))
+                rss    = np.sum(np.square(tc - b @ np.vstack((mod, trends))))
+                ve     = 1 - rss / rawrss
+
+                beta_easy[i,:] = b
+                varexp_easy[i] = ve
+            
+            self._beta_easy = beta_easy
+            self._varexp_easy = varexp_easy
+            
+        return self._varexp_easy
+
+    @property
     def voxelTC0(self):
         if not hasattr(self, '_voxelTC0'):
             if self._dataFrom == 'mrVista':
@@ -148,6 +195,11 @@ class PRF:
                 return None
             elif self._dataFrom == 'docker':
                 self._modelpred0 = np.array([e['modelpred'] for ee in self._estimates for e in ee])
+                
+                if np.allclose(self._modelpred0[::1000,:] - self._modelpred0[::1000,:].mean(1)[:,None],
+                               self.voxelTC0[::1000,:]   - self.voxelTC0[::1000,:].mean(1)[:,None]):
+                    self._modelpred0 = self.loadStim(buildTC=True)
+                    
 
         return self._modelpred0
 
@@ -235,6 +287,10 @@ class PRF:
     @property
     def varexp(self):
         return self.varexp0[self.mask]
+
+    @property
+    def varexp_easy(self):
+        return self.varexp_easy0[self.mask]
 
     @property
     def voxelTC(self):

@@ -193,12 +193,13 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
 
 
 # ---------------------------------------------------------------------------#
-def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
+def maskVarExp(self, varExpThresh, varexp_easy=False, highThresh=None, spmPath=None):
     """
     defines the mask for data points above the given variance explained Threshold
 
     Args:
         varExpThresh (float): variance explained threshold within [0,1]
+        varexp_easy (bool): defined if we should use varexp as from analysis (False) or from calc_varexp_easy method (True)
         highThresh (float, optional): Threshold for masking high VarExp voxels. Defaults to None.
         spmPath (str, optional): Defines an SPM output (fullfield) as mask. Only use when matlab mrVista data. Defaults to None.
     """
@@ -210,12 +211,13 @@ def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
         self._spmMask = abs(self._tValues) > varExpThresh
 
     else:
+        ve = self.varexp0 if not varexp_easy else self.varexp_easy0
         if not highThresh:
             with np.errstate(invalid='ignore'):
-                self._varExpMsk = np.isfinite(self.varexp0) & (self.varexp0 >= varExpThresh)
+                self._varExpMsk = np.isfinite(ve) & (ve >= varExpThresh)
         else:
             with np.errstate(invalid='ignore'):
-                self._varExpMsk = np.isfinite(self.varexp0) & (self.varexp0 >= varExpThresh) & (self.varexp0 <= highThresh)
+                self._varExpMsk = np.isfinite(ve) & (ve >= varExpThresh) & (ve <= highThresh)
 
         # if hasattr(self, 'tValues'): self._tValues = self._tValues[self._msk]
 
