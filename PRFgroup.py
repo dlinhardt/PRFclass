@@ -3,6 +3,7 @@ from os import path
 from glob import glob
 import re
 import pandas as pd
+from tqdm import tqdm
 from . import PRF
 
 class PRFgroup():
@@ -39,7 +40,9 @@ class PRFgroup():
         if fit:
             self._fit = fit
 
-
+    def __getitem__(self, item):
+        return self.data.loc[item]
+     
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
     @classmethod
     def from_docker(cls,
@@ -84,14 +87,15 @@ class PRFgroup():
                                                         session = a['session'],
                                                         task = a['task'],
                                                         run  = a['run'],
-                                                        method   = 'vista',
+                                                        method   = method,
                                                         analysis = prfanalyze,
                                                         hemi  = hemi,
                                                         baseP = baseP,
                                                         orientation = orientation
                                                         )
-            except:
+            except Exception as e:
                 print(f'could not load sub-{a["subject"]}_ses-{a["session"]}_task-{a["task"]}_run-{a["run"]}!')
+                print(e)
                 anasDF.drop(I).reset_index(drop=True)
 
 
@@ -168,19 +172,19 @@ class PRFgroup():
             a['prf'].maskROI(area, atlas, doV123, forcePath)
 
 
-    def maskVarExp(self, varExpThresh, highThresh=None, spmPath=None):
+    def maskVarExp(self, varExpThresh, varexp_easy=False, highThresh=None, spmPath=None):
         for I, a in self.data.iterrows():
-            a['prf'].maskVarExp(varExpThresh, highThresh, spmPath)
+            a['prf'].maskVarExp(varExpThresh, varexp_easy, highThresh, spmPath)
 
 
     def maskEcc(self, rad):
         for I, a in self.data.iterrows():
             a['prf'].maskEcc(rad)
 
-    def _subject_mask(self):
-        self.subject_mask = {}
+    def calc_subject_mask(self):
+        self._subject_mask = {}
         for s in self.subject:
-            self.subject_mask[s] = np.all([a['prf'].mask for I,a in self.data.iterrows()
+            self._subject_mask[s] = np.all([a['prf'].mask for I,a in self.data.iterrows()
                                            if a['subject'] == s], 0)
 
 
@@ -250,6 +254,14 @@ class PRFgroup():
         return np.hstack([a['prf'].pol0 for I,a in self.data.iterrows()])
 
     @property
+    def varexp0(self):
+        return np.hstack([a['prf'].varexp0 for I,a in self.data.iterrows()])
+
+    @property
+    def varexp_easy0(self):
+        return np.hstack([a['prf'].varexp_easy0 for I,a in self.data.iterrows()])
+
+    @property
     def x(self):
         return np.hstack([a['prf'].x for I,a in self.data.iterrows()])
 
@@ -276,3 +288,20 @@ class PRFgroup():
     @property
     def pol(self):
         return np.hstack([a['prf'].pol for I,a in self.data.iterrows()])
+
+    @property
+    def varexp(self):
+        return np.hstack([a['prf'].varexp for I,a in self.data.iterrows()])
+
+    @property
+    def varexp_easy(self):
+        return np.hstack([a['prf'].varexp_easy for I,a in self.data.iterrows()])
+    @property
+    def mask(self):
+        return np.hstack([a['prf'].mask for I,a in self.data.iterrows()])
+
+    @property
+    def subject_mask(self):
+        if not hasattr(self, '_subject_mask'):
+            self.calc_subject_mask()
+        return self._subject_mask
