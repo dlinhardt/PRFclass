@@ -46,8 +46,9 @@ def loadStim(self, buildTC=True):
             pRF = np.exp(((-self.y0[:, None] - self.Y0[None, :])**2 + (self.x0[:, None] - self.X0[None, :])**2)
                          / (-2 * self.s0[:, None]**2))
 
-            self.loadTC()
-            self.modelTC = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTCpsc.mean(1)[:,None]
+            self._modelTC0 = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTC0.mean(1)[:,None]
+        
+        return self._modelTC0
 
 
 #----------------------------------------------------------------------------#
