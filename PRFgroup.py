@@ -19,10 +19,10 @@ class PRFgroup():
                  DF,
                  baseP,
                  orientation,
-                 method=None,
                  prfanalyze=None,
                  hemi=None,
                  fit=None,
+                 method=None,
                  ):
 
         self.data_from = data_from
@@ -260,6 +260,10 @@ class PRFgroup():
     @property
     def varexp_easy0(self):
         return np.hstack([a['prf'].varexp_easy0 for I,a in self.data.iterrows()])
+    
+    @property
+    def beta0(self):
+        return np.hstack([a['prf'].beta0 for I,a in self.data.iterrows()])
 
     @property
     def x(self):
@@ -296,6 +300,11 @@ class PRFgroup():
     @property
     def varexp_easy(self):
         return np.hstack([a['prf'].varexp_easy for I,a in self.data.iterrows()])
+
+    @property
+    def beta(self):
+        return np.hstack([a['prf'].beta for I,a in self.data.iterrows()])
+    
     @property
     def mask(self):
         return np.hstack([a['prf'].mask for I,a in self.data.iterrows()])
