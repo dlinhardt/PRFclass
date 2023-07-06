@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.io import loadmat
+from os import path
+import json
 
 # class for loading mrVista results
 
@@ -304,3 +306,24 @@ class PRF:
     def meanVarExp(self):
         # if not self.isROIMasked: self.maskROI()
         return np.nanmean(self.varexp)
+    
+    @property
+    def prfanalyzeOpts(self):
+        if not hasattr(self, '_prfanalyzeOpts'):
+            prfanalyzeOptsF = path.join(self._baseP, self._study, 'derivatives', self._prfanalyze_method,
+                              self._prfanaAn, 'options.json')
+            with open(prfanalyzeOptsF, 'r') as fl:
+                self._prfanalyzeOpts = json.load(fl)
+            
+        return self._prfanalyzeOpts
+
+    @property
+    def prfprepareOpts(self):
+        if not hasattr(self, '_prfprepareOpts'):
+            prfprepareOptsF = path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
+                              f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}', 'options.json')
+            with open(prfprepareOptsF, 'r') as fl:
+                self._prfprepareOpts = json.load(fl)
+            
+        return self._prfprepareOpts
+    
