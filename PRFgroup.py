@@ -40,8 +40,14 @@ class PRFgroup():
         if fit:
             self._fit = fit
 
+
     def __getitem__(self, item):
         return self.data.loc[item]
+    
+
+    def __len__(self):
+        return len(self.data)
+    
      
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
     @classmethod
