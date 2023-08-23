@@ -1,3 +1,13 @@
+try:
+    from mayavi import mlab
+except ModuleNotFoundError:
+    print('Package mayavi not installed!')
+try:
+    from surfer import Brain
+except ModuleNotFoundError:
+    print('Package pysurfer not installed!')
+    print('Install it or don\'t run plot_toSurface()')
+
 import json
 import os
 from copy import deepcopy
@@ -9,16 +19,6 @@ import nibabel as nib
 import numpy as np
 import scipy.stats as st
 from PIL import Image
-
-try:
-    from mayavi import mlab
-except ModuleNotFoundError:
-    print('Package mayavi not installed!')
-try:
-    from surfer import Brain
-except ModuleNotFoundError:
-    print('Package pysurfer not installed!')
-    print('Install it or don\'t run plot_toSurface()')
 
 
 class label():
