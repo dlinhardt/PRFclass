@@ -65,7 +65,7 @@ def _createmask(self, shape, otherRratio=None):
     return x * x + y * y <= r * r
 
 
-def _calcCovMap(self, method='max', force=False):
+def _calcCovMap(self, maxEcc, method='max', force=False):
     """
     Calculates the coverage map
 
@@ -112,7 +112,7 @@ def _calcCovMap(self, method='max', force=False):
         if not path.isdir(savePathB):
             os.makedirs(savePathB)
 
-        xx = np.linspace(-1*self.maxEcc, self.maxEcc, int(self.maxEcc * 30))
+        xx = np.linspace(-1*maxEcc, maxEcc, int(maxEcc * 30))
 
         covMap = np.zeros((len(xx), len(xx)))
 
@@ -145,7 +145,7 @@ def _calcCovMap(self, method='max', force=False):
         return self.covMap
 
 
-def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False, force=False):
+def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False, force=False, maxEcc=None):
     """
     This plots the coverage map and eventually saves it
 
@@ -163,6 +163,13 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
 
     if not show:
         plt.ioff()
+
+    if maxEcc is None:
+        if not hasattr(self, '_maxEcc'):
+            print('Please provide maxEcc!')
+            return
+        else:
+            maxEcc = self.maxEcc
 
     # create the filename
     if self._dataFrom == 'mrVista':
@@ -202,7 +209,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
             raise Warning(f'Chosen method "{method}" is not a available methods {methods}.')
 
         # calculate the coverage map
-        self._calcCovMap(method, force=force)
+        self._calcCovMap(maxEcc, method, force=force)
 
         # set method-specific stuff
         if method == 'max':
@@ -218,30 +225,30 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False
         ax  = plt.gca()
 
         im = ax.imshow(self.covMap, cmap='hot',
-                       extent=(-1*self.maxEcc, self.maxEcc, -1*self.maxEcc, self.maxEcc),
+                       extent=(-1*maxEcc, maxEcc, -1*maxEcc, maxEcc),
                        origin='lower', vmin=cmapMin, vmax=vmax)
-        ax.scatter(self.x[self.r < self.maxEcc], self.y[self.r < self.maxEcc], s=.3, c='grey')
-        ax.set_xlim((-1*self.maxEcc, self.maxEcc))
-        ax.set_ylim((-1*self.maxEcc, self.maxEcc))
+        ax.scatter(self.x[self.r < maxEcc], self.y[self.r < maxEcc], s=.3, c='grey')
+        ax.set_xlim((-1*maxEcc, maxEcc))
+        ax.set_ylim((-1*maxEcc, maxEcc))
         ax.set_aspect('equal', 'box')
         fig.colorbar(im, location='right', ax=ax)
 
         # draw grid
-        maxEcc13 = self.maxEcc / 3
-        maxEcc23 = self.maxEcc / 3 * 2
-        si = np.sin(np.pi / 4) * self.maxEcc
-        co = np.cos(np.pi / 4) * self.maxEcc
+        maxEcc13 = maxEcc / 3
+        maxEcc23 = maxEcc / 3 * 2
+        si = np.sin(np.pi / 4) * maxEcc
+        co = np.cos(np.pi / 4) * maxEcc
 
-        for e in [maxEcc13, maxEcc23, self.maxEcc]:
+        for e in [maxEcc13, maxEcc23, maxEcc]:
             ax.add_patch(plt.Circle((0, 0), e, color='grey', fill=False, linewidth=.8))
 
-        ax.plot((-1*self.maxEcc, self.maxEcc), (0, 0), color='grey', linewidth=.8)
-        ax.plot((0, 0), (-1*self.maxEcc, self.maxEcc), color='grey', linewidth=.8)
+        ax.plot((-1*maxEcc, maxEcc), (0, 0), color='grey', linewidth=.8)
+        ax.plot((0, 0), (-1*maxEcc, maxEcc), color='grey', linewidth=.8)
         ax.plot((-co, co), (-si, si), color='grey', linewidth=.8)
         ax.plot((-co, co), (si, -si), color='grey', linewidth=.8)
 
         ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-        ax.yaxis.set_ticks([np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(self.maxEcc, 1)])
+        ax.yaxis.set_ticks([np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)])
         ax.tick_params(axis="y", direction="in", pad=-fig.get_figheight() * .39 * 96)
 
         plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
@@ -416,7 +423,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if param == 'ecc':
                 plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
                 cmap = 'rainbow_r'
-                datMin, datMax = 0, self.maxEcc
+                datMin, datMax = 0, maxEcc
 
             elif param == 'pol':
                 plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]

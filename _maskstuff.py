@@ -84,21 +84,12 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
             self._isROIMasked = 1
 
     elif self._dataFrom == 'docker':
-        prfanalyzeOptsF = path.join(self._baseP, self._study, 'derivatives', self._prfanalyze_method,
-                          self._prfanaAn, 'options.json')
-        with open(prfanalyzeOptsF, 'r') as fl:
-            prfanalyzeOpts = json.load(fl)
-
-        prfprepareOptsF = path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
-                          f'analysis-{prfanalyzeOpts["prfprepareAnalysis"]}', 'options.json')
-        with open(prfprepareOptsF, 'r') as fl:
-            prfprepareOpts = json.load(fl)
 
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
         self._area  = area if isinstance(area, list) else [area]
 
         self._allAreaFiles = glob(path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
-                         f'analysis-{prfanalyzeOpts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
+                         f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}', self._subject, self._session, 'func',
                          f'{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json'))
 
         _allAreas = np.array([path.basename(a).split('desc-')[1].split('-')[0] for a in self._allAreaFiles])
@@ -112,7 +103,7 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
 
         self._roiMsk = np.zeros(self.x0.shape)
 
-        self._analysisSpace = prfprepareOpts['analysisSpace']
+        self._analysisSpace = self.prfprepareOpts['analysisSpace']
 
         if self._analysisSpace == 'fsnative':
             roiIndOrigName = 'roiIndFsnative'

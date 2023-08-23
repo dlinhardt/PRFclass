@@ -47,8 +47,8 @@ def loadStim(self, buildTC=True):
                          / (-2 * self.s0[:, None]**2))
 
             self._modelTC0 = self.beta0[:,None] * pRF.dot(self.stimImages) + self.voxelTC0.mean(1)[:,None]
-        
-        return self._modelTC0
+
+            return self._modelTC0
 
 
 #----------------------------------------------------------------------------#
