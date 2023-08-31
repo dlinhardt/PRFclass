@@ -145,7 +145,8 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
         return self.covMap
 
 
-def plot_covMap(self, method='max', cmapMin=0, title=None, show=True, save=False, force=False, maxEcc=None):
+def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
+                save=False, force=False, maxEcc=None):
     """
     This plots the coverage map and eventually saves it
 
@@ -423,7 +424,7 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             if param == 'ecc':
                 plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
                 cmap = 'rainbow_r'
-                datMin, datMax = 0, maxEcc
+                datMin, datMax = 0, self.maxEcc
 
             elif param == 'pol':
                 plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]

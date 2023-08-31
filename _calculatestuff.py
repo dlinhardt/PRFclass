@@ -61,8 +61,6 @@ def calcPRFprofiles(self):
     from scipy.signal import detrend
     if not hasattr(self, 'stimImages'):
         self.loadStim(buildTC=False)
-    if not hasattr(self, 'voxelTC'):
-        self.loadTC(doMask=True)
 
     # demean and detrend the measured data
     TC = self.voxelTC - self.voxelTC.mean(1)[:, None]
