@@ -43,12 +43,12 @@ class PRFgroup():
 
     def __getitem__(self, item):
         return self.data.loc[item]
-    
+
 
     def __len__(self):
         return len(self.data)
-    
-     
+
+
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
     @classmethod
     def from_docker(cls,
@@ -86,6 +86,7 @@ class PRFgroup():
         anasDF = anasDF.drop_duplicates().reset_index(drop=True)
         anasDF = anasDF.sort_values(['subject','session','task','run'], ignore_index=True)
 
+        if len(anasDF) >= 10: pbar = tqdm(total=len(anasDF))
         for I, a in anasDF.iterrows():
             try:
                 anasDF.loc[I,'prf'] = PRF.from_docker(study = study,
@@ -103,7 +104,8 @@ class PRFgroup():
                 print(f'could not load sub-{a["subject"]}_ses-{a["session"]}_task-{a["task"]}_run-{a["run"]}!')
                 print(e)
                 anasDF.drop(I).reset_index(drop=True)
-
+            if len(anasDF) >= 10: pbar.update(1)
+        if len(anasDF) >= 10: pbar.close()
 
         return cls(data_from = 'docker',
                    study = study,
@@ -186,6 +188,12 @@ class PRFgroup():
     def maskEcc(self, rad):
         for I, a in self.data.iterrows():
             a['prf'].maskEcc(rad)
+            
+            
+    def maskBetaThresh(self, betaMax=50, doBorderThresh=False, doHighBetaThresh=True):
+        for I, a in self.data.iterrows():
+            a['prf'].maskBetaThresh(betaMax, doBorderThresh, doHighBetaThresh)
+
 
     def calc_subject_mask(self):
         self._subject_mask = {}
@@ -266,7 +274,7 @@ class PRFgroup():
     @property
     def varexp_easy0(self):
         return np.hstack([a['prf'].varexp_easy0 for I,a in self.data.iterrows()])
-    
+
     @property
     def beta0(self):
         return np.hstack([a['prf'].beta0 for I,a in self.data.iterrows()])
@@ -306,11 +314,15 @@ class PRFgroup():
     @property
     def varexp_easy(self):
         return np.hstack([a['prf'].varexp_easy for I,a in self.data.iterrows()])
+    
+    @property
+    def meanVarExp(self):
+        return np.mean([a['prf'].meanVarExp for I,a in self.data.iterrows()])
 
     @property
     def beta(self):
         return np.hstack([a['prf'].beta for I,a in self.data.iterrows()])
-    
+
     @property
     def mask(self):
         return np.hstack([a['prf'].mask for I,a in self.data.iterrows()])
