@@ -39,9 +39,10 @@ def loadStim(self, buildTC=True):
         self.stimImages = self.params[0]['analysis']['allstimimages'][0][0].T
         self.stimImagesUnConv = self.params[0]['analysis']['allstimimages_unconvolved'][0][0].T
 
+        self.X0 = self.params[0]['analysis']['X'][0][0].flatten()
+        self.Y0 = self.params[0]['analysis']['Y'][0][0].flatten()
+
         if buildTC:
-            self.X0 = self.params[0]['analysis']['X'][0][0].flatten()
-            self.Y0 = self.params[0]['analysis']['Y'][0][0].flatten()
 
             pRF = np.exp(((-self.y0[:, None] - self.Y0[None, :])**2 + (self.x0[:, None] - self.X0[None, :])**2)
                          / (-2 * self.s0[:, None]**2))
