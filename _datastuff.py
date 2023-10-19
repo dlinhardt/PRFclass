@@ -10,6 +10,7 @@ def initVariables(self):
     Initializes the variables loaded by the PRF.from_ amethods
     """
 
+############################# VISTA #############################
     if self._dataFrom == 'mrVista':
         self._x0      = self._model['x0']
 
@@ -32,6 +33,7 @@ def initVariables(self):
 
         self._maxEcc = self._params['analysis']['fieldSize']
 
+############################# DOCKER #############################
     elif self._dataFrom == 'docker':
         if 'Centerx0' in self._estimates[0][0].keys():
             self._x0 = np.array([e['Centerx0'] for ee in self._estimates for e in ee])
@@ -40,14 +42,14 @@ def initVariables(self):
                 self._y0  = np.array([-e['Centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
             elif self._orientation == 'MP':
                 self._y0  = np.array([e['Centery0'] for ee in self._estimates for e in ee]) # same orientation as MP
-        
+
             self._s0      = np.array([e['sigmaMajor'] for ee in self._estimates for e in ee])
 
             try:
                 self._varexp0 = np.array([e['R2'] for ee in self._estimates for e in ee])
             except:
                 print('no varexp information')
-                
+
         elif 'centerx0' in self._estimates[0][0].keys():
             self._x0 = np.array([e['centerx0'] for ee in self._estimates for e in ee])
 
@@ -81,6 +83,23 @@ def initVariables(self):
                 if self._maxEcc[0] != self._maxEcc[1]:
                     raise Warning('maxEcc for both hemispheres is different!')
             self._maxEcc = self._maxEcc[0]
+
+############################# SAMSRF #############################
+    elif self._dataFrom == 'samsrf':
+
+        self._fit_keys = [a[0][0] for a in self._model['Values']]
+        fit = self._model['Data']
+
+        self._x0 = fit[self._fit_keys.index('x0'), :]
+        self._y0 = fit[self._fit_keys.index('y0'), :]
+        self._s0 = fit[self._fit_keys.index('Sigma'), :]
+
+        self._varexp0 = fit[self._fit_keys.index('R^2'), :]
+        self._beta0   = fit[self._fit_keys.index('Beta'), :]
+        self._baseline0 = fit[self._fit_keys.index('Baseline'), :]
+
+        self._maxEcc = self._params['Scaling_Factor'][0][0]
+
     self._isROIMasked    = None
     self._isVarExpMasked = None
     self._isBetaMasked   = None
@@ -202,3 +221,45 @@ def from_docker(cls, study, subject, session, task, run, method='vista',
     return cls('docker', study, subject, session, baseP, task=task, run=run,
                hemis=hemi, prfanaMe=prfanaMe, prfanaAn=prfanaAn, orientation=orientation,
                mat=mat, est=est, method=method)
+
+
+#--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
+def from_samsrf(cls, study, subject, session, task, run,
+                analysis='01', baseP=None, orientation='VF'):
+    """
+    With this constructor you can load results that were analyzed
+    with dockerized solution published in Lerma-Usabiaga 2020 and available
+    at github.com/vistalab/PRFmodel
+
+    Args:
+        study (str): Study name (e.g. 'stimsim')
+        subject (str): Subject name (e.g. 'p001')
+        session (str): Session name (e.g. '001')
+        task (str): Task name (e.g. 'prf')
+        run (str): Run number (e.g. '01')
+        method (str, optional): Different methods from the prfanalyze docker possibler, I think. Defaults to 'vista'.
+        analysis (str, optional): Number of the analysis within derivatives/prfanalyze. Defaults to '01'.
+        hemi (str, optional): When you want to load only one hemisphere ('L' or 'R'), empty when both. Defaults to ''.
+        forcePath (str, optional): If the analysis can be found in another location than standard (/z/fmri/data/)this changes the base path. Defaults to None.
+        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+
+    Returns:
+        cls: Instance of the PRF class with all the results
+    """
+
+    prfanaAn = analysis if analysis.startswith('analysis-') else f'analysis-{analysis}'
+    subject  = subject if subject.startswith('sub-') else f'sub-{subject}'
+    session  = session if session.startswith('ses-') else f'ses-{session}'
+    task     = task if task.startswith('task-') else f'task-{task}'
+    run      = f'{run}' if str(run).startswith('run-') else f'run-{run}'
+
+    if not baseP:
+        baseP = '/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data'
+
+    func_p = path.join(baseP, study, 'derivatives', 'samsrf', prfanaAn, subject, session,
+                          f'bi_{subject}_{session}_{task}_{run}_pRF-results.mat')
+
+    mat = loadmat(func_p)
+
+    return cls('samsrf', study, subject, session, task=task, run=run, baseP=baseP,
+                 mat=mat, prfanaAn=prfanaAn, orientation=orientation)

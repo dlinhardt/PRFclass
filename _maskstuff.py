@@ -5,6 +5,11 @@ from os import path
 import numpy as np
 from scipy.io import loadmat
 
+try:
+    import neuropythy as ny
+    import nibabel as nib
+except:
+    print('neuropythy not installed, samsrf data not available')
 
 # ----------------------------------MASKING-----------------------------------#
 def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
@@ -81,7 +86,6 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
 
             # if hasattr(self, 'tValues'): self._tValues = self._tValues[self._msk]
 
-            self._isROIMasked = 1
 
     elif self._dataFrom == 'docker':
 
@@ -180,8 +184,39 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                     elif h.upper() == 'R':
                         self._roiMsk[np.array(maskinfo['roiIndBold']) + lHemiSize] = 1
 
-        self._isROIMasked = 1
 
+    elif self._dataFrom == 'samsrf':
+        # get the occ mask used in samsrf
+        occ_file = path.join(self._baseP, self._study, 'derivatives', 'samsrf', self._prfanaAn,
+                             self._subject, self._session, 'occ.label')
+        occ_label = nib.freesurfer.read_label(occ_file)
+        # get the mask
+        # self._atlas = atlas if isinstance(atlas, list) else [atlas] # this we need if we want to use list of atlases
+        # self._area  = area if isinstance(area, list) else [area]
+
+        if isinstance(atlas, list) or isinstance(area, list):
+            raise ValueError('Only one area and one atlas implemented for samsrf data')
+
+        if not 'benson' in atlas:
+            raise ValueError('Only benson atlas implemented for samsrf data')
+
+        self._area_files_p = glob(path.join(self._baseP, self._study, 'derivatives', 'fmriprep',
+                            f'analysis-01', 'sourcedata', 'freesurfer', self._subject, 'surf',
+                            '*h.benson14_varea.mgz'))
+
+        area_masks = np.hstack([nib.load(f).get_fdata().squeeze() for f in sorted(self._area_files_p)])
+        area_masks_occ = area_masks[occ_label]
+
+        # load the label area dependency
+        mdl = ny.vision.retinotopy_model('benson17', 'lh')
+        areaLabels = dict(mdl.area_id_to_name)
+        areaLabels = {areaLabels[k]: k for k in areaLabels}
+        # labelNames = list(areaLabels.keys())
+
+        self._roiMsk = np.zeros(self.x0.shape)
+        self._roiMsk[area_masks_occ == areaLabels[area]] = 1
+
+    self._isROIMasked = 1
 
 # ---------------------------------------------------------------------------#
 def maskVarExp(self, varExpThresh, varexp_easy=False, highThresh=None, spmPath=None):

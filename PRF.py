@@ -13,7 +13,7 @@ class PRF:
     """
 
     # load in all the other files with functions
-    from ._datastuff import initVariables, from_docker, from_mrVista
+    from ._datastuff import initVariables, from_docker, from_mrVista, from_samsrf
     from ._maskstuff import maskROI, maskVarExp, maskEcc, maskBetaThresh, _calcMask, maskDartBoard
     from ._loadadditionalstuff import loadStim, loadJitter, loadRealign
     from ._calculatestuff import calcKdeDiff, calcPRFprofiles, centralScotBorder, plot_kdeDiff2d
@@ -21,6 +21,7 @@ class PRF:
 
     from_docker  = classmethod(from_docker)
     from_mrVista = classmethod(from_mrVista)
+    from_samsrf  = classmethod(from_samsrf)
 
     def __init__(self, dataFrom, study, subject, session, baseP, mat=None,
                  est=None, analysis=None, task=None, run=None, area=None,
@@ -67,6 +68,9 @@ class PRF:
             if hasattr(self, '_mat'):
                 self._model  = [m['model'][0][0][0][0]  for m in self._mat]
                 self._params = [m['params'][0][0][0][0] for m in self._mat]
+        elif self._dataFrom == 'samsrf':
+            self._model  = self._mat['Srf'][0][0]
+            self._params = self._mat['Model'][0][0]
 
         # initialize
         self.initVariables()
@@ -152,7 +156,7 @@ class PRF:
                 l = len(mod)
                 X = np.vstack((mod,
                                trends))
-                
+
                 pinvX = np.linalg.pinv(X)
                 b = pinvX.T @ tc
                 return b
@@ -167,10 +171,10 @@ class PRF:
 
                 beta_easy[i,:] = b
                 varexp_easy[i] = ve
-            
+
             self._beta_easy = beta_easy
             self._varexp_easy = varexp_easy
-            
+
         return self._varexp_easy
 
     @property
@@ -197,11 +201,11 @@ class PRF:
                 return None
             elif self._dataFrom == 'docker':
                 self._modelpred0 = np.array([e['modelpred'] for ee in self._estimates for e in ee])
-                
+
                 if np.allclose(self._modelpred0[::1000,:] - self._modelpred0[::1000,:].mean(1)[:,None],
                                self.voxelTC0[::1000,:]   - self.voxelTC0[::1000,:].mean(1)[:,None]):
                     self._modelpred0 = self.loadStim(buildTC=True)
-                    
+
 
         return self._modelpred0
 
@@ -306,7 +310,7 @@ class PRF:
     def meanVarExp(self):
         # if not self.isROIMasked: self.maskROI()
         return np.nanmean(self.varexp)
-    
+
     @property
     def prfanalyzeOpts(self):
         if not hasattr(self, '_prfanalyzeOpts'):
@@ -314,7 +318,7 @@ class PRF:
                               self._prfanaAn, 'options.json')
             with open(prfanalyzeOptsF, 'r') as fl:
                 self._prfanalyzeOpts = json.load(fl)
-            
+
         return self._prfanalyzeOpts
 
     @property
@@ -324,6 +328,5 @@ class PRF:
                               f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}', 'options.json')
             with open(prfprepareOptsF, 'r') as fl:
                 self._prfprepareOpts = json.load(fl)
-            
+
         return self._prfprepareOpts
-    
