@@ -89,7 +89,7 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
                               'cover', 'data', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
 
-    elif self._dataFrom == 'docker':
+    elif self._dataFrom == 'docker' or self._dataFrom == 'samsrf':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
@@ -185,7 +185,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
                               'cover', self.subject, self.session)
         savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
 
-    elif self._dataFrom == 'docker':
+    elif self._dataFrom == 'docker' or self._dataFrom == 'samsrf':
         VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
         Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''

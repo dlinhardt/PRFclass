@@ -99,6 +99,8 @@ def initVariables(self):
         self._baseline0 = fit[self._fit_keys.index('Baseline'), :]
 
         self._maxEcc = self._params['Scaling_Factor'][0][0]
+        
+        self._hemis = 'both'
 
     self._isROIMasked    = None
     self._isVarExpMasked = None
