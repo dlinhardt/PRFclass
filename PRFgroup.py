@@ -40,6 +40,12 @@ class PRFgroup():
         if fit:
             self._fit = fit
 
+        self._doROIMsk       = True
+        self._doVarExpMsk    = True
+        self._doBetaMsk      = True
+        self._doEccMsk       = True
+        self._doSigMsk       = True
+
 
     def __getitem__(self, item):
         return self.data.loc[item]
@@ -98,7 +104,7 @@ class PRFgroup():
                                                         analysis = prfanalyze,
                                                         hemi  = hemi,
                                                         baseP = baseP,
-                                                        orientation = orientation
+                                                        orientation = orientation,
                                                         )
             except Exception as e:
                 print(f'could not load sub-{a["subject"]}_ses-{a["session"]}_task-{a["task"]}_run-{a["run"]}!')
@@ -115,6 +121,68 @@ class PRFgroup():
                    hemi  = hemi,
                    prfanalyze  = prfanalyze,
                    method = method,
+                   )
+
+#--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
+    @classmethod
+    def from_samsrf(cls,
+                    study,
+                    subjects='.*',
+                    sessions='.*',
+                    tasks='.*',
+                    runs='.*',
+                    prfanalyze='01',
+                    baseP=None,
+                    orientation='VF',
+                    ):
+
+        if not baseP:
+            baseP = '/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data'
+
+        anas = glob(path.join(baseP, study, 'derivatives', 'samsrf',
+                              f'analysis-{prfanalyze}', 'sub-*', 'ses-*', 'bi*_pRF-results.mat'))
+
+        su = [path.basename(a).split('_')[1].split('-')[-1] for a in anas]
+        se = [path.basename(a).split('_')[2].split('-')[-1] for a in anas]
+        ta = [path.basename(a).split('_')[3].split('-')[-1] for a in anas]
+        ru = [path.basename(a).split('_')[4].split('-')[-1] for a in anas]
+
+        anasDF = pd.DataFrame(np.array([su, se, ta, ru]).T, columns=['subject', 'session', 'task', 'run'])
+
+        anasDF = anasDF[(anasDF['subject'].str.match(subjects)) &
+                        (anasDF['session'].str.match(sessions)) &
+                        (anasDF['task'].str.match(tasks)) &
+                        (anasDF['run'].str.match(runs))
+                        ]
+
+        anasDF = anasDF.drop_duplicates().reset_index(drop=True)
+        anasDF = anasDF.sort_values(['subject','session','task','run'], ignore_index=True)
+
+        if len(anasDF) >= 10: pbar = tqdm(total=len(anasDF))
+        for I, a in anasDF.iterrows():
+            try:
+                anasDF.loc[I,'prf'] = PRF.from_samsrf(study = study,
+                                                        subject = a['subject'],
+                                                        session = a['session'],
+                                                        task = a['task'],
+                                                        run  = a['run'],
+                                                        analysis = prfanalyze,
+                                                        baseP = baseP,
+                                                        orientation = orientation,
+                                                        )
+            except Exception as e:
+                print(f'could not load sub-{a["subject"]}_ses-{a["session"]}_task-{a["task"]}_run-{a["run"]}!')
+                print(e)
+                anasDF.drop(I).reset_index(drop=True)
+            if len(anasDF) >= 10: pbar.update(1)
+        if len(anasDF) >= 10: pbar.close()
+
+        return cls(data_from = 'samsrf',
+                   study = study,
+                   DF    = anasDF,
+                   baseP = baseP,
+                   orientation = orientation,
+                   prfanalyze  = prfanalyze,
                    )
 
 #------------------------- ALTERNATIVE CONSTRUCTORS -------------------------#
@@ -188,8 +256,13 @@ class PRFgroup():
     def maskEcc(self, rad):
         for I, a in self.data.iterrows():
             a['prf'].maskEcc(rad)
-            
-            
+
+
+    def maskSigma(self, s_min, s_max=None):
+        for I, a in self.data.iterrows():
+            a['prf'].maskSigma(s_min, s_max)
+
+
     def maskBetaThresh(self, betaMax=50, doBorderThresh=False, doHighBetaThresh=True):
         for I, a in self.data.iterrows():
             a['prf'].maskBetaThresh(betaMax, doBorderThresh, doHighBetaThresh)
@@ -203,10 +276,26 @@ class PRFgroup():
 
 
 #----------------------------------- QUERY ----------------------------------#
-    def querty(s):
-        self.sub_data = self.data.query(s)
+    def query(self, s):
+        print('Warning, no full class will be returned!')
 
-        return self.sub_data
+        return PRFgroup(data_from = self.data_from,
+                        study     = self.study,
+                        DF        = self.data.query(s).reset_index(drop=True),
+                        baseP     = self.baseP,
+                        orientation = self.orientation,
+                        prfanalyze=None,
+                        hemi=None,
+                        fit=None,
+                        method=None,
+                        )
+
+
+#----------------------------------- APPEND ----------------------------------#
+    def append(self, to_append):
+        print('WARNING: just the data will be appended!')
+
+        self.data = pd.concat([self.data, to_append.data]).reset_index(drop=True)
 
 
 #--------------------------------- PROPERTIS --------------------------------#
@@ -220,14 +309,15 @@ class PRFgroup():
 
     @property
     def task(self):
-        if self.data_from == 'docker':
-            return self.data['task'].unique()
+        if self.data_from == 'docker' or self.data_from == 'samsrf':
+            t = self.data['task'].unique()
+            return t if len(t) > 1 else t[0]
         else:
             print('No task field in mrVista data')
 
     @property
     def run(self):
-        if self.data_from == 'docker':
+        if self.data_from == 'docker' or self.data_from == 'samsrf':
             return self.data['run'].unique()
         else:
             print('No run field in mrVista data')
@@ -314,7 +404,7 @@ class PRFgroup():
     @property
     def varexp_easy(self):
         return np.hstack([a['prf'].varexp_easy for I,a in self.data.iterrows()])
-    
+
     @property
     def meanVarExp(self):
         return np.mean([a['prf'].meanVarExp for I,a in self.data.iterrows()])
@@ -323,6 +413,8 @@ class PRFgroup():
     def beta(self):
         return np.hstack([a['prf'].beta for I,a in self.data.iterrows()])
 
+
+#--------------------------------- MASKS --------------------------------#
     @property
     def mask(self):
         return np.hstack([a['prf'].mask for I,a in self.data.iterrows()])
@@ -332,3 +424,53 @@ class PRFgroup():
         if not hasattr(self, '_subject_mask'):
             self.calc_subject_mask()
         return self._subject_mask
+
+    @property
+    def doROIMsk(self):
+        return self._doROIMsk
+
+    @doROIMsk.setter
+    def doROIMsk(self, value : bool):
+        for I,a in self.data.iterrows():
+            a['prf'].doROIMsk = value
+        self._doROIMsk = value
+
+    @property
+    def doVarExpMsk(self):
+        return self._doVarExpMsk
+
+    @doVarExpMsk.setter
+    def doVarExpMsk(self, value : bool):
+        for I,a in self.data.iterrows():
+            a['prf'].doVarExpMsk = value
+        self._doVarExpMsk = value
+
+    @property
+    def doBetaMsk(self):
+        return self._doBetaMsk
+
+    @doBetaMsk.setter
+    def doBetaMsk(self, value : bool):
+        for I,a in self.data.iterrows():
+            a['prf'].doBetaMsk = value
+        self._doBetaMsk = value
+
+    @property
+    def doEccMsk(self):
+        return self._doEccMsk
+
+    @doEccMsk.setter
+    def doEccMsk(self, value : bool):
+        for I,a in self.data.iterrows():
+            a['prf'].doEccMsk = value
+        self._doEccMsk = value
+
+    @property
+    def doSigMsk(self):
+        return self._doSigMsk
+
+    @doEccMsk.setter
+    def doSigMsk(self, value : bool):
+        for I,a in self.data.iterrows():
+            a['prf'].doSigMsk = value
+        self._doSigMsk = value
