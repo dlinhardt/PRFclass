@@ -191,8 +191,8 @@ def maskROI(self, area='V1', atlas='benson', doV123=False, forcePath=False):
                              self._subject, self._session, 'occ.label')
         occ_label = nib.freesurfer.read_label(occ_file)
         # get the mask
-        # self._atlas = atlas if isinstance(atlas, list) else [atlas] # this we need if we want to use list of atlases
-        # self._area  = area if isinstance(area, list) else [area]
+        self._atlas = atlas #if isinstance(atlas, list) else [atlas] # this we need if we want to use list of atlases
+        self._area  = area #if isinstance(area, list) else [area]
 
         if isinstance(atlas, list) or isinstance(area, list):
             raise ValueError('Only one area and one atlas implemented for samsrf data')
@@ -253,7 +253,7 @@ def maskVarExp(self, varExpThresh, varexp_easy=False, highThresh=None, spmPath=N
 # ---------------------------------------------------------------------------#
 def maskEcc(self, rad):
     """
-    mask the data with given eccentricitz
+    mask the data with given eccentricity
 
     Args:
         rad (float): Threshold
@@ -262,6 +262,23 @@ def maskEcc(self, rad):
     self._eccMsk = self.r0 < rad
 
     self._isEccMasked = rad
+
+
+# ---------------------------------------------------------------------------#
+def maskSigma(self, s_min, s_max=None):
+    """
+    mask the data with given sigma
+
+    Args:
+        rad (float): Threshold
+    """
+
+    if s_max:
+        self._sigMsk = (self.s0 > s_min) & (self.s0 < s_max)
+        self._isSigMasked = f'{s_min}_{s_max}'
+    else:
+        self._sigMsk = self.s0 > s_min
+        self._isSigMasked = f'{s_min}'
 
 
 # ---------------------------------------------------------------------------#
@@ -303,12 +320,18 @@ def _calcMask(self):
 
     if self._isROIMasked and self.doROIMsk:
         self._mask = np.all((self._mask, self._roiMsk), 0)
+
     if self._isVarExpMasked and self.doVarExpMsk:
         self._mask = np.all((self._mask, self._varExpMsk), 0)
+
     if self._isBetaMasked and self.doBetaMsk:
         self._mask = np.all((self._mask, self._betaMsk), 0)
+
     if self._isEccMasked and self.doEccMsk:
         self._mask = np.all((self._mask, self._eccMsk), 0)
+
+    if self._isSigMasked and self.doSigMsk:
+        self._mask = np.all((self._mask, self._sigMsk), 0)
 
     self._mask = self._mask.astype(bool)
 

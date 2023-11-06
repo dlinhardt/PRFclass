@@ -13,8 +13,8 @@ class PRF:
     """
 
     # load in all the other files with functions
-    from ._datastuff import initVariables, from_docker, from_mrVista, from_samsrf
-    from ._maskstuff import maskROI, maskVarExp, maskEcc, maskBetaThresh, _calcMask, maskDartBoard
+    from ._datastuff import initVariables, from_docker, from_mrVista, from_samsrf, spm_hrf_compat
+    from ._maskstuff import maskROI, maskVarExp, maskEcc, maskSigma, maskBetaThresh, _calcMask, maskDartBoard
     from ._loadadditionalstuff import loadStim, loadJitter, loadRealign
     from ._calculatestuff import calcKdeDiff, calcPRFprofiles, centralScotBorder, plot_kdeDiff2d
     from ._plotstuff import plot_covMap, _calcCovMap, plot_toSurface, _createmask, _get_surfaceSavePath, _make_gif
@@ -59,7 +59,7 @@ class PRF:
         if self._dataFrom == 'docker':
             self._hemis    = hemis
 
-        self._orientation = orientation
+        self._orientation = orientation.upper()
 
         if self._dataFrom == 'mrVista':
             self._model  = self._mat['model']
@@ -226,7 +226,7 @@ class PRF:
         return self._doROIMsk
 
     @doROIMsk.setter
-    def doROIMsk(self, value):
+    def doROIMsk(self, value : bool):
         self._doROIMsk = value
 
     @property
@@ -234,7 +234,7 @@ class PRF:
         return self._doVarExpMsk
 
     @doVarExpMsk.setter
-    def doVarExpMsk(self, value):
+    def doVarExpMsk(self, value : bool):
         self._doVarExpMsk = value
 
     @property
@@ -242,7 +242,7 @@ class PRF:
         return self._doBetaMsk
 
     @doBetaMsk.setter
-    def doBetaMsk(self, value):
+    def doBetaMsk(self, value : bool):
         self._doBetaMsk = value
 
     @property
@@ -250,8 +250,16 @@ class PRF:
         return self._doEccMsk
 
     @doEccMsk.setter
-    def doEccMsk(self, value):
+    def doEccMsk(self, value : bool):
         self._doEccMsk = value
+
+    @property
+    def doSigMsk(self):
+        return self._doSigMsk
+
+    @doSigMsk.setter
+    def doSigMsk(self, value : bool):
+        self._doSigMsk = value
 
 #-------------------------- MASKED STUFF --------------------------#
     @property
