@@ -1,12 +1,12 @@
 try:
     from mayavi import mlab
 except ModuleNotFoundError:
-    print('Package mayavi not installed!')
+    print("Package mayavi not installed!")
 try:
     from surfer import Brain
 except ModuleNotFoundError:
-    print('Package pysurfer not installed!')
-    print('Install it or don\'t run plot_toSurface()')
+    print("Package pysurfer not installed!")
+    print("Install it or don't run plot_toSurface()")
 
 import json
 import os
@@ -21,27 +21,32 @@ import scipy.stats as st
 from PIL import Image
 
 
-class label():
+class label:
     """
     Mini class that defines a label, needed to plot borders
     """
+
     def __init__(self, ar, at, he, allAreaFiles):
         self.name = ar
-        self.hemi = he[0].lower()[0] + 'h'
+        self.hemi = he[0].lower()[0] + "h"
 
-        vJsonName = [j for j in allAreaFiles if f'hemi-{he[0].upper()}_' in path.basename(j) and
-                                                f'desc-{ar}-' in path.basename(j) and
-                                                at in path.basename(j)][0]
-        with open(vJsonName, 'r') as fl:
+        vJsonName = [
+            j
+            for j in allAreaFiles
+            if f"hemi-{he[0].upper()}_" in path.basename(j)
+            and f"desc-{ar}-" in path.basename(j)
+            and at in path.basename(j)
+        ][0]
+        with open(vJsonName, "r") as fl:
             maskinfo = json.load(fl)
 
-        if 'roiIndOrig' in maskinfo.keys():
-            self.vertices = np.array(maskinfo['roiIndOrig'])
+        if "roiIndOrig" in maskinfo.keys():
+            self.vertices = np.array(maskinfo["roiIndOrig"])
         else:
-            self.vertices = np.array(maskinfo['roiIndFsnative'])
+            self.vertices = np.array(maskinfo["roiIndFsnative"])
 
 
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 def _createmask(self, shape, otherRratio=None):
     """
     This creates a round mask of given size
@@ -61,11 +66,11 @@ def _createmask(self, shape, otherRratio=None):
     else:
         r = shape[0] // 2
 
-    y, x = np.ogrid[-x0:n - x0, -y0:n - y0]
+    y, x = np.ogrid[-x0 : n - x0, -y0 : n - y0]
     return x * x + y * y <= r * r
 
 
-def _calcCovMap(self, maxEcc, method='max', force=False):
+def _calcCovMap(self, maxEcc, method="max", force=False):
     """
     Calculates the coverage map
 
@@ -78,33 +83,75 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
     """
 
     # create the filename
-    if self._dataFrom == 'mrVista':
-        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
-        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
-        Sstr  = '_MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
-        methodStr = f'_{method}'
+    if self._dataFrom == "mrVista":
+        VEstr = (
+            f"_VarExp-{int(self._isVarExpMasked*100)}"
+            if self._isVarExpMasked and self.doVarExpMsk
+            else ""
+        )
+        Bstr = (
+            f"_betaThresh-{self._isBetaMasked}"
+            if self._isBetaMasked and self.doBetaMsk
+            else ""
+        )
+        Sstr = "_MPspace" if self._orientation == "MP" else ""
+        Estr = (
+            f"_maxEcc-{self._isEccMasked}"
+            if self._isEccMasked and self.doEccMsk
+            else ""
+        )
+        methodStr = f"_{method}"
 
-        savePathB = path.join(self._baseP, self._study, 'prfresult', self._prfanaAn,
-                              'cover', 'data', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
+        savePathB = path.join(
+            self._baseP,
+            self._study,
+            "prfresult",
+            self._prfanaAn,
+            "cover",
+            "data",
+            self.subject,
+            self.session,
+        )
+        savePathF = f"{self.subject}_{self.session}_{self._prfanaAn}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy"
 
-    elif self._dataFrom == 'docker' or self._dataFrom == 'samsrf':
-        VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
-        Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
-        Sistr = f'-sigmaThresh{self._isSigMasked}' if self._isSigMasked and self.doSigMsk else ''
-        Sstr  = '-MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
-        hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
-        methodStr = f'-{method}'
-        areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
+    elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
+        VEstr = (
+            f"-VarExp{int(self._isVarExpMasked*100)}"
+            if self._isVarExpMasked and self.doVarExpMsk
+            else ""
+        )
+        Bstr = (
+            f"-betaThresh{self._isBetaMasked}"
+            if self._isBetaMasked and self.doBetaMsk
+            else ""
+        )
+        Sistr = (
+            f"-sigmaThresh{self._isSigMasked}"
+            if self._isSigMasked and self.doSigMsk
+            else ""
+        )
+        Sstr = "-MPspace" if self._orientation == "MP" else ""
+        Estr = (
+            f"_maxEcc{self._isEccMasked}" if self._isEccMasked and self.doEccMsk else ""
+        )
+        hemiStr = f"_hemi-{self._hemis.upper()}" if self._hemis != "" else ""
+        methodStr = f"-{method}"
+        areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
-                              self._prfanaAn, 'covMapData', self.subject, self.session)
+        savePathB = path.join(
+            self._baseP,
+            self._study,
+            "derivatives",
+            "prfresult",
+            self._prfanaAn,
+            "covMapData",
+            self.subject,
+            self.session,
+        )
 
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}_covmapData.npy'
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}_covmapData.npy"
 
-    savePath  = path.join(savePathB, savePathF)
+    savePath = path.join(savePathB, savePathF)
 
     if path.isfile(savePath) and not force:
         self.covMap = np.load(savePath, allow_pickle=True)
@@ -113,7 +160,7 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
         if not path.isdir(savePathB):
             os.makedirs(savePathB)
 
-        xx = np.linspace(-1*maxEcc, maxEcc, int(maxEcc * 30))
+        xx = np.linspace(-1 * maxEcc, maxEcc, int(maxEcc * 30))
 
         covMap = np.zeros((len(xx), len(xx)))
 
@@ -121,19 +168,19 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
         for i in range(len(self.x)):
             kern1dx = st.norm.pdf(xx, self.x[i], self.s[i])
             kern1dy = st.norm.pdf(xx, self.y[i], self.s[i])
-            kern2d  = np.outer(kern1dx, kern1dy)
+            kern2d = np.outer(kern1dx, kern1dy)
 
-            if np.max(kern2d)>0:
+            if np.max(kern2d) > 0:
                 jj += 1
 
                 kern2d /= np.max(kern2d)
 
-                if method == 'max':
+                if method == "max":
                     covMap = np.max((covMap, kern2d), 0)
-                elif method == 'mean' or method == 'sumClip':
+                elif method == "mean" or method == "sumClip":
                     covMap = np.sum((covMap, kern2d), 0)
 
-        if method == 'mean':
+        if method == "mean":
             covMap /= jj
 
         msk = self._createmask(covMap.shape)
@@ -146,8 +193,16 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
         return self.covMap
 
 
-def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
-                save=False, force=False, maxEcc=None):
+def plot_covMap(
+    self,
+    method="max",
+    cmapMin=0,
+    title=None,
+    show=True,
+    save=False,
+    force=False,
+    maxEcc=None,
+):
     """
     This plots the coverage map and eventually saves it
 
@@ -167,74 +222,122 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
         plt.ioff()
 
     if maxEcc is None:
-        if not hasattr(self, '_maxEcc'):
-            print('Please provide maxEcc!')
+        if not hasattr(self, "_maxEcc"):
+            print("Please provide maxEcc!")
             return
         else:
             maxEcc = self.maxEcc
 
     # create the filename
-    if self._dataFrom == 'mrVista':
-        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
-        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
-        Sstr  = '_MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
-        CBstr = f'_colBar-{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
-        methodStr = f'_{method}'
+    if self._dataFrom == "mrVista":
+        VEstr = (
+            f"_VarExp-{int(self._isVarExpMasked*100)}"
+            if self._isVarExpMasked and self.doVarExpMsk
+            else ""
+        )
+        Bstr = (
+            f"_betaThresh-{self._isBetaMasked}"
+            if self._isBetaMasked and self.doBetaMsk
+            else ""
+        )
+        Sstr = "_MPspace" if self._orientation == "MP" else ""
+        Estr = (
+            f"_maxEcc-{self._isEccMasked}"
+            if self._isEccMasked and self.doEccMsk
+            else ""
+        )
+        CBstr = f"_colBar-{cmapMin}".replace(".", "") if cmapMin != 0 else ""
+        methodStr = f"_{method}"
 
-        savePathB = path.join(self._baseP, self._study, 'prfresult', self._prfanaAn,
-                              'cover', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
+        savePathB = path.join(
+            self._baseP,
+            self._study,
+            "prfresult",
+            self._prfanaAn,
+            "cover",
+            self.subject,
+            self.session,
+        )
+        savePathF = f"{self.subject}_{self.session}_{self._prfanaAn}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg"
 
-    elif self._dataFrom == 'docker' or self._dataFrom == 'samsrf':
-        VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
-        Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
-        Sistr = f'-sigmaThresh{self._isSigMasked}' if self._isSigMasked and self.doSigMsk else ''
-        Sstr  = '-MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
-        CBstr = f'-colBar{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
-        hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
-        methodStr = f'-{method}'
-        areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
+    elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
+        VEstr = (
+            f"-VarExp{int(self._isVarExpMasked*100)}"
+            if self._isVarExpMasked and self.doVarExpMsk
+            else ""
+        )
+        Bstr = (
+            f"-betaThresh{self._isBetaMasked}"
+            if self._isBetaMasked and self.doBetaMsk
+            else ""
+        )
+        Sistr = (
+            f"-sigmaThresh{self._isSigMasked}"
+            if self._isSigMasked and self.doSigMsk
+            else ""
+        )
+        Sstr = "-MPspace" if self._orientation == "MP" else ""
+        Estr = (
+            f"_maxEcc{self._isEccMasked}" if self._isEccMasked and self.doEccMsk else ""
+        )
+        CBstr = f"-colBar{cmapMin}".replace(".", "") if cmapMin != 0 else ""
+        hemiStr = f"_hemi-{self._hemis.upper()}" if self._hemis != "" else ""
+        methodStr = f"-{method}"
+        areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
-        savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
-                              self._prfanaAn, 'covMap', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.svg'
+        savePathB = path.join(
+            self._baseP,
+            self._study,
+            "derivatives",
+            "prfresult",
+            self._prfanaAn,
+            "covMap",
+            self.subject,
+            self.session,
+        )
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.svg"
 
-    savePath  = path.join(savePathB, savePathF)
+    savePath = path.join(savePathB, savePathF)
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
 
     if not path.isfile(savePath) or show or force:
-        methods = ['max', 'mean', 'sumClip']
+        methods = ["max", "mean", "sumClip"]
         if method not in methods:
-            raise Warning(f'Chosen method "{method}" is not a available methods {methods}.')
+            raise Warning(
+                f'Chosen method "{method}" is not a available methods {methods}.'
+            )
 
         # calculate the coverage map
         self._calcCovMap(maxEcc, method, force=force)
 
         # set method-specific stuff
-        if method == 'max':
+        if method == "max":
             if cmapMin > 1 or cmapMin < 0:
-                raise Warning('Choose a cmap min between 0 and 1.')
+                raise Warning("Choose a cmap min between 0 and 1.")
             vmax = 1
-        elif method == 'mean':
+        elif method == "mean":
             vmax = self.covMap.max()
-        elif method == 'sumClip':
+        elif method == "sumClip":
             vmax = 1
 
         fig = plt.figure(constrained_layout=True)
-        ax  = plt.gca()
+        ax = plt.gca()
 
-        im = ax.imshow(self.covMap, cmap='hot',
-                       extent=(-1*maxEcc, maxEcc, -1*maxEcc, maxEcc),
-                       origin='lower', vmin=cmapMin, vmax=vmax)
-        ax.scatter(self.x[self.r < maxEcc], self.y[self.r < maxEcc], s=.3, c='grey')
-        ax.set_xlim((-1*maxEcc, maxEcc))
-        ax.set_ylim((-1*maxEcc, maxEcc))
-        ax.set_aspect('equal', 'box')
-        fig.colorbar(im, location='right', ax=ax)
+        im = ax.imshow(
+            self.covMap,
+            cmap="hot",
+            extent=(-1 * maxEcc, maxEcc, -1 * maxEcc, maxEcc),
+            origin="lower",
+            vmin=cmapMin,
+            vmax=vmax,
+        )
+        ax.scatter(self.x[self.r < maxEcc], self.y[self.r < maxEcc], s=0.3, c="grey")
+        ax.set_xlim((-1 * maxEcc, maxEcc))
+        ax.set_ylim((-1 * maxEcc, maxEcc))
+        ax.set_aspect("equal", "box")
+        fig.colorbar(im, location="right", ax=ax)
 
         # draw grid
         maxEcc13 = maxEcc / 3
@@ -243,16 +346,20 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
         co = np.cos(np.pi / 4) * maxEcc
 
         for e in [maxEcc13, maxEcc23, maxEcc]:
-            ax.add_patch(plt.Circle((0, 0), e, color='grey', fill=False, linewidth=.8))
+            ax.add_patch(plt.Circle((0, 0), e, color="grey", fill=False, linewidth=0.8))
 
-        ax.plot((-1*maxEcc, maxEcc), (0, 0), color='grey', linewidth=.8)
-        ax.plot((0, 0), (-1*maxEcc, maxEcc), color='grey', linewidth=.8)
-        ax.plot((-co, co), (-si, si), color='grey', linewidth=.8)
-        ax.plot((-co, co), (si, -si), color='grey', linewidth=.8)
+        ax.plot((-1 * maxEcc, maxEcc), (0, 0), color="grey", linewidth=0.8)
+        ax.plot((0, 0), (-1 * maxEcc, maxEcc), color="grey", linewidth=0.8)
+        ax.plot((-co, co), (-si, si), color="grey", linewidth=0.8)
+        ax.plot((-co, co), (si, -si), color="grey", linewidth=0.8)
 
-        ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-        ax.yaxis.set_ticks([np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)])
-        ax.tick_params(axis="y", direction="in", pad=-fig.get_figheight() * .39 * 96)
+        ax.tick_params(
+            axis="x", which="both", bottom=False, top=False, labelbottom=False
+        )
+        ax.yaxis.set_ticks(
+            [np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)]
+        )
+        ax.tick_params(axis="y", direction="in", pad=-fig.get_figheight() * 0.39 * 96)
 
         plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
 
@@ -262,8 +369,8 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
             ax.set_title(title)
 
     if save and not path.isfile(savePath):
-        fig.savefig(savePath, bbox_inches='tight')
-        print(f'new Coverage Map saved to {savePathF}')
+        fig.savefig(savePath, bbox_inches="tight")
+        print(f"new Coverage Map saved to {savePathF}")
         # plt.close('all')
 
     if not show:
@@ -275,8 +382,8 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
         return fig
 
 
-#----------------------------------------------------------------------------#
-def _get_surfaceSavePath(self, param, hemi, surface='cortex', plain=False):
+# ----------------------------------------------------------------------------#
+def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
     """
     Defines the path and filename to save the Cortex plot
 
@@ -290,19 +397,35 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex', plain=False):
         savePathF: The filename we save to, without extension
     """
 
-    VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
-    Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
-    Pstr  = f'-{param}'
+    VEstr = (
+        f"-VarExp{int(self._isVarExpMasked*100)}"
+        if self._isVarExpMasked and self.doVarExpMsk
+        else ""
+    )
+    Bstr = (
+        f"-betaThresh{self._isBetaMasked}"
+        if self._isBetaMasked and self.doBetaMsk
+        else ""
+    )
+    Pstr = f"-{param}"
 
-    savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
-                          self._prfanaAn, 'cortex', self.subject, self.session)
+    savePathB = path.join(
+        self._baseP,
+        self._study,
+        "derivatives",
+        "prfresult",
+        self._prfanaAn,
+        "cortex",
+        self.subject,
+        self.session,
+    )
     ending = surface
-    areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
+    areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
     if not plain:
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}'
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}"
     else:
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc{Pstr}_{ending}'
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc{Pstr}_{ending}"
 
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
@@ -331,15 +454,25 @@ def _make_gif(self, frameFolder, outFilename):
         duration=500,
         loop=0,
     )
-    print(f'new Cortex Map saved to {outFilename}')
+    print(f"new Cortex Map saved to {outFilename}")
     # Delete the png-s
     [os.remove(image) for image in glob(f"{frameFolder}/frame*.png")]
 
 
-def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
-                    forceNewPosition=False, surface='inflated',
-                    showBordersAtlas=None, showBordersArea=None,
-                    interactive=True, create_gif=False, headless=False):
+def plot_toSurface(
+    self,
+    param="ecc",
+    hemi="left",
+    fmriprepAna="01",
+    save=False,
+    forceNewPosition=False,
+    surface="inflated",
+    showBordersAtlas=None,
+    showBordersArea=None,
+    interactive=True,
+    create_gif=False,
+    headless=False,
+):
     """
     If we have docker data that was analyzed in fsnative space we can plot
     a given parameter to the cortex of one hemisphere and create a
@@ -359,14 +492,13 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
         headless (bool, optional): This supresses all pop-ups. Defaults to False.
     """
 
-    if self._dataFrom == 'mrVista':
-        print('We can not do that with non-docker data!')
-    elif self._dataFrom == 'docker':
+    if self._dataFrom == "mrVista":
+        print("We can not do that with non-docker data!")
+    elif self._dataFrom == "docker":
 
-        if self._analysisSpace == 'volume':
-            print('We can not yet do that with volumentric data!')
+        if self._analysisSpace == "volume":
+            print("We can not yet do that with volumentric data!")
             return
-
 
         if headless:
             mlab.options.offscreen = True
@@ -374,8 +506,8 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
         else:
             mlab.options.offscreen = False
 
-        if surface == 'sphere':
-            create_gif     = False
+        if surface == "sphere":
+            create_gif = False
 
         # turn of other functionality when creating gif
         if create_gif:
@@ -383,13 +515,20 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
             save = False
             interactive = True
         else:
-            manualPosition = True if not surface == 'sphere' else False
+            manualPosition = True if not surface == "sphere" else False
 
-        fsP = path.join(self._baseP, self._study, 'derivatives', 'fmriprep',
-                        f'analysis-{fmriprepAna}', 'sourcedata', 'freesurfer')
+        fsP = path.join(
+            self._baseP,
+            self._study,
+            "derivatives",
+            "fmriprep",
+            f"analysis-{fmriprepAna}",
+            "sourcedata",
+            "freesurfer",
+        )
 
-        if hemi == 'both':
-            hemis = ['L', 'R']
+        if hemi == "both":
+            hemis = ["L", "R"]
         else:
             hemis = [hemi]
 
@@ -397,79 +536,91 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
 
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
-                if path.isfile(path.join(p, n + '.pdf')):
+                if path.isfile(path.join(p, n + ".pdf")):
                     return
 
             if create_gif:
                 p, n = self._get_surfaceSavePath(param, hemi)
-                if path.isfile(path.join(p, n + '.gif')):
+                if path.isfile(path.join(p, n + ".gif")):
                     return
 
-            pialP = path.join(fsP, self.subject, 'surf', f'{hemi[0].lower()}h.pial')
-            pial  = nib.freesurfer.read_geometry(pialP)
+            pialP = path.join(fsP, self.subject, "surf", f"{hemi[0].lower()}h.pial")
+            pial = nib.freesurfer.read_geometry(pialP)
 
             nVertices = len(pial[0])
 
             # create mask dependent on used hemisphere
-            if hemi[0].upper() == 'L':
-                hemiM = self._roiWhichHemi == 'L'
-            elif hemi[0].upper() == 'R':
-                hemiM = self._roiWhichHemi == 'R'
+            if hemi[0].upper() == "L":
+                hemiM = self._roiWhichHemi == "L"
+            elif hemi[0].upper() == "R":
+                hemiM = self._roiWhichHemi == "R"
 
             roiIndOrigHemi = self._roiIndOrig[hemiM]
-            roiIndBoldHemi     = self._roiIndBold[hemiM]
+            roiIndBoldHemi = self._roiIndBold[hemiM]
 
             # write data array to plot
-            plotData  = np.ones(nVertices) * np.nan
+            plotData = np.ones(nVertices) * np.nan
 
             # depending on used parameter set the plot data, colormap und ranges
-            if param == 'ecc':
+            if param == "ecc":
                 plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
-                cmap = 'rainbow_r'
+                cmap = "rainbow_r"
                 datMin, datMax = 0, self.maxEcc
 
-            elif param == 'pol':
+            elif param == "pol":
                 plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
-                cmap = 'hsv'
+                cmap = "hsv"
                 datMin, datMax = 0, 2 * np.pi
 
-            elif param == 'sig':
+            elif param == "sig":
                 plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
-                cmap = 'rainbow_r'
+                cmap = "rainbow_r"
                 datMin, datMax = 0, 4
 
-            elif param == 'var':
+            elif param == "var":
                 plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
-                cmap = 'hot'
+                cmap = "hot"
                 datMin, datMax = 0, 1
             else:
-                raise Warning('Parameter string must be in ["ecc", "pol", "sig", "var"]!')
+                raise Warning(
+                    'Parameter string must be in ["ecc", "pol", "sig", "var"]!'
+                )
 
             # set everything outside mask (ROI, VarExp, ...) to nan
             plotData = deepcopy(plotData)
-            if not param == 'var':
+            if not param == "var":
                 plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
             # plot the brain
-            brain = Brain(self.subject, f'{hemi[0].lower()}h', surface, subjects_dir=fsP)
+            brain = Brain(
+                self.subject, f"{hemi[0].lower()}h", surface, subjects_dir=fsP
+            )
             # plot the data
-            brain.add_data(np.float16(plotData), colormap=cmap, min=datMin, max=datMax,
-                           smoothing_steps='nearest', remove_existing=True)
+            brain.add_data(
+                np.float16(plotData),
+                colormap=cmap,
+                min=datMin,
+                max=datMax,
+                smoothing_steps="nearest",
+                remove_existing=True,
+            )
 
             # set nan to transparent
-            brain.data['surfaces'][0].module_manager.scalar_lut_manager.lut.nan_color = 0, 0, 0, 0
-            brain.data['surfaces'][0].update_pipeline()
+            brain.data["surfaces"][
+                0
+            ].module_manager.scalar_lut_manager.lut.nan_color = (0, 0, 0, 0)
+            brain.data["surfaces"][0].update_pipeline()
 
             # print borders (freesurfer)
             if showBordersArea is not None and showBordersAtlas is not None:
-                if showBordersAtlas == 'all':
+                if showBordersAtlas == "all":
                     ats = self._atlas
                 elif isinstance(showBordersAtlas, list):
                     ats = showBordersAtlas
                 elif isinstance(showBordersAtlas, str):
                     ats = [showBordersAtlas]
                 elif showBordersAtlas is True:
-                    ats = ['benson']
+                    ats = ["benson"]
 
                 if isinstance(showBordersArea, list):
                     ars = showBordersArea
@@ -479,78 +630,155 @@ def plot_toSurface(self, param='ecc', hemi='left', fmriprepAna='01', save=False,
                 for at in ats:
                     for ar in ars:
                         try:
-                            brain.add_label(label(ar, at, hemi, self._allAreaFiles),
-                                            borders=True, color='black', alpha=.7)
+                            brain.add_label(
+                                label(ar, at, hemi, self._allAreaFiles),
+                                borders=True,
+                                color="black",
+                                alpha=0.7,
+                            )
                         except:
                             pass
 
             # save the positioning for left and right once per subject
             if manualPosition:
-                posSavePath = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
-                                        'positioning', self.subject)
-                areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
+                posSavePath = path.join(
+                    self._baseP,
+                    self._study,
+                    "derivatives",
+                    "prfresult",
+                    "positioning",
+                    self.subject,
+                )
+                areaStr = (
+                    "multipleAreas" if len(self._area) > 10 else "".join(self._area)
+                )
 
-                posSaveFile = f'{self.subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy'
-                posPath  = path.join(posSavePath, posSaveFile)
+                posSaveFile = (
+                    f"{self.subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
+                )
+                posPath = path.join(posSavePath, posSaveFile)
 
                 if not path.isdir(posSavePath):
                     os.makedirs(posSavePath)
 
                 if not path.isfile(posPath) or forceNewPosition:
-                    if hemi[0].upper() == 'L':
-                        brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
-                                         'focalpoint': np.array([-43, -23, -8])}, roll=-130)
-                    elif hemi[0].upper() == 'R':
-                        brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
-                                         'focalpoint': np.array([-11, -93, -49])}, roll=142)
+                    if hemi[0].upper() == "L":
+                        brain.show_view(
+                            {
+                                "azimuth": -57.5,
+                                "elevation": 106,
+                                "distance": 300,
+                                "focalpoint": np.array([-43, -23, -8]),
+                            },
+                            roll=-130,
+                        )
+                    elif hemi[0].upper() == "R":
+                        brain.show_view(
+                            {
+                                "azimuth": -127,
+                                "elevation": 105,
+                                "distance": 300,
+                                "focalpoint": np.array([-11, -93, -49]),
+                            },
+                            roll=142,
+                        )
 
                     mlab.show(stop=True)
-                    pos = np.array(brain.show_view(), dtype='object')
-                    np.save(posPath, pos.astype('object'), allow_pickle=True)
+                    pos = np.array(brain.show_view(), dtype="object")
+                    np.save(posPath, pos.astype("object"), allow_pickle=True)
                     # print(pos)
                 else:
                     pos = np.load(posPath, allow_pickle=True)
                     # print(pos)
-                    brain.show_view({'azimuth': pos[0][0], 'elevation': pos[0][1], 'distance': pos[0][2],
-                                     'focalpoint': pos[0][3]}, roll=pos[1])
+                    brain.show_view(
+                        {
+                            "azimuth": pos[0][0],
+                            "elevation": pos[0][1],
+                            "distance": pos[0][2],
+                            "focalpoint": pos[0][3],
+                        },
+                        roll=pos[1],
+                    )
             else:
                 if create_gif:
                     p, n = self._get_surfaceSavePath(param, hemi)
 
-                    if hemi[0].upper() == 'L':
+                    if hemi[0].upper() == "L":
                         for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                            brain.show_view({'azimuth': -i, 'elevation': 90, 'distance': 350,
-                                             'focalpoint': np.array([30, -130, -60])}, roll=-90)
-                            brain.save_image(path.join(p, f'frame-{iI}.png'))
+                            brain.show_view(
+                                {
+                                    "azimuth": -i,
+                                    "elevation": 90,
+                                    "distance": 350,
+                                    "focalpoint": np.array([30, -130, -60]),
+                                },
+                                roll=-90,
+                            )
+                            brain.save_image(path.join(p, f"frame-{iI}.png"))
 
-                    elif hemi[0].upper() == 'R':
+                    elif hemi[0].upper() == "R":
                         for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                            brain.show_view({'azimuth': i, 'elevation': -90, 'distance': 350,
-                                             'focalpoint': np.array([-30, -130, -60])}, roll=90)
-                            brain.save_image(path.join(p, f'frame-{iI}.png'))
+                            brain.show_view(
+                                {
+                                    "azimuth": i,
+                                    "elevation": -90,
+                                    "distance": 350,
+                                    "focalpoint": np.array([-30, -130, -60]),
+                                },
+                                roll=90,
+                            )
+                            brain.save_image(path.join(p, f"frame-{iI}.png"))
 
-                    self._make_gif(p, n + '.gif')
+                    self._make_gif(p, n + ".gif")
 
                 else:
-                    if surface == 'sphere':
-                        if hemi[0].upper() == 'L':
-                            brain.show_view({'azimuth': -80, 'elevation': 125, 'distance': 500,
-                                             'focalpoint': np.array([0, 0, 0])}, roll=-170)
-                        elif hemi[0].upper() == 'R':
-                            brain.show_view({'azimuth': 80, 'elevation': -125, 'distance': 500,
-                                             'focalpoint': np.array([0, 0, 0])}, roll=170)
+                    if surface == "sphere":
+                        if hemi[0].upper() == "L":
+                            brain.show_view(
+                                {
+                                    "azimuth": -80,
+                                    "elevation": 125,
+                                    "distance": 500,
+                                    "focalpoint": np.array([0, 0, 0]),
+                                },
+                                roll=-170,
+                            )
+                        elif hemi[0].upper() == "R":
+                            brain.show_view(
+                                {
+                                    "azimuth": 80,
+                                    "elevation": -125,
+                                    "distance": 500,
+                                    "focalpoint": np.array([0, 0, 0]),
+                                },
+                                roll=170,
+                            )
 
                     else:
-                        if hemi[0].upper() == 'L':
-                            brain.show_view({'azimuth': -57.5, 'elevation': 106, 'distance': 300,
-                                             'focalpoint': np.array([-43, -23, -8])}, roll=-130)
-                        elif hemi[0].upper() == 'R':
-                            brain.show_view({'azimuth': -127, 'elevation': 105, 'distance': 300,
-                                             'focalpoint': np.array([-11, -93, -49])}, roll=142)
+                        if hemi[0].upper() == "L":
+                            brain.show_view(
+                                {
+                                    "azimuth": -57.5,
+                                    "elevation": 106,
+                                    "distance": 300,
+                                    "focalpoint": np.array([-43, -23, -8]),
+                                },
+                                roll=-130,
+                            )
+                        elif hemi[0].upper() == "R":
+                            brain.show_view(
+                                {
+                                    "azimuth": -127,
+                                    "elevation": 105,
+                                    "distance": 300,
+                                    "focalpoint": np.array([-11, -93, -49]),
+                                },
+                                roll=142,
+                            )
 
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
-                brain.save_image(path.join(p, n + '.pdf'))
+                brain.save_image(path.join(p, n + ".pdf"))
                 print(f'new Cortex Map saved to {path.join(p, n + ".pdf")}')
 
             if interactive:

@@ -5,6 +5,7 @@ import json
 
 # class for loading mrVista results
 
+
 class PRF:
     """
     This class loads data from PRF mapping analysis done with a matlab
@@ -13,67 +14,109 @@ class PRF:
     """
 
     # load in all the other files with functions
-    from ._datastuff import initVariables, from_docker, from_mrVista, from_samsrf, spm_hrf_compat
-    from ._maskstuff import maskROI, maskVarExp, maskEcc, maskSigma, maskBetaThresh, _calcMask, maskDartBoard
+    from ._datastuff import (
+        init_variables,
+        from_docker,
+        from_mrVista,
+        from_samsrf,
+        spm_hrf_compat,
+    )
+    from ._maskstuff import (
+        maskROI,
+        maskVarExp,
+        maskEcc,
+        maskSigma,
+        maskBetaThresh,
+        _calcMask,
+        maskDartBoard,
+    )
     from ._loadadditionalstuff import loadStim, loadJitter, loadRealign
-    from ._calculatestuff import calcKdeDiff, calcPRFprofiles, centralScotBorder, plot_kdeDiff2d
-    from ._plotstuff import plot_covMap, _calcCovMap, plot_toSurface, _createmask, _get_surfaceSavePath, _make_gif
+    from ._calculatestuff import (
+        calc_kde_diff,
+        calc_prf_profiles,
+        central_scot_border,
+        plot_kdeDiff2d,
+    )
+    from ._plotstuff import (
+        plot_covMap,
+        _calcCovMap,
+        plot_toSurface,
+        _createmask,
+        _get_surfaceSavePath,
+        _make_gif,
+    )
 
-    from_docker  = classmethod(from_docker)
+    from_docker = classmethod(from_docker)
     from_mrVista = classmethod(from_mrVista)
-    from_samsrf  = classmethod(from_samsrf)
+    from_samsrf = classmethod(from_samsrf)
 
-    def __init__(self, dataFrom, study, subject, session, baseP, mat=None,
-                 est=None, analysis=None, task=None, run=None, area=None,
-                 coords=None, niftiFolder=None, hemis=None, prfanaMe=None,
-                 prfanaAn=None, orientation='VF', method=None):
-
+    def __init__(
+        self,
+        dataFrom,
+        study,
+        subject,
+        session,
+        baseP,
+        mat=None,
+        est=None,
+        analysis=None,
+        task=None,
+        run=None,
+        area=None,
+        coords=None,
+        niftiFolder=None,
+        hemis=None,
+        prfanaMe=None,
+        prfanaAn=None,
+        orientation="VF",
+        method=None,
+    ):
 
         self._dataFrom = dataFrom
-        self._study    = study
-        self._subject  = subject
-        self._session  = session
-        self._baseP    = baseP
-        self._area     = 'full'
+        self._study = study
+        self._subject = subject
+        self._session = session
+        self._baseP = baseP
+        self._area = "full"
 
         if mat:
-            self._mat      = mat
+            self._mat = mat
         if est:
             self._estimates = est
         if analysis:
             self._analysis = analysis
         if task:
-            self._task     = task
+            self._task = task
         if run:
-            self._run      = run
+            self._run = run
         if area:
-            self._area     = area
+            self._area = area
         if prfanaMe:
             self._prfanalyze_method = prfanaMe
         if prfanaAn:
             self._prfanaAn = prfanaAn
         if niftiFolder:
-            self._niftiFolder     = niftiFolder
+            self._niftiFolder = niftiFolder
         if coords is not None:
-            self._coords   = coords
-        if self._dataFrom == 'docker':
-            self._hemis    = hemis
+            self._coords = coords
+        if self._dataFrom == "docker":
+            self._hemis = hemis
 
         self._orientation = orientation.upper()
 
-        if self._dataFrom == 'mrVista':
-            self._model  = self._mat['model']
-            self._params = self._mat['params']
-        elif self._dataFrom == 'docker':
-            if hasattr(self, '_mat'):
-                self._model  = [m['model'][0][0][0][0]  for m in self._mat]
-                self._params = [m['params'][0][0][0][0] for m in self._mat]
-        elif self._dataFrom == 'samsrf':
-            self._model  = self._mat['Srf'][0][0]
-            self._params = self._mat['Model'][0][0]
+        if self._dataFrom == "mrVista":
+            self._model = self._mat["model"]
+            self._params = self._mat["params"]
+        elif self._dataFrom == "docker":
+            if hasattr(self, "_mat"):
+                self._model = [m["model"][0][0][0][0] for m in self._mat]
+                self._params = [m["params"][0][0][0][0] for m in self._mat]
+        elif self._dataFrom == "samsrf":
+            self._model = self._mat["Srf"][0][0]
+            self._params = self._mat["Model"][0][0]
 
         # initialize
-        self.initVariables()
+        self.init_variables()
 
     @property
     def subject(self):
@@ -140,36 +183,40 @@ class PRF:
 
     @property
     def varexp_easy0(self):
-        if not hasattr(self, '_varexp_easy'):
-            print(f'calculating varexp_easy for {self.subject}_{self.session}_{self.task}_{self.run}...')
+        if not hasattr(self, "_varexp_easy"):
+            print(
+                f"calculating varexp_easy for {self.subject}_{self.session}_{self.task}_{self.run}..."
+            )
             l = self.voxelTC0.shape[-1]
-            trends = np.vstack((np.ones(l),
-                     np.linspace(-1,1, l),
-                     np.linspace(-1,1, l) ** 2,
-                     np.linspace(-1,1, l) ** 3,
-                     ))
+            trends = np.vstack(
+                (
+                    np.ones(l),
+                    np.linspace(-1, 1, l),
+                    np.linspace(-1, 1, l) ** 2,
+                    np.linspace(-1, 1, l) ** 3,
+                )
+            )
 
-            beta_easy = np.empty((len(self.modelpred0), len(trends)+1))
+            beta_easy = np.empty((len(self.modelpred0), len(trends) + 1))
             varexp_easy = np.empty((len(self.modelpred0)))
 
             def fitter(mod, tc):
                 l = len(mod)
-                X = np.vstack((mod,
-                               trends))
+                X = np.vstack((mod, trends))
 
                 pinvX = np.linalg.pinv(X)
                 b = pinvX.T @ tc
                 return b
 
-            for i,(mod,tc) in enumerate(zip(self.modelpred0, self.voxelTC0)):
+            for i, (mod, tc) in enumerate(zip(self.modelpred0, self.voxelTC0)):
                 mod -= mod.mean()
-                b = fitter(mod,tc)
+                b = fitter(mod, tc)
 
                 rawrss = np.sum(np.square(tc - b[1:] @ trends))
-                rss    = np.sum(np.square(tc - b @ np.vstack((mod, trends))))
-                ve     = 1 - rss / rawrss
+                rss = np.sum(np.square(tc - b @ np.vstack((mod, trends))))
+                ve = 1 - rss / rawrss
 
-                beta_easy[i,:] = b
+                beta_easy[i, :] = b
                 varexp_easy[i] = ve
 
             self._beta_easy = beta_easy
@@ -179,33 +226,52 @@ class PRF:
 
     @property
     def voxelTC0(self):
-        if not hasattr(self, '_voxelTC0'):
-            if self._dataFrom == 'mrVista':
-                self._voxelTC0 = loadmat(glob(path.join(self._baseP, self._study, 'subjects', self.subject, self.session,
-                                            'mrVista', self._analysis, 'Gray/*/TSeries/Scan1/tSeries1.mat'))[0],
-                            simplify_cells=True)['tSeries'].T
+        if not hasattr(self, "_voxelTC0"):
+            if self._dataFrom == "mrVista":
+                self._voxelTC0 = loadmat(
+                    glob(
+                        path.join(
+                            self._baseP,
+                            self._study,
+                            "subjects",
+                            self.subject,
+                            self.session,
+                            "mrVista",
+                            self._analysis,
+                            "Gray/*/TSeries/Scan1/tSeries1.mat",
+                        )
+                    )[0],
+                    simplify_cells=True,
+                )["tSeries"].T
 
-            elif self._dataFrom == 'docker':
-                self._voxelTC0 = np.array([e['testdata'] for ee in self._estimates for e in ee])
+            elif self._dataFrom == "docker":
+                self._voxelTC0 = np.array(
+                    [e["testdata"] for ee in self._estimates for e in ee]
+                )
 
-            np.seterr(invalid='ignore')
-            self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:,None] * 100
+            np.seterr(invalid="ignore")
+            self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:, None] * 100
 
         return self._voxelTC0
 
     @property
     def modelpred0(self):
-        if not hasattr(self, '_modelpred0'):
-            if self._dataFrom == 'mrVista':
-                print('No modelpred with data_from mrVista')
+        if not hasattr(self, "_modelpred0"):
+            if self._dataFrom == "mrVista":
+                print("No modelpred with data_from mrVista")
                 return None
-            elif self._dataFrom == 'docker':
-                self._modelpred0 = np.array([e['modelpred'] for ee in self._estimates for e in ee])
+            elif self._dataFrom == "docker":
+                self._modelpred0 = np.array(
+                    [e["modelpred"] for ee in self._estimates for e in ee]
+                )
 
-                if np.allclose(self._modelpred0[::1000,:] - self._modelpred0[::1000,:].mean(1)[:,None],
-                               self.voxelTC0[::1000,:]   - self.voxelTC0[::1000,:].mean(1)[:,None]):
+                if np.allclose(
+                    self._modelpred0[::1000, :]
+                    - self._modelpred0[::1000, :].mean(1)[:, None],
+                    self.voxelTC0[::1000, :]
+                    - self.voxelTC0[::1000, :].mean(1)[:, None],
+                ):
                     self._modelpred0 = self.loadStim(buildTC=True)
-
 
         return self._modelpred0
 
@@ -226,7 +292,7 @@ class PRF:
         return self._doROIMsk
 
     @doROIMsk.setter
-    def doROIMsk(self, value : bool):
+    def doROIMsk(self, value: bool):
         self._doROIMsk = value
 
     @property
@@ -234,7 +300,7 @@ class PRF:
         return self._doVarExpMsk
 
     @doVarExpMsk.setter
-    def doVarExpMsk(self, value : bool):
+    def doVarExpMsk(self, value: bool):
         self._doVarExpMsk = value
 
     @property
@@ -242,7 +308,7 @@ class PRF:
         return self._doBetaMsk
 
     @doBetaMsk.setter
-    def doBetaMsk(self, value : bool):
+    def doBetaMsk(self, value: bool):
         self._doBetaMsk = value
 
     @property
@@ -250,7 +316,7 @@ class PRF:
         return self._doEccMsk
 
     @doEccMsk.setter
-    def doEccMsk(self, value : bool):
+    def doEccMsk(self, value: bool):
         self._doEccMsk = value
 
     @property
@@ -258,10 +324,10 @@ class PRF:
         return self._doSigMsk
 
     @doSigMsk.setter
-    def doSigMsk(self, value : bool):
+    def doSigMsk(self, value: bool):
         self._doSigMsk = value
 
-#-------------------------- MASKED STUFF --------------------------#
+    # -------------------------- MASKED STUFF --------------------------#
     @property
     def mask(self):
         return self._calcMask()
@@ -308,11 +374,11 @@ class PRF:
 
     @property
     def voxelTC(self):
-        return self.voxelTC0[self.mask,:]
+        return self.voxelTC0[self.mask, :]
 
     @property
     def modelpred(self):
-        return self.modelpred0[self.mask,:]
+        return self.modelpred0[self.mask, :]
 
     @property
     def meanVarExp(self):
@@ -321,20 +387,32 @@ class PRF:
 
     @property
     def prfanalyzeOpts(self):
-        if not hasattr(self, '_prfanalyzeOpts'):
-            prfanalyzeOptsF = path.join(self._baseP, self._study, 'derivatives', self._prfanalyze_method,
-                              self._prfanaAn, 'options.json')
-            with open(prfanalyzeOptsF, 'r') as fl:
+        if not hasattr(self, "_prfanalyzeOpts"):
+            prfanalyzeOptsF = path.join(
+                self._baseP,
+                self._study,
+                "derivatives",
+                self._prfanalyze_method,
+                self._prfanaAn,
+                "options.json",
+            )
+            with open(prfanalyzeOptsF, "r") as fl:
                 self._prfanalyzeOpts = json.load(fl)
 
         return self._prfanalyzeOpts
 
     @property
     def prfprepareOpts(self):
-        if not hasattr(self, '_prfprepareOpts'):
-            prfprepareOptsF = path.join(self._baseP, self._study, 'derivatives', 'prfprepare',
-                              f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}', 'options.json')
-            with open(prfprepareOptsF, 'r') as fl:
+        if not hasattr(self, "_prfprepareOpts"):
+            prfprepareOptsF = path.join(
+                self._baseP,
+                self._study,
+                "derivatives",
+                "prfprepare",
+                f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}',
+                "options.json",
+            )
+            with open(prfprepareOptsF, "r") as fl:
                 self._prfprepareOpts = json.load(fl)
 
         return self._prfprepareOpts
