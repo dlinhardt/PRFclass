@@ -3,6 +3,7 @@ from os import path
 import json
 import numpy as np
 from scipy.io import loadmat
+import scipy.stats as sps
 
 
 def initVariables(self):
@@ -18,6 +19,8 @@ def initVariables(self):
             self._y0  = - self._model['y0']  # negative for same flip as in the coverage plots
         elif self._orientation == 'MP':
             self._y0  = self._model['y0']  # same orientation as MP
+        else:
+            Warning('Choose orientation form [VF, MP], you specified {self._orientation}')
 
         a = self._model['sigma']['minor']
         try:
@@ -39,9 +42,11 @@ def initVariables(self):
             self._x0 = np.array([e['Centerx0'] for ee in self._estimates for e in ee])
 
             if self._orientation == 'VF':
-                self._y0  = np.array([-e['Centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
+                self._y0  = - np.array([e['Centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
             elif self._orientation == 'MP':
                 self._y0  = np.array([e['Centery0'] for ee in self._estimates for e in ee]) # same orientation as MP
+            else:
+                Warning('Choose orientation form [VF, MP], you specified {self._orientation}')
 
             self._s0      = np.array([e['sigmaMajor'] for ee in self._estimates for e in ee])
 
@@ -54,9 +59,11 @@ def initVariables(self):
             self._x0 = np.array([e['centerx0'] for ee in self._estimates for e in ee])
 
             if self._orientation == 'VF':
-                self._y0  = np.array([-e['centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
+                self._y0  = - np.array([e['centery0'] for ee in self._estimates for e in ee]) # negative for same flip as in the coverage plots
             elif self._orientation == 'MP':
                 self._y0  = np.array([e['centery0'] for ee in self._estimates for e in ee]) # same orientation as MP
+            else:
+                Warning('Choose orientation form [VF, MP], you specified {self._orientation}')
 
             self._s0      = np.array([e['sigmamajor'] for ee in self._estimates for e in ee])
 
@@ -83,6 +90,16 @@ def initVariables(self):
                 if self._maxEcc[0] != self._maxEcc[1]:
                     raise Warning('maxEcc for both hemispheres is different!')
             self._maxEcc = self._maxEcc[0]
+            
+        #!!! this should be fixed in oprf!
+        if 'fprf' in self._prfanalyze_method:
+            self._y0 = - self._y0
+
+        if np.any([a in self._prfanalyze_method for a in ['oprf','fprf']]):
+            if self._orientation == 'VF':
+                self._x0, self._y0 = - self._y0, - self._x0
+            elif self._orientation == 'MP':
+                self._x0, self._y0 = self._y0, self._x0
 
 ############################# SAMSRF #############################
     elif self._dataFrom == 'samsrf':
@@ -90,26 +107,28 @@ def initVariables(self):
         self._fit_keys = [a[0][0] for a in self._model['Values']]
         fit = self._model['Data']
 
-        self._x0 = fit[self._fit_keys.index('x0'), :]
-        self._y0 = fit[self._fit_keys.index('y0'), :]
-        self._s0 = fit[self._fit_keys.index('Sigma'), :]
+        self._maxEcc = self._params['Scaling_Factor'][0][0]
+
+        self._x0 =  fit[self._fit_keys.index('x0'), :]
+        self._y0 = -fit[self._fit_keys.index('y0'), :]
+        self._s0 =  fit[self._fit_keys.index('Sigma'), :]
 
         self._varexp0 = fit[self._fit_keys.index('R^2'), :]
         self._beta0   = fit[self._fit_keys.index('Beta'), :]
         self._baseline0 = fit[self._fit_keys.index('Baseline'), :]
 
-        self._maxEcc = self._params['Scaling_Factor'][0][0]
-        
         self._hemis = 'both'
 
     self._isROIMasked    = None
     self._isVarExpMasked = None
     self._isBetaMasked   = None
     self._isEccMasked    = None
+    self._isSigMasked    = None
     self._doROIMsk       = True
     self._doVarExpMsk    = True
     self._doBetaMsk      = True
     self._doEccMsk       = True
+    self._doSigMsk       = True
 
 
 #--------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
@@ -264,4 +283,71 @@ def from_samsrf(cls, study, subject, session, task, run,
     mat = loadmat(func_p)
 
     return cls('samsrf', study, subject, session, task=task, run=run, baseP=baseP,
-                 mat=mat, prfanaAn=prfanaAn, orientation=orientation)
+                 mat=mat, prfanaAn=prfanaAn, orientation=orientation, prfanaMe='samsrf')
+
+
+
+#--------------------------SPM HRF--------------------------#
+def spm_hrf_compat(t,
+               peak_delay=6,
+               under_delay=16,
+               peak_disp=1,
+               under_disp=1,
+               p_u_ratio = 6,
+               normalize=True,
+              ):
+    """ SPM HRF function from sum of two gamma PDFs
+
+    This function is designed to be partially compatible with SPMs `spm_hrf.m`
+    function.
+
+    The SPN HRF is a *peak* gamma PDF (with location `peak_delay` and dispersion
+    `peak_disp`), minus an *undershoot* gamma PDF (with location `under_delay`
+    and dispersion `under_disp`, and divided by the `p_u_ratio`).
+
+    Parameters
+    ----------
+    t : array-like
+        vector of times at which to sample HRF.
+    peak_delay : float, optional
+        delay of peak.
+    under_delay : float, optional
+        delay of undershoot.
+    peak_disp : float, optional
+        width (dispersion) of peak.
+    under_disp : float, optional
+        width (dispersion) of undershoot.
+    p_u_ratio : float, optional
+        peak to undershoot ratio.  Undershoot divided by this value before
+        subtracting from peak.
+    normalize : {True, False}, optional
+        If True, divide HRF values by their sum before returning.  SPM does this
+        by default.
+
+    Returns
+    -------
+    hrf : array
+        vector length ``len(t)`` of samples from HRF at times `t`.
+
+    Notes
+    -----
+    See ``spm_hrf.m`` in the SPM distribution.
+    """
+    if len([v for v in [peak_delay, peak_disp, under_delay, under_disp]
+            if v <= 0]):
+        raise ValueError("delays and dispersions must be > 0")
+    # gamma.pdf only defined for t > 0
+    hrf = np.zeros(t.shape, dtype=np.float64)
+    pos_t = t[t > 0]
+    peak = sps.gamma.pdf(pos_t,
+                         peak_delay / peak_disp,
+                         loc=0,
+                         scale = peak_disp)
+    undershoot = sps.gamma.pdf(pos_t,
+                               under_delay / under_disp,
+                               loc=0,
+                               scale = under_disp)
+    hrf[t > 0] = peak - undershoot / p_u_ratio
+    if not normalize:
+        return hrf
+    return hrf / np.sum(hrf)
