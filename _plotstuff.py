@@ -79,10 +79,10 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
 
     # create the filename
     if self._dataFrom == 'mrVista':
-        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked else ''
+        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
+        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
         Sstr  = '_MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
         methodStr = f'_{method}'
 
         savePathB = path.join(self._baseP, self._study, 'prfresult', self._prfanaAn,
@@ -90,10 +90,11 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
         savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy'
 
     elif self._dataFrom == 'docker' or self._dataFrom == 'samsrf':
-        VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-        Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
+        VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
+        Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
+        Sistr = f'-sigmaThresh{self._isSigMasked}' if self._isSigMasked and self.doSigMsk else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
         areaStr = 'multipleAreas' if len(self._area) > 10 else "".join(self._area)
@@ -101,7 +102,7 @@ def _calcCovMap(self, maxEcc, method='max', force=False):
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                               self._prfanaAn, 'covMapData', self.subject, self.session)
 
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}_covmapData.npy'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}_covmapData.npy'
 
     savePath  = path.join(savePathB, savePathF)
 
@@ -174,10 +175,10 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
 
     # create the filename
     if self._dataFrom == 'mrVista':
-        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked else ''
+        VEstr = f'_VarExp-{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
+        Bstr  = f'_betaThresh-{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
         Sstr  = '_MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc-{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
         CBstr = f'_colBar-{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         methodStr = f'_{method}'
 
@@ -186,10 +187,11 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
         savePathF = f'{self.subject}_{self.session}_{self._prfanaAn}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg'
 
     elif self._dataFrom == 'docker' or self._dataFrom == 'samsrf':
-        VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-        Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
+        VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
+        Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
+        Sistr = f'-sigmaThresh{self._isSigMasked}' if self._isSigMasked and self.doSigMsk else ''
         Sstr  = '-MPspace' if self._orientation == 'MP' else ''
-        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked else ''
+        Estr  = f'_maxEcc{self._isEccMasked}' if self._isEccMasked and self.doEccMsk else ''
         CBstr = f'-colBar{cmapMin}'.replace('.', '') if cmapMin != 0 else ''
         hemiStr   = f'_hemi-{self._hemis.upper()}' if self._hemis != '' else ''
         methodStr = f'-{method}'
@@ -197,7 +199,7 @@ def plot_covMap(self, method='max', cmapMin=0, title=None, show=True,
 
         savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
                               self._prfanaAn, 'covMap', self.subject, self.session)
-        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}{CBstr}_covmap.svg'
+        savePathF = f'{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.svg'
 
     savePath  = path.join(savePathB, savePathF)
 
@@ -288,8 +290,8 @@ def _get_surfaceSavePath(self, param, hemi, surface='cortex', plain=False):
         savePathF: The filename we save to, without extension
     """
 
-    VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked else ''
-    Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked else ''
+    VEstr = f'-VarExp{int(self._isVarExpMasked*100)}' if self._isVarExpMasked and self.doVarExpMsk else ''
+    Bstr  = f'-betaThresh{self._isBetaMasked}' if self._isBetaMasked and self.doBetaMsk else ''
     Pstr  = f'-{param}'
 
     savePathB = path.join(self._baseP, self._study, 'derivatives', 'prfresult',
