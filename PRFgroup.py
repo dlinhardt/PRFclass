@@ -26,7 +26,6 @@ class PRFgroup:
         fit=None,
         method=None,
     ):
-
         self.data_from = data_from
         self.study = study
         self.data = DF
@@ -69,7 +68,6 @@ class PRFgroup:
         baseP=None,
         orientation="VF",
     ):
-
         if not baseP:
             baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
@@ -158,7 +156,6 @@ class PRFgroup:
         baseP=None,
         orientation="VF",
     ):
-
         if not baseP:
             baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
@@ -242,7 +239,6 @@ class PRFgroup:
         orientation="VF",
         fit="fFit-fFit-fFit",
     ):
-
         if not baseP:
             baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
@@ -392,6 +388,10 @@ class PRFgroup:
         return np.hstack([a["prf"].s0 for I, a in self.data.iterrows()])
 
     @property
+    def sigma0(self):
+        return np.hstack([a["prf"].s0 for I, a in self.data.iterrows()])
+
+    @property
     def r0(self):
         return np.hstack([a["prf"].r0 for I, a in self.data.iterrows()])
 
@@ -429,6 +429,10 @@ class PRFgroup:
 
     @property
     def s(self):
+        return np.hstack([a["prf"].s for I, a in self.data.iterrows()])
+
+    @property
+    def sigma(self):
         return np.hstack([a["prf"].s for I, a in self.data.iterrows()])
 
     @property

@@ -71,7 +71,6 @@ class PRF:
         orientation="VF",
         method=None,
     ):
-
         self._dataFrom = dataFrom
         self._study = study
         self._subject = subject
@@ -144,6 +143,10 @@ class PRF:
 
     @property
     def s0(self):
+        return self._s0
+
+    @property
+    def sigma0(self):
         return self._s0
 
     @property
@@ -342,6 +345,10 @@ class PRF:
 
     @property
     def s(self):
+        return self.s0[self.mask]
+
+    @property
+    def sigma(self):
         return self.s0[self.mask]
 
     @property
