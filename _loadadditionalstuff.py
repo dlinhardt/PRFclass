@@ -59,7 +59,6 @@ def loadStim(self, buildTC=True):
         self.Y0 = self.params[0]["analysis"]["Y"][0][0].flatten()
 
         if buildTC:
-
             pRF = np.exp(
                 (
                     (-self.y0[:, None] - self.Y0[None, :]) ** 2

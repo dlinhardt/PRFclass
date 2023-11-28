@@ -129,7 +129,6 @@ def init_variables(self):
 
     ############################# SAMSRF #############################
     elif self._dataFrom == "samsrf":
-
         self._fit_keys = [a[0][0] for a in self._model["Values"]]
         fit = self._model["Data"]
 
@@ -327,7 +326,6 @@ def from_docker(
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
-
         estimates = path.join(
             baseP,
             study,

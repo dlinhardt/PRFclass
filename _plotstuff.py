@@ -495,7 +495,6 @@ def plot_toSurface(
     if self._dataFrom == "mrVista":
         print("We can not do that with non-docker data!")
     elif self._dataFrom == "docker":
-
         if self._analysisSpace == "volume":
             print("We can not yet do that with volumentric data!")
             return
@@ -533,7 +532,6 @@ def plot_toSurface(
             hemis = [hemi]
 
         for hemi in hemis:
-
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
                 if path.isfile(path.join(p, n + ".pdf")):

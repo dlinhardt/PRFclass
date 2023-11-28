@@ -11,6 +11,7 @@ try:
 except:
     print("neuropythy not installed, samsrf data not available")
 
+
 # ----------------------------------MASKING-----------------------------------#
 def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
     """
@@ -136,7 +137,6 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
             # if hasattr(self, 'tValues'): self._tValues = self._tValues[self._msk]
 
     elif self._dataFrom == "docker":
-
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
         self._area = area if isinstance(area, list) else [area]
 
@@ -193,7 +193,6 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
         hs = ["L", "R"] if self._hemis == "" else [self._hemis]
         for at in self._atlas:
             for ar in self._area:
-
                 # load the left hemi size if only looking at right
                 if not "L" in hs:
                     lHemiSize = 0
