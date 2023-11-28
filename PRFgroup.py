@@ -26,6 +26,7 @@ class PRFgroup:
         fit=None,
         method=None,
     ):
+        # set the variables
         self.data_from = data_from
         self.study = study
         self.data = DF
@@ -132,6 +133,10 @@ class PRFgroup:
         if len(anasDF) >= 10:
             pbar.close()
 
+        # check if something was actually found
+        if len(anasDF) == 0:
+            raise Warning("No analyses were found!")
+
         return cls(
             data_from="docker",
             study=study,
@@ -218,6 +223,10 @@ class PRFgroup:
         if len(anasDF) >= 10:
             pbar.close()
 
+        # check if something was actually found
+        if len(anasDF) == 0:
+            raise Warning("No analyses were found!")
+
         return cls(
             data_from="samsrf",
             study=study,
@@ -283,6 +292,10 @@ class PRFgroup:
                 )
                 anasDF.drop(I).reset_index(drop=True)
 
+        # check if something was actually found
+        if len(anasDF) == 0:
+            raise Warning("No analyses were found!")
+
         return cls(
             data_from="mrVista",
             study=study,
@@ -340,7 +353,7 @@ class PRFgroup:
 
     # ----------------------------------- APPEND ----------------------------------#
     def append(self, to_append):
-        print("WARNING: just the data will be appended!")
+        print("Warning: just the data will be appended!")
 
         self.data = pd.concat([self.data, to_append.data]).reset_index(drop=True)
 
