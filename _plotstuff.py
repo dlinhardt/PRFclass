@@ -1,10 +1,10 @@
 try:
     from mayavi import mlab
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     print("Package mayavi not installed!")
 try:
     from surfer import Brain
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     print("Package pysurfer not installed!")
     print("Install it or don't run plot_toSurface()")
 
