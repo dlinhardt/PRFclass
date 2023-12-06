@@ -336,6 +336,14 @@ class PRF:
         return self._calcMask()
 
     @property
+    def roiMsk(self):
+        return self._roiMsk
+
+    @property
+    def varExpMsk(self):
+        return self._varExpMsk
+
+    @property
     def y(self):
         return self.y0[self.mask]
 

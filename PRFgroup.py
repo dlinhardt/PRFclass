@@ -484,6 +484,14 @@ class PRFgroup:
     @property
     def mask(self):
         return np.hstack([a["prf"].mask for I, a in self.data.iterrows()])
+    
+    @property
+    def varExpMsk(self):
+        return np.hstack([a["prf"].varExpMsk for I, a in self.data.iterrows()])
+    
+    @property
+    def roiMsk(self):
+        return np.hstack([a["prf"].roiMsk for I, a in self.data.iterrows()])
 
     @property
     def subject_mask(self):
