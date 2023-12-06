@@ -337,11 +337,11 @@ class PRF:
 
     @property
     def roiMsk(self):
-        return self._roiMsk
+        return self._roiMsk.astype(bool)
 
     @property
     def varExpMsk(self):
-        return self._varExpMsk
+        return self._varExpMsk.astype(bool)
 
     @property
     def y(self):
