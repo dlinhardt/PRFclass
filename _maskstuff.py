@@ -293,6 +293,9 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
                         self._roiMsk[maskinfo["roiIndBold"]] = 1
                     elif h.upper() == "R":
                         self._roiMsk[np.array(maskinfo["roiIndBold"]) + lHemiSize] = 1
+                        
+        if self._roiMsk.sum() == 0:
+            print(f"WARNING: No data in ROI {self._area} in {self._atlas}!")
 
     elif self._dataFrom == "samsrf":
         # get the occ mask used in samsrf
