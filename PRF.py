@@ -44,6 +44,7 @@ class PRF:
         _createmask,
         _get_surfaceSavePath,
         _make_gif,
+        manual_masking,
     )
 
     from_docker = classmethod(from_docker)

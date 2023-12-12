@@ -15,6 +15,9 @@ from glob import glob
 from os import path
 
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider, Button
+import matplotlib.transforms as mtransforms
+from matplotlib import patches
 import nibabel as nib
 import numpy as np
 import scipy.stats as st
@@ -68,6 +71,33 @@ def _createmask(self, shape, otherRratio=None):
 
     y, x = np.ogrid[-x0 : n - x0, -y0 : n - y0]
     return x * x + y * y <= r * r
+
+
+def draw_grid(ax, maxEcc):
+    # draw grid
+    maxEcc13 = maxEcc / 3
+    maxEcc23 = maxEcc / 3 * 2
+    si = np.sin(np.pi / 4) * maxEcc
+    co = np.cos(np.pi / 4) * maxEcc
+
+    for e in [maxEcc13, maxEcc23, maxEcc]:
+        ax.add_patch(plt.Circle((0, 0), e, color="grey", fill=False, linewidth=0.8))
+
+    ax.plot((-1 * maxEcc, maxEcc), (0, 0), color="grey", linewidth=0.8)
+    ax.plot((0, 0), (-1 * maxEcc, maxEcc), color="grey", linewidth=0.8)
+    ax.plot((-co, co), (-si, si), color="grey", linewidth=0.8)
+    ax.plot((-co, co), (si, -si), color="grey", linewidth=0.8)
+
+    ax.tick_params(axis="x", which="both", bottom=False, top=False, labelbottom=False)
+    ax.yaxis.set_ticks(
+        [np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)]
+    )
+
+    ax.tick_params(axis="y", direction="in", pad=-ax.get_window_extent().height * 0.20)
+
+    plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
+
+    ax.set_box_aspect(1)
 
 
 def _calcCovMap(self, maxEcc, method="max", force=False):
@@ -340,30 +370,7 @@ def plot_covMap(
         fig.colorbar(im, location="right", ax=ax)
 
         # draw grid
-        maxEcc13 = maxEcc / 3
-        maxEcc23 = maxEcc / 3 * 2
-        si = np.sin(np.pi / 4) * maxEcc
-        co = np.cos(np.pi / 4) * maxEcc
-
-        for e in [maxEcc13, maxEcc23, maxEcc]:
-            ax.add_patch(plt.Circle((0, 0), e, color="grey", fill=False, linewidth=0.8))
-
-        ax.plot((-1 * maxEcc, maxEcc), (0, 0), color="grey", linewidth=0.8)
-        ax.plot((0, 0), (-1 * maxEcc, maxEcc), color="grey", linewidth=0.8)
-        ax.plot((-co, co), (-si, si), color="grey", linewidth=0.8)
-        ax.plot((-co, co), (si, -si), color="grey", linewidth=0.8)
-
-        ax.tick_params(
-            axis="x", which="both", bottom=False, top=False, labelbottom=False
-        )
-        ax.yaxis.set_ticks(
-            [np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)]
-        )
-        ax.tick_params(axis="y", direction="in", pad=-fig.get_figheight() * 0.39 * 96)
-
-        plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
-
-        ax.set_box_aspect(1)
+        draw_grid(ax, self.maxEcc)
 
         if title is not None:
             ax.set_title(title)
@@ -783,3 +790,150 @@ def plot_toSurface(
                 mlab.show(stop=True)
             else:
                 mlab.clf()
+
+
+# ----------------------------------------------------------------------------#
+def manual_masking(self):
+    """
+    This function is plotting a coverage map and lets you draw a mask on it.
+    Choose the center position and size of the circular mask with the sliders
+    and press the button to return the mask.
+    """
+
+    fig, ax = plt.subplots()
+    plt.subplots_adjust(bottom=0.25, left=0.25)
+    scatter = ax.scatter(self.x, self.y, s=0.2)
+    ax.set_aspect("equal", "box")
+    draw_grid(ax, self.maxEcc)
+
+    # Create axes for the sliders
+    axcenterx = plt.axes([0.25, 0.1, 0.45, 0.03])
+    axcentery = plt.axes([0.15, 0.25, 0.03, 0.55])
+    axradius1 = plt.axes([0.1, 0.25, 0.03, 0.55])
+    axradius2 = plt.axes([0.05, 0.25, 0.03, 0.55])
+    axrotation = plt.axes([0.25, 0.05, 0.45, 0.03])
+    axzoom = plt.axes([0.95, 0.25, 0.03, 0.55])
+
+    # Create the sliders
+    slider_centerx = Slider(axcenterx, "Center X", min(self.x), max(self.x), valinit=0)
+    slider_centery = Slider(
+        axcentery,
+        "Center Y",
+        min(self.y),
+        max(self.y),
+        valinit=0,
+        orientation="vertical",
+    )
+    slider_radius1 = Slider(
+        axradius1,
+        "Radius 1",
+        0,
+        self.maxEcc * 2,
+        valinit=1,
+        orientation="vertical",
+    )
+    slider_radius2 = Slider(
+        axradius2,
+        "Radius 2",
+        0,
+        self.maxEcc * 2,
+        valinit=1,
+        orientation="vertical",
+    )
+    slider_rotation = Slider(axrotation, "Rotation", -np.pi, np.pi, valinit=0)
+    slider_zoom = Slider(
+        axzoom,
+        "Zoom",
+        self.maxEcc,
+        max(self.x),
+        valinit=max(self.x),
+        orientation="vertical",
+    )
+
+    # Create the ellipse with initial width and height
+    initX, initY = 0, 0
+    initR1, initR2, initRot = 1, 1, 0
+    ellipse = patches.Ellipse(
+        (initX, initY), 2 * initR1, 2 * initR2, fill=False, color="green", linewidth=2
+    )
+    ax.add_patch(ellipse)
+    mask = (
+        (self.x - initX) * np.cos(initRot) + (self.y - initY) * np.sin(initRot)
+    ) ** 2 / initR1**2 + (
+        (self.x - initX) * np.sin(initRot) - (self.y - initY) * np.cos(initRot)
+    ) ** 2 / initR2**2 < 1
+    scatter.set_facecolor(["blue" if m else "grey" for m in mask])
+
+    def update(val):
+        centerx = slider_centerx.val
+        centery = slider_centery.val
+        radius1 = slider_radius1.val
+        radius2 = slider_radius2.val
+        rotation = slider_rotation.val
+        zoom = slider_zoom.val
+        mask = (
+            (self.x - centerx) * np.cos(rotation)
+            + (self.y - centery) * np.sin(rotation)
+        ) ** 2 / radius1**2 + (
+            (self.x - centerx) * np.sin(rotation)
+            - (self.y - centery) * np.cos(rotation)
+        ) ** 2 / radius2**2 < 1
+        scatter.set_facecolor(["blue" if m else "grey" for m in mask])
+
+        # Update the ellipse properties
+        ellipse.center = (centerx, centery)
+        ellipse.width = 2 * radius1
+        ellipse.height = 2 * radius2
+        ellipse.angle = np.degrees(rotation)
+        # zoom th plot
+        ax.set_xlim(-zoom, zoom)
+        ax.set_ylim(-zoom, zoom)
+        fig.canvas.draw_idle()
+
+    slider_centerx.on_changed(update)
+    slider_centery.on_changed(update)
+    slider_radius1.on_changed(update)
+    slider_radius2.on_changed(update)
+    slider_rotation.on_changed(update)
+    slider_zoom.on_changed(update)
+
+    # Create a button
+    axbutton = plt.axes([0.8, 0.025, 0.1, 0.04])
+    button = Button(axbutton, "Get Mask", hovercolor="0.975")
+
+    def on_click(event):
+        # Check if the click was on the plot
+        if event.inaxes == ax:
+            # Update the sliders
+            slider_centerx.set_val(event.xdata)
+            slider_centery.set_val(event.ydata)
+            # Update the ellipse
+            ellipse.center = (event.xdata, event.ydata)
+            fig.canvas.draw_idle()
+        elif event.inaxes == axbutton:
+            # process on the button
+            centerx = slider_centerx.val
+            centery = slider_centery.val
+            radius1 = slider_radius1.val
+            radius2 = slider_radius2.val
+            rotation = slider_rotation.val
+            mask = (
+                (self.x - centerx) * np.cos(rotation)
+                + (self.y - centery) * np.sin(rotation)
+            ) ** 2 / radius1**2 + (
+                (self.x - centerx) * np.sin(rotation)
+                - (self.y - centery) * np.cos(rotation)
+            ) ** 2 / radius2**2 < 1
+            # Store the mask in the global variable
+            self._manual_mask = np.zeros(len(self.x0), dtype=bool)
+            self._manual_mask[self.mask] = mask
+            # Close the plot
+            plt.close(fig)
+            # Return the mask after the plot is closed
+            return self._manual_mask
+        else:
+            # Ignore clicks outside the plot
+            return
+
+    # Connect the click event to the on_click function
+    cid = fig.canvas.mpl_connect("button_press_event", on_click)
