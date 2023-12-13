@@ -107,7 +107,7 @@ def init_variables(self):
             with np.errstate(divide="ignore", invalid="ignore"):
                 self._rss0 = np.hstack([m["rss"][0][0][0] for m in self._model])
                 self._rawrss0 = np.hstack([m["rawrss"][0][0][0] for m in self._model])
-                self._varexp0 = 1.0 - self._rss0 / self._rawrss0
+                # self._varexp0 = 1.0 - self._rss0 / self._rawrss0
 
             self._maxEcc = np.hstack(
                 [p["analysis"]["fieldSize"][0][0][0][0] for p in self._params]
