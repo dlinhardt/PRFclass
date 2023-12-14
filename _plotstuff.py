@@ -251,13 +251,6 @@ def plot_covMap(
     if not show:
         plt.ioff()
 
-    if maxEcc is None:
-        if not hasattr(self, "_maxEcc"):
-            print("Please provide maxEcc!")
-            return
-        else:
-            maxEcc = self.maxEcc
-
     # create the filename
     if self._dataFrom == "mrVista":
         VEstr = (
@@ -370,7 +363,7 @@ def plot_covMap(
         fig.colorbar(im, location="right", ax=ax)
 
         # draw grid
-        draw_grid(ax, self.maxEcc)
+        draw_grid(ax, maxEcc)
 
         if title is not None:
             ax.set_title(title)
@@ -570,7 +563,7 @@ def plot_toSurface(
             if param == "ecc":
                 plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
                 cmap = "rainbow_r"
-                datMin, datMax = 0, self.maxEcc
+                datMin, datMax = 0, maxEcc
 
             elif param == "pol":
                 plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
@@ -800,11 +793,15 @@ def manual_masking(self):
     and press the button to return the mask.
     """
 
+    maxEcc = self.maxEcc + 1e-12
+
     fig, ax = plt.subplots()
     plt.subplots_adjust(bottom=0.25, left=0.25)
     scatter = ax.scatter(self.x, self.y, s=0.2)
     ax.set_aspect("equal", "box")
-    draw_grid(ax, self.maxEcc)
+    draw_grid(ax, maxEcc)
+    ax.set_xlim(-maxEcc, maxEcc)
+    ax.set_ylim(-maxEcc, maxEcc)
 
     # Create axes for the sliders
     axcenterx = plt.axes([0.25, 0.1, 0.45, 0.03])
@@ -828,7 +825,7 @@ def manual_masking(self):
         axradius1,
         "Radius 1",
         0,
-        self.maxEcc * 2,
+        maxEcc * 2,
         valinit=1,
         orientation="vertical",
     )
@@ -836,7 +833,7 @@ def manual_masking(self):
         axradius2,
         "Radius 2",
         0,
-        self.maxEcc * 2,
+        maxEcc * 2,
         valinit=1,
         orientation="vertical",
     )
@@ -844,9 +841,9 @@ def manual_masking(self):
     slider_zoom = Slider(
         axzoom,
         "Zoom",
-        self.maxEcc,
+        maxEcc,
         max(self.x),
-        valinit=max(self.x),
+        valinit=maxEcc,
         orientation="vertical",
     )
 
@@ -900,6 +897,11 @@ def manual_masking(self):
     # Create a button
     axbutton = plt.axes([0.8, 0.025, 0.1, 0.04])
     button = Button(axbutton, "Get Mask", hovercolor="0.975")
+    axbutton2 = plt.axes([0.8, 0.075, 0.1, 0.04])
+    button2 = Button(axbutton2, "Add to Mask", hovercolor="0.975")
+
+    # create the manual_mask variable
+    self._manual_mask = np.zeros(self.x0.shape, dtype=bool)
 
     def on_click(event):
         # Check if the click was on the plot
@@ -911,7 +913,27 @@ def manual_masking(self):
             ellipse.center = (event.xdata, event.ydata)
             fig.canvas.draw_idle()
         elif event.inaxes == axbutton:
-            # process on the button
+            # If self._manual_mask is None, calculate the mask based on the current ellipse
+            if self._manual_mask.sum() == 0:
+                centerx = slider_centerx.val
+                centery = slider_centery.val
+                radius1 = slider_radius1.val
+                radius2 = slider_radius2.val
+                rotation = slider_rotation.val
+                mask = (
+                    (self.x - centerx) * np.cos(rotation)
+                    + (self.y - centery) * np.sin(rotation)
+                ) ** 2 / radius1**2 + (
+                    (self.x - centerx) * np.sin(rotation)
+                    - (self.y - centery) * np.cos(rotation)
+                ) ** 2 / radius2**2 < 1
+                self._manual_mask[self.mask] = mask
+            # Close the plot
+            plt.close(fig)
+            # Return the mask after the plot is closed
+            return self._manual_mask
+        elif event.inaxes == axbutton2:
+            # Add the points in the selected area to the mask
             centerx = slider_centerx.val
             centery = slider_centery.val
             radius1 = slider_radius1.val
@@ -924,13 +946,15 @@ def manual_masking(self):
                 (self.x - centerx) * np.sin(rotation)
                 - (self.y - centery) * np.cos(rotation)
             ) ** 2 / radius2**2 < 1
-            # Store the mask in the global variable
-            self._manual_mask = np.zeros(len(self.x0), dtype=bool)
-            self._manual_mask[self.mask] = mask
-            # Close the plot
-            plt.close(fig)
-            # Return the mask after the plot is closed
-            return self._manual_mask
+            if self._manual_mask.sum() == 0:
+                self._manual_mask[self.mask] = mask
+            else:
+                self._manual_mask[self.mask] = np.logical_or(
+                    self._manual_mask[self.mask], mask
+                )
+            # Color the selected points
+            ax.scatter(self.x[mask], self.y[mask], color="green", s=0.3)
+            fig.canvas.draw_idle()
         else:
             # Ignore clicks outside the plot
             return
