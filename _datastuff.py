@@ -115,7 +115,7 @@ def init_variables(self):
             if self._hemis == "":
                 if self._maxEcc[0] != self._maxEcc[1]:
                     raise Warning("maxEcc for both hemispheres is different!")
-            self._maxEcc = self._maxEcc[0]
+            self._maxEcc = self._maxEcc[0].astype(np.float32)
 
         #!!! this should be fixed in oprf!
         if "fprf" in self._prfanalyze_method:
