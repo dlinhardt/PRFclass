@@ -953,7 +953,7 @@ def manual_masking(self):
                     self._manual_mask[self.mask], mask
                 )
             # Color the selected points
-            ax.scatter(self.x[mask], self.y[mask], color="green", s=0.3)
+            ax.scatter(self.x[mask], self.y[mask], color="magenta", s=0.3)
             fig.canvas.draw_idle()
         else:
             # Ignore clicks outside the plot
