@@ -149,11 +149,13 @@ def init_variables(self):
     self._isBetaMasked = None
     self._isEccMasked = None
     self._isSigMasked = None
+    self._isManualMasked = None
     self._doROIMsk = True
     self._doVarExpMsk = True
     self._doBetaMsk = True
     self._doEccMsk = True
     self._doSigMsk = True
+    self._doManualMsk = True
 
 
 # --------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
@@ -374,6 +376,100 @@ def from_docker(
         prfanaAn=prfanaAn,
         orientation=orientation,
         mat=mat,
+        est=est,
+        method=method,
+    )
+
+
+# --------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
+def from_file(
+    cls,
+    study,
+    force_path,
+    orientation="VF",
+):
+    """
+    With this constructor you can load results from the given path
+
+    Args:
+        path (str): path to json
+
+    Returns:
+        cls: Instance of the PRF class with all the results
+    """
+
+    print(
+        f"[WARNING] As you are providing a path only, some functions may not work properly!"
+    )
+
+    if not isinstance(force_path, list):
+        force_path = [force_path]
+
+    if len(force_path) > 2:
+        print(
+            "[WARNING] You are providing more than 2 paths, only the first 2 will be used!"
+        )
+        force_path = force_path[:2]
+
+    est = []
+    for p in force_path:
+        with open(p, "r") as fl:
+            this_est = json.load(fl)
+
+        est.append(this_est)
+
+    def check_all_elements_equal(lst):
+        if len(set(lst)) > 1:
+            raise ValueError(f"All elements in the list {lst} are not the same.")
+        return lst[0]
+
+    method = check_all_elements_equal(
+        [i.split("prfanalyze-")[-1].split("analysis-")[0][:-1] for i in force_path]
+    )
+    analysis = check_all_elements_equal(
+        [i.split("analysis-")[-1].split("sub-")[0][:-1] for i in force_path]
+    )
+    subject = check_all_elements_equal(
+        [path.basename(i).split("sub-")[-1].split("_")[0] for i in force_path]
+    )
+    session = check_all_elements_equal(
+        [path.basename(i).split("ses-")[-1].split("_")[0] for i in force_path]
+    )
+    task = check_all_elements_equal(
+        [path.basename(i).split("task-")[-1].split("_")[0] for i in force_path]
+    )
+    run = check_all_elements_equal(
+        [path.basename(i).split("run-")[-1].split("_")[0] for i in force_path]
+    )
+    hemi = [path.basename(i).split("hemi-")[-1].split("_")[0] for i in force_path]
+
+    prfanaMe = method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
+    prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
+    subject = subject if subject.startswith("sub-") else f"sub-{subject}"
+    session = session if session.startswith("ses-") else f"ses-{session}"
+    task = task if task.startswith("task-") else f"task-{task}"
+    run = f"{run}" if str(run).startswith("run-") else f"run-{run}"
+
+    # sort that left hemi is first
+    hemi, est = zip(*sorted(zip(hemi, est)))
+    hemi = list(hemi)
+    est = list(est)
+
+    # get the base path
+    baseP = check_all_elements_equal([i.split(study)[0][:-1] for i in force_path])
+
+    return cls(
+        "docker",
+        study,
+        subject,
+        session,
+        baseP,
+        task=task,
+        run=run,
+        hemis=hemi,
+        prfanaMe=prfanaMe,
+        prfanaAn=prfanaAn,
+        orientation=orientation,
         est=est,
         method=method,
     )
