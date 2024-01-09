@@ -19,6 +19,7 @@ class PRF:
         from_docker,
         from_mrVista,
         from_samsrf,
+        from_file,
         spm_hrf_compat,
     )
     from ._maskstuff import (
@@ -50,6 +51,7 @@ class PRF:
     from_docker = classmethod(from_docker)
     from_mrVista = classmethod(from_mrVista)
     from_samsrf = classmethod(from_samsrf)
+    from_file = classmethod(from_file)
 
     def __init__(
         self,
@@ -136,54 +138,54 @@ class PRF:
 
     @property
     def y0(self):
-        return self._y0
+        return self._y0.astype(np.float32)
 
     @property
     def x0(self):
-        return self._x0
+        return self._x0.astype(np.float32)
 
     @property
     def s0(self):
-        return self._s0
+        return self._s0.astype(np.float32)
 
     @property
     def sigma0(self):
-        return self._s0
+        return self._s0.astype(np.float32)
 
     @property
     def r0(self):
-        return np.sqrt(np.square(self.x0) + np.square(self.y0))
+        return np.sqrt(np.square(self.x0) + np.square(self.y0)).astype(np.float32)
 
     @property
     def ecc0(self):
-        return np.sqrt(np.square(self.x0) + np.square(self.y0))
+        return np.sqrt(np.square(self.x0) + np.square(self.y0)).astype(np.float32)
 
     @property
     def phi0(self):
         p = np.arctan2(self.y0, self.x0)
         p[p < 0] += 2 * np.pi
-        return p
+        return p.astype(np.float32)
 
     @property
     def phi0_orig(self):
         p = np.arctan2(self.y0, self.x0)
-        return p
+        return p.astype(np.float32)
 
     @property
     def pol0(self):
-        return self.phi0
+        return self.phi0.astype(np.float32)
 
     @property
     def pol0_orig(self):
-        return self.phi0_orig
+        return self.phi0_orig.astype(np.float32)
 
     @property
     def beta0(self):
-        return self._beta0
+        return self._beta0.astype(np.float32)
 
     @property
     def varexp0(self):
-        return self._varexp0
+        return self._varexp0.astype(np.float32)
 
     @property
     def varexp_easy0(self):
@@ -226,7 +228,7 @@ class PRF:
             self._beta_easy = beta_easy
             self._varexp_easy = varexp_easy
 
-        return self._varexp_easy
+        return self._varexp_easy.astype(np.float32)
 
     @property
     def voxelTC0(self):
@@ -256,7 +258,7 @@ class PRF:
             np.seterr(invalid="ignore")
             self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:, None] * 100
 
-        return self._voxelTC0
+        return self._voxelTC0.astype(np.float32)
 
     @property
     def modelpred0(self):
@@ -277,11 +279,11 @@ class PRF:
                 ):
                     self._modelpred0 = self.loadStim(buildTC=True)
 
-        return self._modelpred0
+        return self._modelpred0.astype(np.float32)
 
     @property
     def maxEcc(self):
-        return self._maxEcc
+        return self._maxEcc.astype(np.float32)
 
     @property
     def model(self):
@@ -291,6 +293,7 @@ class PRF:
     def params(self):
         return self._params
 
+    # -------------------------- DO MASKING? --------------------------#
     @property
     def doROIMsk(self):
         return self._doROIMsk
@@ -331,15 +334,49 @@ class PRF:
     def doSigMsk(self, value: bool):
         self._doSigMsk = value
 
-    # -------------------------- MASKED STUFF --------------------------#
+    @property
+    def doManualMsk(self):
+        return self._doManualMsk
+
+    @doManualMsk.setter
+    def doManualMsk(self, value: bool):
+        self._doManualMsk = value
+
+    # --------------------------- GET MASKS ---------------------------#
     @property
     def mask(self):
-        return self._calcMask()
+        return self._calcMask().astype(bool)
 
     @property
     def roiMsk(self):
         return self._roiMsk.astype(bool)
 
+    @property
+    def varExpMsk(self):
+        return self._varExpMsk.astype(bool)
+
+    @property
+    def eccMsk(self):
+        return self._eccMsk.astype(bool)
+
+    @property
+    def sigMsk(self):
+        return self._sigMsk.astype(bool)
+
+    @property
+    def manualMsk(self):
+        return self._manual_mask.astype(bool)
+
+    @manualMsk.setter
+    def manualMsk(self, value: bool):
+        if len(value) != len(self.x0):
+            raise Warning(
+                f"The passed mask shape does not fit! {len(value)} vs {len(self.x0)}"
+            )
+        self._isManualMasked = True
+        self._manual_mask = value
+
+    # -------------------------- MASKED STUFF --------------------------#
     @property
     def varExpMsk(self):
         return self._varExpMsk.astype(bool)
