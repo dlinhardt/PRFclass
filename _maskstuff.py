@@ -190,7 +190,7 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
         self._roiWhichArea = np.empty(0)
         self._areaJsons = []
 
-        hs = ["L", "R"] if self._hemis == "" else [self._hemis]
+        hs = ["L", "R"] if self._hemis == "" else [*self._hemis]
         for at in self._atlas:
             for ar in self._area:
                 # load the left hemi size if only looking at right
@@ -293,7 +293,7 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
                         self._roiMsk[maskinfo["roiIndBold"]] = 1
                     elif h.upper() == "R":
                         self._roiMsk[np.array(maskinfo["roiIndBold"]) + lHemiSize] = 1
-                        
+
         if self._roiMsk.sum() == 0:
             print(f"WARNING: No data in ROI {self._area} in {self._atlas}!")
 
@@ -309,7 +309,7 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
             self._session,
             "occ.label",
         )
-        occ_label = nib.freesurfer.read_label(occ_file)
+        occ_label = nib.freesurfer.read_label(occ_file)  # as this is coming from matlab
         # get the mask
         self._atlas = atlas  # if isinstance(atlas, list) else [atlas] # this we need if we want to use list of atlases
         self._area = area  # if isinstance(area, list) else [area]
@@ -320,25 +320,34 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
         if not "benson" in atlas:
             raise ValueError("Only benson atlas implemented for samsrf data")
 
-        self._area_files_p = glob(
-            path.join(
-                self._baseP,
-                self._study,
-                "derivatives",
-                "fmriprep",
-                f"analysis-01",
-                "sourcedata",
-                "freesurfer",
-                self._subject,
-                "surf",
-                "*h.benson14_varea.mgz",
+        self._area_files_p = sorted(
+            glob(
+                path.join(
+                    self._baseP,
+                    self._study,
+                    "derivatives",
+                    "fmriprep",
+                    f"analysis-01",
+                    "sourcedata",
+                    "freesurfer",
+                    self._subject,
+                    "surf",
+                    "*h.benson14_varea.mgz",
+                )
             )
         )
 
-        area_masks = np.hstack(
-            [nib.load(f).get_fdata().squeeze() for f in sorted(self._area_files_p)]
+        # get the areas and hemis
+        area_masks, which_hemi = np.hstack(
+            [
+                (
+                    ll := nib.load(f).get_fdata().squeeze(),
+                    np.tile(path.basename(f)[0].upper(), len(ll)),
+                )
+                for f in self._area_files_p
+            ]
         )
-        area_masks_occ = area_masks[occ_label]
+        area_masks_occ = area_masks.astype(np.float32).astype(np.int16)[occ_label]
 
         # load the label area dependency
         mdl = ny.vision.retinotopy_model("benson17", "lh")
@@ -348,6 +357,20 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
 
         self._roiMsk = np.zeros(self.x0.shape)
         self._roiMsk[area_masks_occ == areaLabels[area]] = 1
+
+        # define the roiIndOrig and roiIndBold
+        self._roiIndOrig = occ_label[self.roiMsk]
+        self._roiIndBold = np.where(self.roiMsk)[0]
+
+        # check which hemi
+        which_hemi_occ = which_hemi[occ_label]
+        self._roiWhichHemi = which_hemi_occ[self.roiMsk]
+
+        # check right hemi and remove len of left hemi
+        self._vertices_left_hemi = (which_hemi == "L").sum()
+        self._roiIndOrig[self._roiWhichHemi == "R"] -= self._vertices_left_hemi
+
+        self._analysisSpace = "fsnative"
 
     self._isROIMasked = 1
 
@@ -472,6 +495,9 @@ def _calcMask(self):
 
     if self._isSigMasked and self.doSigMsk:
         self._mask = np.all((self._mask, self._sigMsk), 0)
+
+    if self._isManualMasked and self.doManualMsk:
+        self._mask = np.all((self._mask, self._manual_mask), 0)
 
     self._mask = self._mask.astype(bool)
 
