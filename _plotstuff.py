@@ -23,30 +23,46 @@ import numpy as np
 import scipy.stats as st
 from PIL import Image
 
+try:
+    import neuropythy as ny
+except:
+    print("neuropythy not installed, samsrf data not available")
+
 
 class label:
     """
     Mini class that defines a label, needed to plot borders
     """
 
-    def __init__(self, ar, at, he, allAreaFiles):
+    def __init__(self, ar, at, he, allAreaFiles, left_hemi):
         self.name = ar
         self.hemi = he[0].lower()[0] + "h"
 
-        vJsonName = [
-            j
-            for j in allAreaFiles
-            if f"hemi-{he[0].upper()}_" in path.basename(j)
-            and f"desc-{ar}-" in path.basename(j)
-            and at in path.basename(j)
-        ][0]
-        with open(vJsonName, "r") as fl:
-            maskinfo = json.load(fl)
+        if not "sourcedata/freesurfer" in allAreaFiles[0]:
+            vJsonName = [
+                j
+                for j in allAreaFiles
+                if f"hemi-{he[0].upper()}_" in path.basename(j)
+                and f"desc-{ar}-" in path.basename(j)
+                and at in path.basename(j)
+            ][0]
+            with open(vJsonName, "r") as fl:
+                maskinfo = json.load(fl)
 
-        if "roiIndOrig" in maskinfo.keys():
-            self.vertices = np.array(maskinfo["roiIndOrig"])
+            if "roiIndOrig" in maskinfo.keys():
+                self.vertices = np.array(maskinfo["roiIndOrig"])
+            else:
+                self.vertices = np.array(maskinfo["roiIndFsnative"])
         else:
-            self.vertices = np.array(maskinfo["roiIndFsnative"])
+            f = [j for j in allAreaFiles if f"/{he[0].lower()}h."][0]
+            maskinfo = nib.load(f).get_fdata().squeeze()
+            mdl = ny.vision.retinotopy_model("benson17", "lh")
+            areaLabels = dict(mdl.area_id_to_name)
+            areaLabels = {areaLabels[k]: k for k in areaLabels}
+            labels = areaLabels[ar]
+            self.vertices = np.where(maskinfo == labels)
+            if he.upper() == "R":
+                self.vertices -= left_hemi
 
 
 # ----------------------------------------------------------------------------#
@@ -130,19 +146,23 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
             if self._isEccMasked and self.doEccMsk
             else ""
         )
+        Mstr = (
+            f"-manualMask{self._isManualMasked}"
+            if self._isManualMasked and self.doManualMsk
+            else ""
+        )
         methodStr = f"_{method}"
 
         savePathB = path.join(
             self._baseP,
             self._study,
-            "prfresult",
-            self._prfanaAn,
+            "plots",
             "cover",
             "data",
             self.subject,
             self.session,
         )
-        savePathF = f"{self.subject}_{self.session}_{self._prfanaAn}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.npy"
+        savePathF = f"{self.subject}_{self.session}_{self._analysis}{VEstr}{Estr}{Bstr}{Mstr}{Sstr}{methodStr}.npy"
 
     elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
         VEstr = (
@@ -160,6 +180,11 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
             if self._isSigMasked and self.doSigMsk
             else ""
         )
+        Mstr = (
+            f"-manualMask{self._isManualMasked}"
+            if self._isManualMasked and self.doManualMsk
+            else ""
+        )
         Sstr = "-MPspace" if self._orientation == "MP" else ""
         Estr = (
             f"_maxEcc{self._isEccMasked}" if self._isEccMasked and self.doEccMsk else ""
@@ -173,13 +198,14 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
             self._study,
             "derivatives",
             "prfresult",
+            self._prfanalyze_method,
             self._prfanaAn,
             "covMapData",
             self.subject,
             self.session,
         )
 
-        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}_covmapData.npy"
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}_covmapData.npy"
 
     savePath = path.join(savePathB, savePathF)
 
@@ -269,19 +295,23 @@ def plot_covMap(
             if self._isEccMasked and self.doEccMsk
             else ""
         )
+        Mstr = (
+            f"-manualMask{self._isManualMasked}"
+            if self._isManualMasked and self.doManualMsk
+            else ""
+        )
         CBstr = f"_colBar-{cmapMin}".replace(".", "") if cmapMin != 0 else ""
         methodStr = f"_{method}"
 
         savePathB = path.join(
             self._baseP,
             self._study,
-            "prfresult",
-            self._prfanaAn,
+            "plots",
             "cover",
             self.subject,
             self.session,
         )
-        savePathF = f"{self.subject}_{self.session}_{self._prfanaAn}{CBstr}{VEstr}{Estr}{Bstr}{Sstr}{methodStr}.svg"
+        savePathF = f"{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Mstr}{Sstr}{methodStr}.svg"
 
     elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
         VEstr = (
@@ -299,6 +329,11 @@ def plot_covMap(
             if self._isSigMasked and self.doSigMsk
             else ""
         )
+        Mstr = (
+            f"-manualMask{self._isManualMasked}"
+            if self._isManualMasked and self.doManualMsk
+            else ""
+        )
         Sstr = "-MPspace" if self._orientation == "MP" else ""
         Estr = (
             f"_maxEcc{self._isEccMasked}" if self._isEccMasked and self.doEccMsk else ""
@@ -313,12 +348,13 @@ def plot_covMap(
             self._study,
             "derivatives",
             "prfresult",
+            self._prfanalyze_method,
             self._prfanaAn,
             "covMap",
             self.subject,
             self.session,
         )
-        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.svg"
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.svg"
 
     savePath = path.join(savePathB, savePathF)
 
@@ -407,6 +443,11 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
         if self._isBetaMasked and self.doBetaMsk
         else ""
     )
+    Mstr = (
+        f"-manualMask{self._isManualMasked}"
+        if self._isManualMasked and self.doManualMsk
+        else ""
+    )
     Pstr = f"-{param}"
 
     savePathB = path.join(
@@ -414,6 +455,7 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
         self._study,
         "derivatives",
         "prfresult",
+        self._prfanalyze_method,
         self._prfanaAn,
         "cortex",
         self.subject,
@@ -423,7 +465,7 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
     areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
     if not plain:
-        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Pstr}_{ending}"
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc-{areaStr}{VEstr}{Bstr}{Mstr}{Pstr}_{ending}"
     else:
         savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc{Pstr}_{ending}"
 
@@ -472,6 +514,7 @@ def plot_toSurface(
     interactive=True,
     create_gif=False,
     headless=False,
+    maxEcc=None,
 ):
     """
     If we have docker data that was analyzed in fsnative space we can plot
@@ -492,9 +535,11 @@ def plot_toSurface(
         headless (bool, optional): This supresses all pop-ups. Defaults to False.
     """
 
+    maxEcc = maxEcc if maxEcc else self.maxEcc
+
     if self._dataFrom == "mrVista":
         print("We can not do that with non-docker data!")
-    elif self._dataFrom == "docker":
+    elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
         if self._analysisSpace == "volume":
             print("We can not yet do that with volumentric data!")
             return
@@ -548,6 +593,8 @@ def plot_toSurface(
             nVertices = len(pial[0])
 
             # create mask dependent on used hemisphere
+            if not hasattr(self, "_roiWhichHemi"):
+                raise Warning("Please mask for visual area with instance.maskROI()!")
             if hemi[0].upper() == "L":
                 hemiM = self._roiWhichHemi == "L"
             elif hemi[0].upper() == "R":
@@ -628,8 +675,14 @@ def plot_toSurface(
                 for at in ats:
                     for ar in ars:
                         try:
+                            if self._dataFrom == "samsrf":
+                                aaf = self._area_files_p
+                                left_hemi = self._vertices_left_hemi
+                            else:
+                                aaf = self._allAreaFiles
+                                left_hemi = None
                             brain.add_label(
-                                label(ar, at, hemi, self._allAreaFiles),
+                                label(ar, at, hemi, aaf, left_hemi),
                                 borders=True,
                                 color="black",
                                 alpha=0.7,
@@ -825,7 +878,7 @@ def manual_masking(self):
         axradius1,
         "Radius 1",
         0,
-        maxEcc * 2,
+        maxEcc,
         valinit=1,
         orientation="vertical",
     )
@@ -833,7 +886,7 @@ def manual_masking(self):
         axradius2,
         "Radius 2",
         0,
-        maxEcc * 2,
+        maxEcc,
         valinit=1,
         orientation="vertical",
     )
@@ -901,6 +954,7 @@ def manual_masking(self):
     button2 = Button(axbutton2, "Add to Mask", hovercolor="0.975")
 
     # create the manual_mask variable
+    plot_select_mask = np.zeros(self.x0.shape, dtype=bool)
     self._manual_mask = np.zeros(self.x0.shape, dtype=bool)
 
     def on_click(event):
@@ -913,8 +967,8 @@ def manual_masking(self):
             ellipse.center = (event.xdata, event.ydata)
             fig.canvas.draw_idle()
         elif event.inaxes == axbutton:
-            # If self._manual_mask is None, calculate the mask based on the current ellipse
-            if self._manual_mask.sum() == 0:
+            # If plot_select_mask is None, calculate the mask based on the current ellipse
+            if plot_select_mask.sum() == 0:
                 centerx = slider_centerx.val
                 centery = slider_centery.val
                 radius1 = slider_radius1.val
@@ -927,11 +981,12 @@ def manual_masking(self):
                     (self.x - centerx) * np.sin(rotation)
                     - (self.y - centery) * np.cos(rotation)
                 ) ** 2 / radius2**2 < 1
-                self._manual_mask[self.mask] = mask
+                plot_select_mask[self.mask] = mask
             # Close the plot
             plt.close(fig)
-            # Return the mask after the plot is closed
-            return self._manual_mask
+            # Save the mask
+            self._isManualMasked = True
+            self._manual_mask = plot_select_mask
         elif event.inaxes == axbutton2:
             # Add the points in the selected area to the mask
             centerx = slider_centerx.val
@@ -946,11 +1001,11 @@ def manual_masking(self):
                 (self.x - centerx) * np.sin(rotation)
                 - (self.y - centery) * np.cos(rotation)
             ) ** 2 / radius2**2 < 1
-            if self._manual_mask.sum() == 0:
-                self._manual_mask[self.mask] = mask
+            if plot_select_mask.sum() == 0:
+                plot_select_mask[self.mask] = mask
             else:
-                self._manual_mask[self.mask] = np.logical_or(
-                    self._manual_mask[self.mask], mask
+                plot_select_mask[self.mask] = np.logical_or(
+                    plot_select_mask[self.mask], mask
                 )
             # Color the selected points
             ax.scatter(self.x[mask], self.y[mask], color="magenta", s=0.3)
@@ -961,3 +1016,9 @@ def manual_masking(self):
 
     # Connect the click event to the on_click function
     cid = fig.canvas.mpl_connect("button_press_event", on_click)
+
+    # Show the plot and wait for it to be closed
+    plt.show()
+
+    # Return the mask after the plot is closed
+    return plot_select_mask
