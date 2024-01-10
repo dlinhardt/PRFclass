@@ -255,6 +255,9 @@ class PRF:
                     [e["testdata"] for ee in self._estimates for e in ee]
                 )
 
+            elif self._dataFrom == "samsrf":
+                self._voxelTC0 = self._mat["Srf"]["Y"][0][0].T
+
             np.seterr(invalid="ignore")
             self._voxelTCpsc0 = self._voxelTC0 / self._voxelTC0.mean(1)[:, None] * 100
 
@@ -278,6 +281,14 @@ class PRF:
                     - self.voxelTC0[::1000, :].mean(1)[:, None],
                 ):
                     self._modelpred0 = self.loadStim(buildTC=True)
+            elif self._dataFrom == "samsrf":
+                self._modelpred0 = np.apply_along_axis(
+                    lambda m: np.convolve(m, self._mat["Model"]["Hrf"][0][0].flatten()),
+                    0,
+                    aa := self._mat["Srf"]["X"][0][0] * self.beta0,
+                )[
+                    : len(aa), :
+                ]  #
 
         return self._modelpred0.astype(np.float32)
 
