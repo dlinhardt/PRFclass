@@ -101,7 +101,7 @@ class PRF:
             self._niftiFolder = niftiFolder
         if coords is not None:
             self._coords = coords
-        if self._dataFrom == "docker":
+        if hemis is not None:
             self._hemis = hemis
 
         self._orientation = orientation.upper()
@@ -114,8 +114,8 @@ class PRF:
                 self._model = [m["model"][0][0][0][0] for m in self._mat]
                 self._params = [m["params"][0][0][0][0] for m in self._mat]
         elif self._dataFrom == "samsrf":
-            self._model = self._mat["Srf"][0][0]
-            self._params = self._mat["Model"][0][0]
+            self._model = [m["Srf"][0][0] for m in self._mat]
+            self._params = [m["Model"][0][0] for m in self._mat]
 
         # initialize
         self.init_variables()
@@ -375,6 +375,10 @@ class PRF:
         return self._sigMsk.astype(bool)
 
     @property
+    def betaMsk(self):
+        return self._betaMsk.astype(bool)
+
+    @property
     def manualMsk(self):
         return self._manual_mask.astype(bool)
 
@@ -446,7 +450,6 @@ class PRF:
 
     @property
     def meanVarExp(self):
-        # if not self.isROIMasked: self.maskROI()
         return np.nanmean(self.varexp)
 
     @property
@@ -464,6 +467,10 @@ class PRF:
                 self._prfanalyzeOpts = json.load(fl)
 
         return self._prfanalyzeOpts
+
+    @property
+    def prfprepare_analysis(self):
+        return self.prfanalyzeOpts["prfprepareAnalysis"]
 
     @property
     def prfprepareOpts(self):

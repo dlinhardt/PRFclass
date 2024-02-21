@@ -13,7 +13,7 @@ except:
 
 
 # ----------------------------------MASKING-----------------------------------#
-def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
+def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False, masking_style=None):
     """
     Masks the data with defined ROIs
 
@@ -24,7 +24,12 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
         forcePath (bool, optional): Force path for coords.mat, again?. Only used when matlab mrVista data. Defaults to False.
     """
 
-    if self._dataFrom == "mrVista":
+    if masking_style is None:
+        data_from = self._dataFrom
+    else:
+        data_from = masking_style
+
+    if data_from == "mrVista":
         if isinstance(area, list):
             Warning("You can not give area lists for mrVista data!")
         if doV123:
@@ -136,7 +141,7 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
 
             # if hasattr(self, 'tValues'): self._tValues = self._tValues[self._msk]
 
-    elif self._dataFrom == "docker":
+    elif data_from == "docker":
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
         self._area = area if isinstance(area, list) else [area]
 
@@ -297,7 +302,7 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
         if self._roiMsk.sum() == 0:
             print(f"WARNING: No data in ROI {self._area} in {self._atlas}!")
 
-    elif self._dataFrom == "samsrf":
+    elif data_from == "samsrf":
         # get the occ mask used in samsrf
         occ_file = path.join(
             self._baseP,
@@ -441,7 +446,7 @@ def maskSigma(self, s_min, s_max=None):
 
 
 # ---------------------------------------------------------------------------#
-def maskBetaThresh(self, betaMax=50, doBorderThresh=False, doHighBetaThresh=True):
+def maskBetaThresh(self, betaMax=50, betaMin=0, doBorderThresh=False, doLowBetaThresh=True, doHighBetaThresh=True):
     """
     mask with beta threshold and high sigmas as calculated from macfunc18-c01 & c02 zeroth as below
 
@@ -459,6 +464,9 @@ def maskBetaThresh(self, betaMax=50, doBorderThresh=False, doHighBetaThresh=True
         )
     if doHighBetaThresh:
         self._betaMsk = np.all((self._betaMsk, self.beta0 < betaMax), 0)
+
+    if doLowBetaThresh:
+        self._betaMsk = np.all((self._betaMsk, self.beta0 > betaMin), 0)
 
     self._isBetaMasked = (
         2 if (doHighBetaThresh and doBorderThresh) else 1 if doHighBetaThresh else 3

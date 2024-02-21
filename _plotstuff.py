@@ -109,7 +109,7 @@ def draw_grid(ax, maxEcc):
         [np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)]
     )
 
-    ax.tick_params(axis="y", direction="in", pad=-ax.get_window_extent().height * 0.20)
+    ax.tick_params(axis="y", direction="in", pad=-ax.get_window_extent().height * 0.48)
 
     plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
 
@@ -277,6 +277,9 @@ def plot_covMap(
     if not show:
         plt.ioff()
 
+    # do maxEcc
+    maxEcc = maxEcc if maxEcc else self.maxEcc
+
     # create the filename
     if self._dataFrom == "mrVista":
         VEstr = (
@@ -402,7 +405,7 @@ def plot_covMap(
         draw_grid(ax, maxEcc)
 
         if title is not None:
-            ax.set_title(title)
+            ax.set_title(title, pad=16, fontsize=16)
 
     if save and not path.isfile(savePath):
         fig.savefig(savePath, bbox_inches="tight")

@@ -129,10 +129,10 @@ def init_variables(self):
 
     ############################# SAMSRF #############################
     elif self._dataFrom == "samsrf":
-        self._fit_keys = [a[0][0] for a in self._model["Values"]]
-        fit = self._model["Data"]
+        self._fit_keys = [a[0][0] for a in self._model[0]["Values"]]
+        fit = np.hstack([m["Data"] for m in self._model])
 
-        self._maxEcc = self._params["Scaling_Factor"][0][0]
+        self._maxEcc = self._params[0]["Scaling_Factor"][0][0]
 
         self._x0 = fit[self._fit_keys.index("x0"), :]
         self._y0 = -fit[self._fit_keys.index("y0"), :]
@@ -141,8 +141,6 @@ def init_variables(self):
         self._varexp0 = fit[self._fit_keys.index("R^2"), :]
         self._beta0 = fit[self._fit_keys.index("Beta"), :]
         self._baseline0 = fit[self._fit_keys.index("Baseline"), :]
-
-        self._hemis = "both"
 
     self._isROIMasked = None
     self._isVarExpMasked = None
@@ -441,7 +439,10 @@ def from_file(
     run = check_all_elements_equal(
         [path.basename(i).split("run-")[-1].split("_")[0] for i in force_path]
     )
-    hemi = [path.basename(i).split("hemi-")[-1].split("_")[0] for i in force_path]
+    if 'hemi' in path.basename(force_path[0]):
+        hemi = [path.basename(i).split("hemi-")[-1].split("_")[0] for i in force_path]
+    else:
+        hemi = 'BOTH'
 
     prfanaMe = method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
     prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
@@ -477,7 +478,7 @@ def from_file(
 
 # --------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
 def from_samsrf(
-    cls, study, subject, session, task, run, analysis="01", baseP=None, orientation="VF"
+    cls, study, subject, session, task, run, analysis="01", baseP=None, orientation="VF", hemis=False
 ):
     """
     With this constructor you can load results that were analyzed
@@ -509,18 +510,39 @@ def from_samsrf(
     if not baseP:
         baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
-    func_p = path.join(
-        baseP,
-        study,
-        "derivatives",
-        "samsrf",
-        prfanaAn,
-        subject,
-        session,
-        f"bi_{subject}_{session}_{task}_{run}_pRF-results.mat",
-    )
+    if not hemis:
+        func_p = path.join(
+            baseP,
+            study,
+            "derivatives",
+            "samsrf",
+            prfanaAn,
+            subject,
+            session,
+            f"bi_{subject}_{session}_{task}_{run}_pRF-results.mat",
+        )
 
-    mat = loadmat(func_p)
+        mat = [loadmat(func_p)]
+        hemis='both'
+    
+    else:
+        mat = []
+        for h in ['L', 'R']:
+            estimates = path.join(
+                baseP,
+                study,
+                "derivatives",
+                "samsrf",
+                prfanaAn,
+                subject,
+                session,
+                f"bi_{subject}_{session}_{task}_{run}_hemi-{h}_pRF-results.mat",
+            )
+
+            thisMat = loadmat(estimates)
+
+            mat.append(thisMat)
+        hemis = ''
 
     return cls(
         "samsrf",
@@ -529,6 +551,7 @@ def from_samsrf(
         session,
         task=task,
         run=run,
+        hemis=hemis,
         baseP=baseP,
         mat=mat,
         prfanaAn=prfanaAn,
