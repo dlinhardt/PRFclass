@@ -439,10 +439,10 @@ def from_file(
     run = check_all_elements_equal(
         [path.basename(i).split("run-")[-1].split("_")[0] for i in force_path]
     )
-    if 'hemi' in path.basename(force_path[0]):
+    if "hemi" in path.basename(force_path[0]):
         hemi = [path.basename(i).split("hemi-")[-1].split("_")[0] for i in force_path]
     else:
-        hemi = 'BOTH'
+        hemi = "BOTH"
 
     prfanaMe = method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
     prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
@@ -478,7 +478,16 @@ def from_file(
 
 # --------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
 def from_samsrf(
-    cls, study, subject, session, task, run, analysis="01", baseP=None, orientation="VF", hemis=False
+    cls,
+    study,
+    subject,
+    session,
+    task,
+    run,
+    analysis="01",
+    baseP=None,
+    orientation="VF",
+    hemis=None,
 ):
     """
     With this constructor you can load results that were analyzed
@@ -510,7 +519,7 @@ def from_samsrf(
     if not baseP:
         baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
-    if not hemis:
+    if hemis is None:
         func_p = path.join(
             baseP,
             study,
@@ -523,11 +532,19 @@ def from_samsrf(
         )
 
         mat = [loadmat(func_p)]
-        hemis='both'
-    
+        hemis = "both"
+
     else:
         mat = []
-        for h in ['L', 'R']:
+
+        if hemis == "" or hemis == "both":
+            hs = ["L", "R"]
+            hemis = ""
+        else:
+            hs = [hemis]
+            hemis = [hemis]
+
+        for h in hs:
             estimates = path.join(
                 baseP,
                 study,
@@ -542,7 +559,6 @@ def from_samsrf(
             thisMat = loadmat(estimates)
 
             mat.append(thisMat)
-        hemis = ''
 
     return cls(
         "samsrf",
