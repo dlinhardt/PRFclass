@@ -20,7 +20,6 @@ import matplotlib.transforms as mtransforms
 from matplotlib import patches
 import nibabel as nib
 import numpy as np
-import scipy.stats as st
 from PIL import Image
 
 try:
@@ -209,6 +208,13 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
 
     savePath = path.join(savePathB, savePathF)
 
+    def gaussian(x, mu, sig):
+        return (
+            1.0
+            / (np.sqrt(2.0 * np.pi) * sig)
+            * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
+        )
+
     if path.isfile(savePath) and not force:
         self.covMap = np.load(savePath, allow_pickle=True)
         return self.covMap
@@ -222,14 +228,12 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
 
         jj = 0
         for i in range(len(self.x)):
-            kern1dx = st.norm.pdf(xx, self.x[i], self.s[i])
-            kern1dy = st.norm.pdf(xx, self.y[i], self.s[i])
+            kern1dx = gaussian(xx, self.x[i], self.s[i])
+            kern1dy = gaussian(xx, self.y[i], self.s[i])
             kern2d = np.outer(kern1dx, kern1dy)
 
             if np.max(kern2d) > 0:
                 jj += 1
-
-                kern2d /= np.max(kern2d)
 
                 if method == "max":
                     covMap = np.max((covMap, kern2d), 0)
