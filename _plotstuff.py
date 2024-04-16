@@ -209,11 +209,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
     savePath = path.join(savePathB, savePathF)
 
     def gaussian(x, mu, sig):
-        return (
-            1.0
-            / (np.sqrt(2.0 * np.pi) * sig)
-            * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
-        )
+        return np.exp(-np.power((x - mu) / sig, 2.0) / 2)
 
     if path.isfile(savePath) and not force:
         self.covMap = np.load(savePath, allow_pickle=True)
@@ -222,7 +218,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
         if not path.isdir(savePathB):
             os.makedirs(savePathB)
 
-        xx = np.linspace(-1 * maxEcc, maxEcc, int(maxEcc * 30))
+        xx = np.linspace(-1 * maxEcc, maxEcc, int(maxEcc * 30) + 1)
 
         covMap = np.zeros((len(xx), len(xx)))
 
@@ -262,6 +258,7 @@ def plot_covMap(
     save=False,
     force=False,
     maxEcc=None,
+    do_scatter=True,
 ):
     """
     This plots the coverage map and eventually saves it
@@ -365,9 +362,11 @@ def plot_covMap(
 
     savePath = path.join(savePathB, savePathF)
 
+    # create folder if not exist
     if not path.isdir(savePathB):
         os.makedirs(savePathB)
 
+    # warning if the chosen method is not possible
     if not path.isfile(savePath) or show or force:
         methods = ["max", "mean", "sumClip"]
         if method not in methods:
@@ -399,7 +398,10 @@ def plot_covMap(
             vmin=cmapMin,
             vmax=vmax,
         )
-        ax.scatter(self.x[self.r < maxEcc], self.y[self.r < maxEcc], s=0.3, c="grey")
+        if do_scatter:
+            ax.scatter(
+                self.x[self.r < maxEcc], self.y[self.r < maxEcc], s=0.3, c="grey"
+            )
         ax.set_xlim((-1 * maxEcc, maxEcc))
         ax.set_ylim((-1 * maxEcc, maxEcc))
         ax.set_aspect("equal", "box")
