@@ -517,6 +517,7 @@ def plot_toSurface(
     fmriprepAna="01",
     save=False,
     forceNewPosition=False,
+    force=False,
     surface="inflated",
     showBordersAtlas=None,
     showBordersArea=None,
@@ -524,6 +525,9 @@ def plot_toSurface(
     create_gif=False,
     headless=False,
     maxEcc=None,
+    plot_colorbar=True,
+    background='black',
+    output_format='pdf',
 ):
     """
     If we have docker data that was analyzed in fsnative space we can plot
@@ -588,12 +592,12 @@ def plot_toSurface(
         for hemi in hemis:
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
-                if path.isfile(path.join(p, n + ".pdf")):
+                if path.isfile(path.join(p, n + ".pdf")) and not force:
                     return
 
             if create_gif:
                 p, n = self._get_surfaceSavePath(param, hemi)
-                if path.isfile(path.join(p, n + ".gif")):
+                if path.isfile(path.join(p, n + ".gif")) and not force:
                     return
 
             pialP = path.join(fsP, self.subject, "surf", f"{hemi[0].lower()}h.pial")
@@ -647,7 +651,11 @@ def plot_toSurface(
 
             # plot the brain
             brain = Brain(
-                self.subject, f"{hemi[0].lower()}h", surface, subjects_dir=fsP
+                self.subject, 
+                f"{hemi[0].lower()}h", 
+                surface, 
+                subjects_dir=fsP,
+                background=background,
             )
             # plot the data
             brain.add_data(
@@ -657,6 +665,7 @@ def plot_toSurface(
                 max=datMax,
                 smoothing_steps="nearest",
                 remove_existing=True,
+                colorbar=plot_colorbar,
             )
 
             # set nan to transparent
@@ -742,6 +751,8 @@ def plot_toSurface(
                             },
                             roll=142,
                         )
+                        
+                    print(posPath)
 
                     mlab.show(stop=True)
                     pos = np.array(brain.show_view(), dtype="object")
@@ -838,8 +849,8 @@ def plot_toSurface(
 
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
-                brain.save_image(path.join(p, n + ".pdf"))
-                print(f'new Cortex Map saved to {path.join(p, n + ".pdf")}')
+                brain.save_image(path.join(p, n + f".{output_format}"))
+                print(f'new Cortex Map saved to {path.join(p, n + "." + output_format)}')
 
             if interactive:
                 mlab.show(stop=True)
