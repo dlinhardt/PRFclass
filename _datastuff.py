@@ -117,15 +117,10 @@ def init_variables(self):
                     raise Warning("maxEcc for both hemispheres is different!")
             self._maxEcc = self._maxEcc[0].astype(np.float32)
 
-        #!!! this should be fixed in oprf!
+        #!!! this should be fixed in gem!
         if "fprf" in self._prfanalyze_method:
             self._y0 = -self._y0
 
-        if np.any([a in self._prfanalyze_method for a in ["oprf", "fprf"]]):
-            if self._orientation == "VF":
-                self._x0, self._y0 = -self._y0, -self._x0
-            elif self._orientation == "MP":
-                self._x0, self._y0 = self._y0, self._x0
 
     ############################# SAMSRF #############################
     elif self._dataFrom == "samsrf":
