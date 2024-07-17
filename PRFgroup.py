@@ -94,6 +94,10 @@ class PRFgroup:
             np.array([su, se, ta, ru]).T, columns=["subject", "session", "task", "run"]
         )
 
+        if len(anasDF) == 0:
+            print("no analyses were found!")
+            return
+
         anasDF = anasDF[
             (anasDF["subject"].str.match(subjects))
             & (anasDF["session"].str.match(sessions))
@@ -183,7 +187,8 @@ class PRFgroup:
         ru = [path.basename(a).split("_")[4].split("-")[-1] for a in anas]
 
         anasDF = pd.DataFrame(
-            np.array([su, se, ta, ru]).T, columns=["subject", "session", "task", "run"]
+            np.array([su, se, ta, ru, anas]).T,
+            columns=["subject", "session", "task", "run", "path"],
         )
 
         anasDF = anasDF[
@@ -193,15 +198,25 @@ class PRFgroup:
             & (anasDF["run"].str.match(runs))
         ]
 
+        if len(anasDF) == 0:
+            print("no analyses were found!")
+            return
+
         anasDF = anasDF.drop_duplicates().reset_index(drop=True)
         anasDF = anasDF.sort_values(
             ["subject", "session", "task", "run"], ignore_index=True
         )
+        anasDF = anasDF[["hemi-R" not in a for a in anasDF["path"]]]
 
         if len(anasDF) >= 10:
             pbar = tqdm(total=len(anasDF))
         for I, a in anasDF.iterrows():
             try:
+                if "_hemi-L" in a["path"]:
+                    he = ""
+                else:
+                    he = None
+
                 anasDF.loc[I, "prf"] = PRF.from_samsrf(
                     study=study,
                     subject=a["subject"],
@@ -211,6 +226,7 @@ class PRFgroup:
                     analysis=prfanalyze,
                     baseP=baseP,
                     orientation=orientation,
+                    hemis=he,
                 )
             except Exception as e:
                 print(
@@ -273,6 +289,10 @@ class PRFgroup:
         anasDF = anasDF.sort_values(
             ["subject", "session", "analysis"], ignore_index=True
         )
+
+        if len(anasDF) == 0:
+            print("no analyses were found!")
+            return
 
         for I, a in anasDF.iterrows():
             try:
@@ -484,11 +504,11 @@ class PRFgroup:
     @property
     def mask(self):
         return np.hstack([a["prf"].mask for I, a in self.data.iterrows()])
-    
+
     @property
     def varExpMsk(self):
         return np.hstack([a["prf"].varExpMsk for I, a in self.data.iterrows()])
-    
+
     @property
     def roiMsk(self):
         return np.hstack([a["prf"].roiMsk for I, a in self.data.iterrows()])
