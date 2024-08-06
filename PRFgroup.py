@@ -348,13 +348,6 @@ class PRFgroup:
         for I, a in self.data.iterrows():
             a["prf"].maskBetaThresh(betaMax, doBorderThresh, doHighBetaThresh)
 
-    def calc_subject_mask(self):
-        self._subject_mask = {}
-        for s in self.subject:
-            self._subject_mask[s] = np.all(
-                [a["prf"].mask for I, a in self.data.iterrows() if a["subject"] == s], 0
-            )
-
     # ----------------------------------- QUERY ----------------------------------#
     def query(self, s):
         print("Warning, no full class will be returned!")
@@ -422,7 +415,7 @@ class PRFgroup:
 
     @property
     def sigma0(self):
-        return np.hstack([a["prf"].s0 for I, a in self.data.iterrows()])
+        return self.s0
 
     @property
     def r0(self):
@@ -430,7 +423,7 @@ class PRFgroup:
 
     @property
     def ecc0(self):
-        return np.hstack([a["prf"].ecc0 for I, a in self.data.iterrows()])
+        return self.r0
 
     @property
     def phi0(self):
@@ -438,7 +431,7 @@ class PRFgroup:
 
     @property
     def pol0(self):
-        return np.hstack([a["prf"].pol0 for I, a in self.data.iterrows()])
+        return self.phi0
 
     @property
     def varexp0(self):
@@ -466,7 +459,7 @@ class PRFgroup:
 
     @property
     def sigma(self):
-        return np.hstack([a["prf"].s for I, a in self.data.iterrows()])
+        return self.s
 
     @property
     def r(self):
@@ -474,7 +467,7 @@ class PRFgroup:
 
     @property
     def ecc(self):
-        return np.hstack([a["prf"].ecc for I, a in self.data.iterrows()])
+        return self.s
 
     @property
     def phi(self):
@@ -482,7 +475,7 @@ class PRFgroup:
 
     @property
     def pol(self):
-        return np.hstack([a["prf"].pol for I, a in self.data.iterrows()])
+        return self.phi
 
     @property
     def varexp(self):
@@ -500,6 +493,69 @@ class PRFgroup:
     def beta(self):
         return np.hstack([a["prf"].beta for I, a in self.data.iterrows()])
 
+    # ------------------------- SUBJECT VARS as MATRIX -----------------------#
+
+    @property
+    def sub_x0(self):
+        if not hasattr(self, "_sub_x0"):
+            self._sub_x0 = {}
+            for s in self.subject:
+                self._sub_x0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+        return self._sub_x0
+
+    @property
+    def sub_y0(self):
+        if not hasattr(self, "_sub_y0"):
+            self._sub_y0 = {}
+            for s in self.subject:
+                self._sub_y0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+        return self._sub_y0
+
+    @property
+    def sub_s0(self):
+        if not hasattr(self, "_sub_s0"):
+            self._sub_s0 = {}
+            for s in self.subject:
+                self._sub_s0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+        return self._sub_s0
+
+    @property
+    def sub_r0(self):
+        if not hasattr(self, "_sub_r0"):
+            self._sub_r0 = {}
+            for s in self.subject:
+                self._sub_r0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+        return self._sub_r0
+
+    @property
+    def sub_x(self):
+        self._sub_x = {}
+        for s in self.sub_x0:
+            self._sub_x[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        return self._sub_x
+
+    @property
+    def sub_y(self):
+        self._sub_y = {}
+        for s in self.sub_x0:
+            self._sub_y[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        return self._sub_y
+
+    @property
+    def sub_s(self):
+        self._sub_s = {}
+        for s in self.sub_x0:
+            self._sub_s[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        return self._sub_s
+
+    @property
+    def sub_r(self):
+        self._sub_r = {}
+        for s in self.sub_x0:
+            self._sub_r[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        return self._sub_r
+
+
     # --------------------------------- MASKS --------------------------------#
     @property
     def mask(self):
@@ -514,10 +570,14 @@ class PRFgroup:
         return np.hstack([a["prf"].roiMsk for I, a in self.data.iterrows()])
 
     @property
-    def subject_mask(self):
-        if not hasattr(self, "_subject_mask"):
-            self.calc_subject_mask()
-        return self._subject_mask
+    def sub_mask(self):
+        if not hasattr(self, "_sub_mask"):
+            self._sub_mask = {}
+            for s in self.subject:
+                self._sub_mask[s] = np.all(
+                    [a["prf"].mask for I, a in self.data.iterrows() if a["subject"] == s], 0
+                )
+        return self._sub_mask
 
     @property
     def doROIMsk(self):
