@@ -15,6 +15,7 @@ from glob import glob
 from os import path
 
 import matplotlib.pyplot as plt
+from matplotlib import colors
 from matplotlib.widgets import Slider, Button
 import matplotlib.transforms as mtransforms
 from matplotlib import patches
@@ -259,6 +260,9 @@ def plot_covMap(
     force=False,
     maxEcc=None,
     do_scatter=True,
+    output_format="svg",
+    plot_colorbar=True,
+    background="white",
 ):
     """
     This plots the coverage map and eventually saves it
@@ -315,7 +319,7 @@ def plot_covMap(
             self.subject,
             self.session,
         )
-        savePathF = f"{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Mstr}{Sstr}{methodStr}.svg"
+        savePathF = f"{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Mstr}{Sstr}{methodStr}.{output_format}"
 
     elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
         VEstr = (
@@ -358,7 +362,7 @@ def plot_covMap(
             self.subject,
             self.session,
         )
-        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.svg"
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.{output_format}"
 
     savePath = path.join(savePathB, savePathF)
 
@@ -387,7 +391,7 @@ def plot_covMap(
         elif method == "sumClip":
             vmax = 1
 
-        fig = plt.figure(constrained_layout=True)
+        fig = plt.figure(constrained_layout=True, facecolor=background)
         ax = plt.gca()
 
         im = ax.imshow(
@@ -405,7 +409,8 @@ def plot_covMap(
         ax.set_xlim((-1 * maxEcc, maxEcc))
         ax.set_ylim((-1 * maxEcc, maxEcc))
         ax.set_aspect("equal", "box")
-        fig.colorbar(im, location="right", ax=ax)
+        if plot_colorbar:
+            fig.colorbar(im, location="right", ax=ax)
 
         # draw grid
         draw_grid(ax, maxEcc)
@@ -526,8 +531,8 @@ def plot_toSurface(
     headless=False,
     maxEcc=None,
     plot_colorbar=True,
-    background='black',
-    output_format='pdf',
+    background="black",
+    output_format="pdf",
 ):
     """
     If we have docker data that was analyzed in fsnative space we can plot
@@ -627,7 +632,10 @@ def plot_toSurface(
 
             elif param == "pol":
                 plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
-                cmap = "hsv"
+                # cmap = "hsv"
+                cmap = colors.LinearSegmentedColormap.from_list(
+                    "", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
+                )
                 datMin, datMax = 0, 2 * np.pi
 
             elif param == "sig":
@@ -651,9 +659,9 @@ def plot_toSurface(
 
             # plot the brain
             brain = Brain(
-                self.subject, 
-                f"{hemi[0].lower()}h", 
-                surface, 
+                self.subject,
+                f"{hemi[0].lower()}h",
+                surface,
                 subjects_dir=fsP,
                 background=background,
             )
@@ -751,7 +759,7 @@ def plot_toSurface(
                             },
                             roll=142,
                         )
-                        
+
                     print(posPath)
 
                     mlab.show(stop=True)
@@ -850,7 +858,9 @@ def plot_toSurface(
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
                 brain.save_image(path.join(p, n + f".{output_format}"))
-                print(f'new Cortex Map saved to {path.join(p, n + "." + output_format)}')
+                print(
+                    f'new Cortex Map saved to {path.join(p, n + "." + output_format)}'
+                )
 
             if interactive:
                 mlab.show(stop=True)
