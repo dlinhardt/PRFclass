@@ -147,7 +147,7 @@ def maskROI(
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
         self._area = area if isinstance(area, list) else [area]
 
-        self._allAreaFiles = glob(
+        self._allAreaFiles = sorted(glob(
             path.join(
                 self._baseP,
                 self._study,
@@ -159,7 +159,7 @@ def maskROI(
                 "func",
                 f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
             )
-        ).sort()
+        ))
 
         _allAreas = np.array(
             [
