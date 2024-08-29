@@ -13,7 +13,9 @@ except:
 
 
 # ----------------------------------MASKING-----------------------------------#
-def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False, masking_style=None):
+def maskROI(
+    self, area="V1", atlas="benson", doV123=False, forcePath=False, masking_style=None
+):
     """
     Masks the data with defined ROIs
 
@@ -157,7 +159,7 @@ def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False, mask
                 "func",
                 f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
             )
-        )
+        ).sort()
 
         _allAreas = np.array(
             [
@@ -446,7 +448,14 @@ def maskSigma(self, s_min, s_max=None):
 
 
 # ---------------------------------------------------------------------------#
-def maskBetaThresh(self, betaMax=50, betaMin=0, doBorderThresh=False, doLowBetaThresh=True, doHighBetaThresh=True):
+def maskBetaThresh(
+    self,
+    betaMax=50,
+    betaMin=0,
+    doBorderThresh=False,
+    doLowBetaThresh=True,
+    doHighBetaThresh=True,
+):
     """
     mask with beta threshold and high sigmas as calculated from macfunc18-c01 & c02 zeroth as below
 
