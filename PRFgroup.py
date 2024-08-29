@@ -500,7 +500,9 @@ class PRFgroup:
         if not hasattr(self, "_sub_x0"):
             self._sub_x0 = {}
             for s in self.subject:
-                self._sub_x0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+                self._sub_x0[s] = np.array(
+                    [a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s]
+                )
         return self._sub_x0
 
     @property
@@ -508,7 +510,9 @@ class PRFgroup:
         if not hasattr(self, "_sub_y0"):
             self._sub_y0 = {}
             for s in self.subject:
-                self._sub_y0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+                self._sub_y0[s] = np.array(
+                    [a["prf"].y0 for I, a in self.data.iterrows() if a["subject"] == s]
+                )
         return self._sub_y0
 
     @property
@@ -516,7 +520,9 @@ class PRFgroup:
         if not hasattr(self, "_sub_s0"):
             self._sub_s0 = {}
             for s in self.subject:
-                self._sub_s0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+                self._sub_s0[s] = np.array(
+                    [a["prf"].s0 for I, a in self.data.iterrows() if a["subject"] == s]
+                )
         return self._sub_s0
 
     @property
@@ -524,7 +530,9 @@ class PRFgroup:
         if not hasattr(self, "_sub_r0"):
             self._sub_r0 = {}
             for s in self.subject:
-                self._sub_r0[s] = np.array([a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s])
+                self._sub_r0[s] = np.array(
+                    [a["prf"].r0 for I, a in self.data.iterrows() if a["subject"] == s]
+                )
         return self._sub_r0
 
     @property
@@ -537,24 +545,23 @@ class PRFgroup:
     @property
     def sub_y(self):
         self._sub_y = {}
-        for s in self.sub_x0:
-            self._sub_y[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        for s in self.sub_y0:
+            self._sub_y[s] = self.sub_y0[s][:, self.sub_mask[s]]
         return self._sub_y
 
     @property
     def sub_s(self):
         self._sub_s = {}
-        for s in self.sub_x0:
-            self._sub_s[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        for s in self.sub_s0:
+            self._sub_s[s] = self.sub_s0[s][:, self.sub_mask[s]]
         return self._sub_s
 
     @property
     def sub_r(self):
         self._sub_r = {}
-        for s in self.sub_x0:
-            self._sub_r[s] = self.sub_x0[s][:, self.sub_mask[s]]
+        for s in self.sub_r0:
+            self._sub_r[s] = self.sub_r0[s][:, self.sub_mask[s]]
         return self._sub_r
-
 
     # --------------------------------- MASKS --------------------------------#
     @property
@@ -571,12 +578,12 @@ class PRFgroup:
 
     @property
     def sub_mask(self):
-        if not hasattr(self, "_sub_mask"):
-            self._sub_mask = {}
-            for s in self.subject:
-                self._sub_mask[s] = np.all(
-                    [a["prf"].mask for I, a in self.data.iterrows() if a["subject"] == s], 0
-                )
+        self._sub_mask = {}
+        for s in self.subject:
+            self._sub_mask[s] = np.all(
+                [a["prf"].mask for I, a in self.data.iterrows() if a["subject"] == s],
+                0,
+            )
         return self._sub_mask
 
     @property
