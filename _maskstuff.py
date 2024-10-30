@@ -143,23 +143,25 @@ def maskROI(
 
             # if hasattr(self, 'tValues'): self._tValues = self._tValues[self._msk]
 
-    elif data_from == "docker":
+    elif data_from in ["docker", "hdf5"]:
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
         self._area = area if isinstance(area, list) else [area]
 
-        self._allAreaFiles = sorted(glob(
-            path.join(
-                self._baseP,
-                self._study,
-                "derivatives",
-                "prfprepare",
-                f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}',
-                self._subject,
-                self._session,
-                "func",
-                f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
+        self._allAreaFiles = sorted(
+            glob(
+                path.join(
+                    self._baseP,
+                    self._study,
+                    "derivatives",
+                    "prfprepare",
+                    f"analysis-{self.prfprepare_analysis}",
+                    self._subject,
+                    self._session,
+                    "func",
+                    f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
+                )
             )
-        ))
+        )
 
         _allAreas = np.array(
             [
@@ -182,12 +184,10 @@ def maskROI(
 
         self._roiMsk = np.zeros(self.x0.shape)
 
-        self._analysisSpace = self.prfprepareOpts["analysisSpace"]
-
-        if self._analysisSpace == "fsnative":
+        if self.analysisSpace == "fsnative":
             roiIndOrigName = "roiIndFsnative"
             roiIndOrigShape = 0
-        elif self._analysisSpace == "volume":
+        elif self.analysisSpace == "volume":
             roiIndOrigName = "roiPos3D"
             roiIndOrigShape = (0, 3)
 
@@ -224,7 +224,7 @@ def maskROI(
                     if len(self._roiWhichHemi) == 0:
                         doubleMask = np.ones(len(maskinfo["roiIndBold"]))
                     else:
-                        if self._analysisSpace == "volume":
+                        if self.analysisSpace == "volume":
                             doubleMask = np.invert(
                                 np.any(
                                     [
@@ -265,7 +265,7 @@ def maskROI(
                                 + lHemiSize,
                             )
                         )
-                    elif h.upper() == "BOTH":
+                    elif h.upper() == "B":
                         self._roiIndBold = np.hstack(
                             (
                                 self._roiIndBold,
@@ -273,7 +273,7 @@ def maskROI(
                             )
                         )
 
-                    if self._analysisSpace == "volume":
+                    if self.analysisSpace == "volume":
                         self._roiIndOrig = np.vstack(
                             (
                                 self._roiIndOrig,
@@ -296,7 +296,7 @@ def maskROI(
                         (self._roiWhichArea, np.tile(ar, sum(doubleMask)))
                     )
 
-                    if h.upper() == "L" or h.upper() == "BOTH":
+                    if h.upper() == "L" or h.upper() == "B":
                         self._roiMsk[maskinfo["roiIndBold"]] = 1
                     elif h.upper() == "R":
                         self._roiMsk[np.array(maskinfo["roiIndBold"]) + lHemiSize] = 1
@@ -377,7 +377,7 @@ def maskROI(
         self._vertices_left_hemi = (which_hemi == "L").sum()
         self._roiIndOrig[self._roiWhichHemi == "R"] -= self._vertices_left_hemi
 
-        self._analysisSpace = "fsnative"
+        self.analysisSpace = "fsnative"
 
     self._isROIMasked = 1
 

@@ -5,6 +5,11 @@ import numpy as np
 from scipy.io import loadmat
 import scipy.stats as sps
 
+try:
+    import h5py
+except ImportError:
+    print("hdf5 not available, do not use from_hdf5!")
+
 
 def init_variables(self):
     """
@@ -121,7 +126,6 @@ def init_variables(self):
         if "fprf" in self._prfanalyze_method:
             self._y0 = -self._y0
 
-
     ############################# SAMSRF #############################
     elif self._dataFrom == "samsrf":
         self._fit_keys = [a[0][0] for a in self._model[0]["Values"]]
@@ -136,6 +140,13 @@ def init_variables(self):
         self._varexp0 = fit[self._fit_keys.index("R^2"), :]
         self._beta0 = fit[self._fit_keys.index("Beta"), :]
         self._baseline0 = fit[self._fit_keys.index("Baseline"), :]
+
+    ############################# HDF5 #############################
+    #!!! this should be fixed once we decide on a standard for the hdf5 files
+    elif self._dataFrom == "hdf5":
+        self._x0 = np.hstack([m["thetas"][:, 0] for m in self._estimates])
+        self._y0 = np.hstack([m["thetas"][:, 1] for m in self._estimates])
+        self._s0 = np.hstack([m["thetas"][:, 2] for m in self._estimates])
 
     self._isROIMasked = None
     self._isVarExpMasked = None
@@ -472,6 +483,82 @@ def from_file(
 
 
 # --------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
+def from_hdf5(
+    cls,
+    study,
+    subject,
+    session,
+    task,
+    run,
+    analysis="01",
+    baseP=None,
+    orientation="VF",
+    hemi="",
+    derivatives_folder="michi",
+):
+    """
+    With this constructor you can load results that were saved as hdf5 file
+
+    Args:
+        study (str): Study name (e.g. 'stimsim')
+        subject (str): Subject name (e.g. 'p001')
+        session (str): Session name (e.g. '001')
+        task (str): Task name (e.g. 'prf')
+        run (str): Run number (e.g. '01')
+        method (str, optional): Different methods from the prfanalyze docker possibler, I think. Defaults to 'vista'.
+        analysis (str, optional): Number of the analysis within derivatives/prfanalyze. Defaults to '01'.
+        hemi (str, optional): When you want to load only one hemisphere ('L' or 'R'), empty when both. Defaults to ''.
+        forcePath (str, optional): If the analysis can be found in another location than standard (/z/fmri/data/)this changes the base path. Defaults to None.
+        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+
+    Returns:
+        cls: Instance of the PRF class with all the results
+    """
+
+    prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
+    subject = subject if subject.startswith("sub-") else f"sub-{subject}"
+    session = session if session.startswith("ses-") else f"ses-{session}"
+    task = task if task.startswith("task-") else f"task-{task}"
+    run = f"{run}" if str(run).startswith("run-") else f"run-{run}"
+
+    if not baseP:
+        baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
+
+    est = []
+    hs = ["L", "R"] if hemi == "" else [hemi]
+    for h in hs:
+        estimates = path.join(
+            baseP,
+            study,
+            "derivatives",
+            derivatives_folder,
+            prfanaAn,
+            subject,
+            session,
+            f"{subject}_{session}_{task}_{run}_hemi-{h}_theta.h5",
+        )
+
+        this_est = h5py.File(estimates, "r")
+
+        est.append(this_est)
+
+    return cls(
+        "hdf5",
+        study,
+        subject,
+        session,
+        baseP,
+        task=task,
+        run=run,
+        hemis=hemi,
+        prfanaMe=derivatives_folder,
+        prfanaAn=prfanaAn,
+        orientation=orientation,
+        est=est,
+    )
+
+
+# --------------------------ALTERNATIVE  CONSTRUCTORS--------------------------#
 def from_samsrf(
     cls,
     study,
@@ -486,8 +573,7 @@ def from_samsrf(
 ):
     """
     With this constructor you can load results that were analyzed
-    with dockerized solution published in Lerma-Usabiaga 2020 and available
-    at github.com/vistalab/PRFmodel
+    with SamSrf
 
     Args:
         study (str): Study name (e.g. 'stimsim')

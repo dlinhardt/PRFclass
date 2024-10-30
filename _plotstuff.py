@@ -164,7 +164,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
         )
         savePathF = f"{self.subject}_{self.session}_{self._analysis}{VEstr}{Estr}{Bstr}{Mstr}{Sstr}{methodStr}.npy"
 
-    elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
+    elif self._dataFrom in ["docker", "samsrf", "hdf5"]:
         VEstr = (
             f"-VarExp{int(self._isVarExpMasked*100)}"
             if self._isVarExpMasked and self.doVarExpMsk
@@ -219,7 +219,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
         if not path.isdir(savePathB):
             os.makedirs(savePathB)
 
-        xx = np.linspace(-1 * maxEcc, maxEcc, int(maxEcc * 30) + 1)
+        xx = np.linspace(-1 * maxEcc, maxEcc, max(int(maxEcc * 30), 300) + 1)
 
         covMap = np.zeros((len(xx), len(xx)))
 
@@ -321,7 +321,7 @@ def plot_covMap(
         )
         savePathF = f"{self.subject}_{self.session}_{self._analysis}{CBstr}{VEstr}{Estr}{Bstr}{Mstr}{Sstr}{methodStr}.{output_format}"
 
-    elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
+    elif self._dataFrom in ["docker", "samsrf", "hdf5"]:
         VEstr = (
             f"-VarExp{int(self._isVarExpMasked*100)}"
             if self._isVarExpMasked and self.doVarExpMsk
@@ -557,8 +557,8 @@ def plot_toSurface(
 
     if self._dataFrom == "mrVista":
         print("We can not do that with non-docker data!")
-    elif self._dataFrom == "docker" or self._dataFrom == "samsrf":
-        if self._analysisSpace == "volume":
+    elif self._dataFrom in ["docker", "samsrf", "hdf5"]:
+        if self.analysisSpace == "volume":
             print("We can not yet do that with volumentric data!")
             return
 

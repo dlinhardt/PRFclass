@@ -20,6 +20,7 @@ class PRF:
         from_mrVista,
         from_samsrf,
         from_file,
+        from_hdf5,
         spm_hrf_compat,
     )
     from ._maskstuff import (
@@ -52,6 +53,7 @@ class PRF:
     from_mrVista = classmethod(from_mrVista)
     from_samsrf = classmethod(from_samsrf)
     from_file = classmethod(from_file)
+    from_hdf5 = classmethod(from_hdf5)
 
     def __init__(
         self,
@@ -480,10 +482,19 @@ class PRF:
                 self._study,
                 "derivatives",
                 "prfprepare",
-                f'analysis-{self.prfanalyzeOpts["prfprepareAnalysis"]}',
+                f"analysis-{self.prfprepare_analysis}",
                 "options.json",
             )
             with open(prfprepareOptsF, "r") as fl:
                 self._prfprepareOpts = json.load(fl)
 
         return self._prfprepareOpts
+
+    @property
+    def analysisSpace(self):
+        self._analysisSpace = self.prfprepareOpts["analysisSpace"]
+        return self._analysisSpace
+
+    @analysisSpace.setter
+    def analysisSpace(self, value: str):
+        self._analysisSpace = value
