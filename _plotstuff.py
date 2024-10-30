@@ -254,6 +254,7 @@ def plot_covMap(
     self,
     method="max",
     cmapMin=0,
+    cmapMax=None,
     title=None,
     show=True,
     save=False,
@@ -383,13 +384,22 @@ def plot_covMap(
 
         # set method-specific stuff
         if method == "max":
-            if cmapMin > 1 or cmapMin < 0:
-                raise Warning("Choose a cmap min between 0 and 1.")
             vmax = 1
         elif method == "mean":
             vmax = self.covMap.max()
         elif method == "sumClip":
             vmax = 1
+
+        # adapt the colorbar for the passed cmapMax and cmapMin
+        if cmapMin > 1 or cmapMin < 0:
+            raise Warning("Choose a cmap min between 0 and 1.")
+        else:
+            vmin = cmapMin
+
+        if cmapMax is not None:
+            if cmapMax < vmin:
+                raise Warning("Choose a cmapMax bigger than cmapMin.")
+            vmax = cmapMax
 
         fig = plt.figure(constrained_layout=True, facecolor=background)
         ax = plt.gca()
@@ -399,7 +409,7 @@ def plot_covMap(
             cmap="hot",
             extent=(-1 * maxEcc, maxEcc, -1 * maxEcc, maxEcc),
             origin="lower",
-            vmin=cmapMin,
+            vmin=vmin,
             vmax=vmax,
         )
         if do_scatter:
