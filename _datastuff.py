@@ -99,6 +99,19 @@ def init_variables(self):
             except:
                 print("no varexp information")
 
+        if self._prfanalyze_method == "deeprf":
+            if self.orientation == "MP":
+                if "Centerx0" in self._estimates[0][0].keys():
+                    self._x0 = np.array([e["Centery0"] for ee in self._estimates for e in ee])
+                    self._y0 = np.array([e["Centerx0"] for ee in self._estimates for e in ee])
+                elif "centerx0" in self._estimates[0][0].keys():
+                    self._x0 = np.array([e["centery0"] for ee in self._estimates for e in ee])
+                    self._y0 = np.array([e["centerx0"] for ee in self._estimates for e in ee])
+            else:
+                Warning(
+                    "DeepRF results should be loaded with orientation MP, not {self._orientation}"
+                )
+        
         if hasattr(self, "_mat"):
             # a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
             # b = np.hstack([m['exponent'][0][0][0] for m in self._model])
