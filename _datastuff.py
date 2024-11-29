@@ -49,95 +49,103 @@ def init_variables(self):
 
     ############################# DOCKER #############################
     elif self._dataFrom == "docker":
-        if "Centerx0" in self._estimates[0][0].keys():
-            self._x0 = np.array([e["Centerx0"] for ee in self._estimates for e in ee])
-
-            if self._orientation == "VF":
-                self._y0 = -np.array(
-                    [e["Centery0"] for ee in self._estimates for e in ee]
-                )  # negative for same flip as in the coverage plots
-            elif self._orientation == "MP":
-                self._y0 = np.array(
-                    [e["Centery0"] for ee in self._estimates for e in ee]
-                )  # same orientation as MP
-            else:
-                Warning(
-                    "Choose orientation form [VF, MP], you specified {self._orientation}"
-                )
-
-            self._s0 = np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
-
-            try:
-                self._varexp0 = np.array(
-                    [e["R2"] for ee in self._estimates for e in ee]
-                )
-            except:
-                print("no varexp information")
-
-        elif "centerx0" in self._estimates[0][0].keys():
-            self._x0 = np.array([e["centerx0"] for ee in self._estimates for e in ee])
-
-            if self._orientation == "VF":
-                self._y0 = -np.array(
-                    [e["centery0"] for ee in self._estimates for e in ee]
-                )  # negative for same flip as in the coverage plots
-            elif self._orientation == "MP":
-                self._y0 = np.array(
-                    [e["centery0"] for ee in self._estimates for e in ee]
-                )  # same orientation as MP
-            else:
-                Warning(
-                    "Choose orientation form [VF, MP], you specified {self._orientation}"
-                )
-
-            self._s0 = np.array([e["sigmamajor"] for ee in self._estimates for e in ee])
-
-            try:
-                self._varexp0 = np.array(
-                    [e["r2"] for ee in self._estimates for e in ee]
-                )
-            except:
-                print("no varexp information")
-
-        if self._prfanalyze_method == "deeprf":
-            if self.orientation == "MP":
+        if self._prfanalyze_method == "prfanalyze-deeprf":
+            if self._orientation == "MP":
                 if "Centerx0" in self._estimates[0][0].keys():
                     self._x0 = np.array([e["Centery0"] for ee in self._estimates for e in ee])
                     self._y0 = np.array([e["Centerx0"] for ee in self._estimates for e in ee])
                 elif "centerx0" in self._estimates[0][0].keys():
                     self._x0 = np.array([e["centery0"] for ee in self._estimates for e in ee])
                     self._y0 = np.array([e["centerx0"] for ee in self._estimates for e in ee])
+                
+                self._s0 = np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
+                try:
+                    self._varexp0 = np.array(
+                        [e["R2"] for ee in self._estimates for e in ee]
+                    )
+                except:
+                    print("no varexp information")
             else:
                 Warning(
                     "DeepRF results should be loaded with orientation MP, not {self._orientation}"
                 )
-        
-        if hasattr(self, "_mat"):
-            # a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
-            # b = np.hstack([m['exponent'][0][0][0] for m in self._model])
+        else:
+            if "Centerx0" in self._estimates[0][0].keys():
+                self._x0 = np.array([e["Centerx0"] for ee in self._estimates for e in ee])
 
-            # self._s0      = np.divide(a, b, out=a, where=b != 0)
+                if self._orientation == "VF":
+                    self._y0 = -np.array(
+                        [e["Centery0"] for ee in self._estimates for e in ee]
+                    )  # negative for same flip as in the coverage plots
+                elif self._orientation == "MP":
+                    self._y0 = np.array(
+                        [e["Centery0"] for ee in self._estimates for e in ee]
+                    )  # same orientation as MP
+                else:
+                    Warning(
+                        "Choose orientation form [VF, MP], you specified {self._orientation}"
+                    )
 
-            self._beta0 = np.hstack(
-                [np.maximum(m["beta"][0][0][0][:, 0, 0], 0) for m in self._model]
-            )  # the model beta should be the first index, rest are trends
+                self._s0 = np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
 
-            with np.errstate(divide="ignore", invalid="ignore"):
-                self._rss0 = np.hstack([m["rss"][0][0][0] for m in self._model])
-                self._rawrss0 = np.hstack([m["rawrss"][0][0][0] for m in self._model])
-                # self._varexp0 = 1.0 - self._rss0 / self._rawrss0
+                try:
+                    self._varexp0 = np.array(
+                        [e["R2"] for ee in self._estimates for e in ee]
+                    )
+                except:
+                    print("no varexp information")
 
-            self._maxEcc = np.hstack(
-                [p["analysis"]["fieldSize"][0][0][0][0] for p in self._params]
-            )
-            if self._hemis == "":
-                if self._maxEcc[0] != self._maxEcc[1]:
-                    raise Warning("maxEcc for both hemispheres is different!")
-            self._maxEcc = self._maxEcc[0].astype(np.float32)
+            elif "centerx0" in self._estimates[0][0].keys():
+                self._x0 = np.array([e["centerx0"] for ee in self._estimates for e in ee])
 
-        #!!! this should be fixed in gem!
-        if "fprf" in self._prfanalyze_method:
-            self._y0 = -self._y0
+                if self._orientation == "VF":
+                    self._y0 = -np.array(
+                        [e["centery0"] for ee in self._estimates for e in ee]
+                    )  # negative for same flip as in the coverage plots
+                elif self._orientation == "MP":
+                    self._y0 = np.array(
+                        [e["centery0"] for ee in self._estimates for e in ee]
+                    )  # same orientation as MP
+                else:
+                    Warning(
+                        "Choose orientation form [VF, MP], you specified {self._orientation}"
+                    )
+
+                self._s0 = np.array([e["sigmamajor"] for ee in self._estimates for e in ee])
+
+                try:
+                    self._varexp0 = np.array(
+                        [e["r2"] for ee in self._estimates for e in ee]
+                    )
+                except:
+                    print("no varexp information")
+
+            if hasattr(self, "_mat"):
+                # a = np.hstack([m['sigma'][0][0]['major'][0][0][0] for m in self._model])
+                # b = np.hstack([m['exponent'][0][0][0] for m in self._model])
+
+                # self._s0      = np.divide(a, b, out=a, where=b != 0)
+
+                self._beta0 = np.hstack(
+                    [np.maximum(m["beta"][0][0][0][:, 0, 0], 0) for m in self._model]
+                )  # the model beta should be the first index, rest are trends
+
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    self._rss0 = np.hstack([m["rss"][0][0][0] for m in self._model])
+                    self._rawrss0 = np.hstack([m["rawrss"][0][0][0] for m in self._model])
+                    # self._varexp0 = 1.0 - self._rss0 / self._rawrss0
+
+                self._maxEcc = np.hstack(
+                    [p["analysis"]["fieldSize"][0][0][0][0] for p in self._params]
+                )
+                if self._hemis == "":
+                    if self._maxEcc[0] != self._maxEcc[1]:
+                        raise Warning("maxEcc for both hemispheres is different!")
+                self._maxEcc = self._maxEcc[0].astype(np.float32)
+
+            #!!! this should be fixed in gem!
+            if "fprf" in self._prfanalyze_method:
+                self._y0 = -self._y0
 
     ############################# SAMSRF #############################
     elif self._dataFrom == "samsrf":
