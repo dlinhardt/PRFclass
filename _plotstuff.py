@@ -81,9 +81,9 @@ def _createmask(self, shape, otherRratio=None):
     x0, y0 = shape[0] // 2, shape[1] // 2
     n = shape[0]
     if otherRratio is not None:
-        r = shape[0] / 2 * otherRratio
+        r = shape[0] / 2 * otherRratio + 1
     else:
-        r = shape[0] // 2
+        r = shape[0] // 2 + 1
 
     y, x = np.ogrid[-x0 : n - x0, -y0 : n - y0]
     return x * x + y * y <= r * r
@@ -113,10 +113,14 @@ def draw_grid(ax, maxEcc):
 
     plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
 
+    ax.tick_params(axis="both", which="both", length=0)
+
+    ax.set_frame_on(False)
+
     ax.set_box_aspect(1)
 
 
-def _calcCovMap(self, maxEcc, method="max", force=False):
+def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
     """
     Calculates the coverage map
 
@@ -194,9 +198,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
         areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
         savePathB = path.join(
-            self._baseP,
-            self._study,
-            "derivatives",
+            self._derivatives_path,
             "prfresult",
             self._prfanalyze_method,
             self._prfanaAn,
@@ -241,7 +243,10 @@ def _calcCovMap(self, maxEcc, method="max", force=False):
             covMap /= jj
 
         msk = self._createmask(covMap.shape)
-        covMap[~msk] = 0
+        if background == "black":
+            covMap[~msk] = 0
+        else:
+            covMap[~msk] = np.nan
 
         self.covMap = covMap.T
 
@@ -353,9 +358,7 @@ def plot_covMap(
         areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
         savePathB = path.join(
-            self._baseP,
-            self._study,
-            "derivatives",
+            self._derivatives_path,
             "prfresult",
             self._prfanalyze_method,
             self._prfanaAn,
@@ -380,7 +383,7 @@ def plot_covMap(
             )
 
         # calculate the coverage map
-        self._calcCovMap(maxEcc, method, force=force)
+        self._calcCovMap(maxEcc, method, force=force, background=background)
 
         # set method-specific stuff
         if method == "max":
@@ -401,7 +404,7 @@ def plot_covMap(
                 raise Warning("Choose a cmapMax bigger than cmapMin.")
             vmax = cmapMax
 
-        fig = plt.figure(constrained_layout=True, facecolor=background)
+        fig = plt.figure(constrained_layout=True, facecolor="white")
         ax = plt.gca()
 
         im = ax.imshow(
@@ -472,12 +475,13 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
         if self._isManualMasked and self.doManualMsk
         else ""
     )
-    Pstr = f"-{param}"
+    if isinstance(param, str):
+        Pstr = f"-{param}"
+    else:
+        Pstr = "-manualParam"
 
     savePathB = path.join(
-        self._baseP,
-        self._study,
-        "derivatives",
+        self._derivatives_path,
         "prfresult",
         self._prfanalyze_method,
         self._prfanaAn,
@@ -543,6 +547,8 @@ def plot_toSurface(
     plot_colorbar=True,
     background="black",
     output_format="pdf",
+    pmax=None,
+    pmin=None,
 ):
     """
     If we have docker data that was analyzed in fsnative space we can plot
@@ -590,9 +596,7 @@ def plot_toSurface(
             manualPosition = True if not surface == "sphere" else False
 
         fsP = path.join(
-            self._baseP,
-            self._study,
-            "derivatives",
+            self._derivatives_path,
             "fmriprep",
             f"analysis-{fmriprepAna}",
             "sourcedata",
@@ -635,36 +639,55 @@ def plot_toSurface(
             plotData = np.ones(nVertices) * np.nan
 
             # depending on used parameter set the plot data, colormap und ranges
-            if param == "ecc":
-                plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
-                cmap = "rainbow_r"
-                datMin, datMax = 0, maxEcc
+            if isinstance(param, str):
+                if param == "ecc":
+                    plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
+                    cmap = "rainbow_r"
+                    datMin, datMax = 0, maxEcc
 
-            elif param == "pol":
-                plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
-                # cmap = "hsv"
-                cmap = colors.LinearSegmentedColormap.from_list(
-                    "", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
-                )
-                datMin, datMax = 0, 2 * np.pi
+                elif param == "pol":
+                    plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
+                    # cmap = "hsv"
+                    cmap = colors.LinearSegmentedColormap.from_list(
+                        "", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
+                    )
+                    datMin, datMax = 0, 2 * np.pi
 
-            elif param == "sig":
-                plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
-                cmap = "rainbow_r"
-                datMin, datMax = 0, 4
+                elif param == "sig":
+                    plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
+                    cmap = "rainbow_r"
+                    datMin, datMax = 0, 4
 
-            elif param == "var":
-                plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
+                elif param == "var":
+                    plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
+                    cmap = "hot"
+                    datMin, datMax = 0, 1
+
+            elif isinstance(param, (np.ndarray, np.generic)):
+                plotData[roiIndOrigHemi] = param[roiIndBoldHemi]
                 cmap = "hot"
-                datMin, datMax = 0, 1
+                datMin, datMax = (
+                    param[roiIndBoldHemi].min(),
+                    param[roiIndBoldHemi].max(),
+                )
+
             else:
                 raise Warning(
-                    'Parameter string must be in ["ecc", "pol", "sig", "var"]!'
+                    'Parameter string must be in ["ecc", "pol", "sig", "var"] or a np.array of the same size with values !'
                 )
+
+            # manually set plot max and min
+            if pmax is not None:
+                datMax = pmax
+            if pmin is not None:
+                datMin = pmin
 
             # set everything outside mask (ROI, VarExp, ...) to nan
             plotData = deepcopy(plotData)
-            if not param == "var":
+            if isinstance(param, str):
+                if not param == "var":
+                    plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
+            else:
                 plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
             # plot the brain
@@ -729,9 +752,7 @@ def plot_toSurface(
             # save the positioning for left and right once per subject
             if manualPosition:
                 posSavePath = path.join(
-                    self._baseP,
-                    self._study,
-                    "derivatives",
+                    self._derivatives_path,
                     "prfresult",
                     "positioning",
                     self.subject,

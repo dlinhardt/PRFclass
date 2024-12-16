@@ -150,9 +150,7 @@ def maskROI(
         self._allAreaFiles = sorted(
             glob(
                 path.join(
-                    self._baseP,
-                    self._study,
-                    "derivatives",
+                    self._derivatives_path,
                     "prfprepare",
                     f"analysis-{self.prfprepare_analysis}",
                     self._subject,
@@ -307,9 +305,7 @@ def maskROI(
     elif data_from == "samsrf":
         # get the occ mask used in samsrf
         occ_file = path.join(
-            self._baseP,
-            self._study,
-            "derivatives",
+            self._derivatives_path,
             "samsrf",
             self._prfanaAn,
             self._subject,
@@ -330,9 +326,7 @@ def maskROI(
         self._area_files_p = sorted(
             glob(
                 path.join(
-                    self._baseP,
-                    self._study,
-                    "derivatives",
+                    self._derivatives_path,
                     "fmriprep",
                     f"analysis-01",
                     "sourcedata",

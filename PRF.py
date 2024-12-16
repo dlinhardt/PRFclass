@@ -62,6 +62,7 @@ class PRF:
         subject,
         session,
         baseP,
+        derivatives_path=None,
         mat=None,
         est=None,
         analysis=None,
@@ -105,6 +106,8 @@ class PRF:
             self._coords = coords
         if hemis is not None:
             self._hemis = hemis
+        if derivatives_path is not None:
+            self._derivatives_path = derivatives_path
 
         self._orientation = orientation.upper()
 
@@ -458,9 +461,7 @@ class PRF:
     def prfanalyzeOpts(self):
         if not hasattr(self, "_prfanalyzeOpts"):
             prfanalyzeOptsF = path.join(
-                self._baseP,
-                self._study,
-                "derivatives",
+                self._derivatives_path,
                 self._prfanalyze_method,
                 self._prfanaAn,
                 "options.json",
@@ -478,9 +479,7 @@ class PRF:
     def prfprepareOpts(self):
         if not hasattr(self, "_prfprepareOpts"):
             prfprepareOptsF = path.join(
-                self._baseP,
-                self._study,
-                "derivatives",
+                self._derivatives_path,
                 "prfprepare",
                 f"analysis-{self.prfprepare_analysis}",
                 "options.json",

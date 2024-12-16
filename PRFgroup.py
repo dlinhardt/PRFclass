@@ -21,6 +21,7 @@ class PRFgroup:
         DF,
         baseP,
         orientation,
+        derivatives_path=None,
         prfanalyze=None,
         hemi=None,
         fit=None,
@@ -41,6 +42,8 @@ class PRFgroup:
             self._hemi = hemi
         if fit:
             self._fit = fit
+        if derivatives_path:
+            self._derivatives_path = derivatives_path
 
         self._doROIMsk = True
         self._doVarExpMsk = True
@@ -72,11 +75,26 @@ class PRFgroup:
         if not baseP:
             baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
-        anas = glob(
-            path.join(
+        derivatives_path = path.join(
+            baseP,
+            study,
+            "derivatives",
+        )
+        if not path.isdir(derivatives_path):
+            derivatives_path = path.join(
                 baseP,
                 study,
-                "derivatives",
+                "BIDS" "derivatives",
+            )
+
+            if not path.isdir(derivatives_path):
+                raise FileNotFoundError(
+                    f"could not find derivatives folder at {derivatives_path} or {path.join(baseP, study, 'derivatives')}"
+                )
+
+        anas = glob(
+            path.join(
+                derivatives_path,
                 f"prfanalyze-{method}",
                 f"analysis-{prfanalyze}",
                 "*",
@@ -146,6 +164,7 @@ class PRFgroup:
             study=study,
             DF=anasDF,
             baseP=baseP,
+            derivatives_path=derivatives_path,
             orientation=orientation,
             hemi=hemi,
             prfanalyze=prfanalyze,
@@ -168,11 +187,26 @@ class PRFgroup:
         if not baseP:
             baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
-        anas = glob(
-            path.join(
+            derivatives_path = path.join(
                 baseP,
                 study,
                 "derivatives",
+            )
+            if not path.isdir(derivatives_path):
+                derivatives_path = path.join(
+                    baseP,
+                    study,
+                    "BIDS" "derivatives",
+                )
+
+                if not path.isdir(derivatives_path):
+                    raise FileNotFoundError(
+                        f"could not find derivatives folder at {derivatives_path} or {path.join(baseP, study, 'derivatives')}"
+                    )
+
+        anas = glob(
+            path.join(
+                derivatives_path,
                 "samsrf",
                 f"analysis-{prfanalyze}",
                 "sub-*",
@@ -248,6 +282,7 @@ class PRFgroup:
             study=study,
             DF=anasDF,
             baseP=baseP,
+            derivatives_path=derivatives_path,
             orientation=orientation,
             prfanalyze=prfanalyze,
         )

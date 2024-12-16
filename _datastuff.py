@@ -52,13 +52,23 @@ def init_variables(self):
         if self._prfanalyze_method == "prfanalyze-deeprf":
             if self._orientation == "MP":
                 if "Centerx0" in self._estimates[0][0].keys():
-                    self._x0 = np.array([e["Centery0"] for ee in self._estimates for e in ee])
-                    self._y0 = np.array([e["Centerx0"] for ee in self._estimates for e in ee])
+                    self._x0 = np.array(
+                        [e["Centery0"] for ee in self._estimates for e in ee]
+                    )
+                    self._y0 = np.array(
+                        [e["Centerx0"] for ee in self._estimates for e in ee]
+                    )
                 elif "centerx0" in self._estimates[0][0].keys():
-                    self._x0 = np.array([e["centery0"] for ee in self._estimates for e in ee])
-                    self._y0 = np.array([e["centerx0"] for ee in self._estimates for e in ee])
-                
-                self._s0 = np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
+                    self._x0 = np.array(
+                        [e["centery0"] for ee in self._estimates for e in ee]
+                    )
+                    self._y0 = np.array(
+                        [e["centerx0"] for ee in self._estimates for e in ee]
+                    )
+
+                self._s0 = np.array(
+                    [e["sigmaMajor"] for ee in self._estimates for e in ee]
+                )
                 try:
                     self._varexp0 = np.array(
                         [e["R2"] for ee in self._estimates for e in ee]
@@ -71,7 +81,9 @@ def init_variables(self):
                 )
         else:
             if "Centerx0" in self._estimates[0][0].keys():
-                self._x0 = np.array([e["Centerx0"] for ee in self._estimates for e in ee])
+                self._x0 = np.array(
+                    [e["Centerx0"] for ee in self._estimates for e in ee]
+                )
 
                 if self._orientation == "VF":
                     self._y0 = -np.array(
@@ -86,7 +98,9 @@ def init_variables(self):
                         "Choose orientation form [VF, MP], you specified {self._orientation}"
                     )
 
-                self._s0 = np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
+                self._s0 = np.array(
+                    [e["sigmaMajor"] for ee in self._estimates for e in ee]
+                )
 
                 try:
                     self._varexp0 = np.array(
@@ -96,7 +110,9 @@ def init_variables(self):
                     print("no varexp information")
 
             elif "centerx0" in self._estimates[0][0].keys():
-                self._x0 = np.array([e["centerx0"] for ee in self._estimates for e in ee])
+                self._x0 = np.array(
+                    [e["centerx0"] for ee in self._estimates for e in ee]
+                )
 
                 if self._orientation == "VF":
                     self._y0 = -np.array(
@@ -111,7 +127,9 @@ def init_variables(self):
                         "Choose orientation form [VF, MP], you specified {self._orientation}"
                     )
 
-                self._s0 = np.array([e["sigmamajor"] for ee in self._estimates for e in ee])
+                self._s0 = np.array(
+                    [e["sigmamajor"] for ee in self._estimates for e in ee]
+                )
 
                 try:
                     self._varexp0 = np.array(
@@ -132,7 +150,9 @@ def init_variables(self):
 
                 with np.errstate(divide="ignore", invalid="ignore"):
                     self._rss0 = np.hstack([m["rss"][0][0][0] for m in self._model])
-                    self._rawrss0 = np.hstack([m["rawrss"][0][0][0] for m in self._model])
+                    self._rawrss0 = np.hstack(
+                        [m["rawrss"][0][0][0] for m in self._model]
+                    )
                     # self._varexp0 = 1.0 - self._rss0 / self._rawrss0
 
                 self._maxEcc = np.hstack(
@@ -349,14 +369,29 @@ def from_docker(
     if not baseP:
         baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
+    derivatives_path = path.join(
+        baseP,
+        study,
+        "derivatives",
+    )
+    if not path.isdir(derivatives_path):
+        derivatives_path = path.join(
+            baseP,
+            study,
+            "BIDS" "derivatives",
+        )
+
+        if not path.isdir(derivatives_path):
+            raise FileNotFoundError(
+                f"could not find derivatives folder at {derivatives_path} or {path.join(baseP, study, 'derivatives')}"
+            )
+
     mat = [] if method == "vista" else None
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
         estimates = path.join(
-            baseP,
-            study,
-            "derivatives",
+            derivatives_path,
             prfanaMe,
             prfanaAn,
             subject,
@@ -370,23 +405,26 @@ def from_docker(
         est.append(this_est)
 
         if method == "vista":
-            resP = path.join(
-                baseP,
-                study,
-                "derivatives",
-                prfanaMe,
-                prfanaAn,
-                subject,
-                session,
-                f"{subject}_{session}_{task}_{run}_hemi-{h}_results.mat",
-            )
+            try:
+                resP = path.join(
+                    baseP,
+                    study,
+                    "derivatives",
+                    prfanaMe,
+                    prfanaAn,
+                    subject,
+                    session,
+                    f"{subject}_{session}_{task}_{run}_hemi-{h}_results.mat",
+                )
 
-            if not path.isfile(resP):
-                raise Warning(f"file is not existent: {resP}")
+                if not path.isfile(resP):
+                    raise print(f"could not find _results.mat file: {resP}")
 
-            thisMat = loadmat(resP)["results"]
+                thisMat = loadmat(resP)["results"]
 
-            mat.append(thisMat)
+                mat.append(thisMat)
+            except:
+                mat = None
 
     return cls(
         "docker",
@@ -394,6 +432,7 @@ def from_docker(
         subject,
         session,
         baseP,
+        derivatives_path=derivatives_path,
         task=task,
         run=run,
         hemis=hemi,
@@ -545,13 +584,28 @@ def from_hdf5(
     if not baseP:
         baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
+    derivatives_path = path.join(
+        baseP,
+        study,
+        "derivatives",
+    )
+    if not path.isdir(derivatives_path):
+        derivatives_path = path.join(
+            baseP,
+            study,
+            "BIDS" "derivatives",
+        )
+
+        if not path.isdir(derivatives_path):
+            raise FileNotFoundError(
+                f"could not find derivatives folder at {derivatives_path} or {path.join(baseP, study, 'derivatives')}"
+            )
+
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
         estimates = path.join(
-            baseP,
-            study,
-            "derivatives",
+            derivatives_path,
             derivatives_folder,
             prfanaAn,
             subject,
@@ -569,6 +623,7 @@ def from_hdf5(
         subject,
         session,
         baseP,
+        derivatives_path=derivatives_path,
         task=task,
         run=run,
         hemis=hemi,
@@ -621,11 +676,26 @@ def from_samsrf(
     if not baseP:
         baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
 
-    if hemis is None:
-        func_p = path.join(
+    derivatives_path = path.join(
+        baseP,
+        study,
+        "derivatives",
+    )
+    if not path.isdir(derivatives_path):
+        derivatives_path = path.join(
             baseP,
             study,
-            "derivatives",
+            "BIDS" "derivatives",
+        )
+
+        if not path.isdir(derivatives_path):
+            raise FileNotFoundError(
+                f"could not find derivatives folder at {derivatives_path} or {path.join(baseP, study, 'derivatives')}"
+            )
+
+    if hemis is None:
+        func_p = path.join(
+            derivatives_path,
             "samsrf",
             prfanaAn,
             subject,
@@ -671,6 +741,7 @@ def from_samsrf(
         run=run,
         hemis=hemis,
         baseP=baseP,
+        derivatives_path=derivatives_path,
         mat=mat,
         prfanaAn=prfanaAn,
         orientation=orientation,
