@@ -47,6 +47,7 @@ class PRF:
         _get_surfaceSavePath,
         _make_gif,
         manual_masking,
+        save_results,
     )
 
     from_docker = classmethod(from_docker)

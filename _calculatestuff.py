@@ -18,9 +18,7 @@ def calc_kde_diff(self):
     sstim = (
         "eightbars"
         if "bar" in self._analysis
-        else "wedgesrings"
-        if "wedge" in self._analysis
-        else ""
+        else "wedgesrings" if "wedge" in self._analysis else ""
     )
     kdeRefR = np.load(
         f"/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data/retcomp17/scripts/KDE_Turtle/meanKDE_{sstim}.npy"
@@ -115,9 +113,7 @@ def _calcKdeDiff2d(self, scotVal=0.1):
     sstim = (
         "eightbars"
         if "bar" in self._analysis
-        else "wedgesrings"
-        if "wedge" in self._analysis
-        else ""
+        else "wedgesrings" if "wedge" in self._analysis else ""
     )
     kdeRef2d = np.load(
         f"/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data/retcomp17/scripts/KDE_Turtle/meanKDE2d_{sstim}.npy"

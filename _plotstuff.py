@@ -9,10 +9,9 @@ except (ModuleNotFoundError, ImportError):
     print("Install it or don't run plot_toSurface()")
 
 import json
-import os
 from copy import deepcopy
 from glob import glob
-from os import path
+from os import path, makedirs, remove
 
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -22,6 +21,7 @@ from matplotlib import patches
 import nibabel as nib
 import numpy as np
 from PIL import Image
+import json
 
 try:
     import neuropythy as ny
@@ -219,7 +219,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
         return self.covMap
     else:
         if not path.isdir(savePathB):
-            os.makedirs(savePathB)
+            makedirs(savePathB)
 
         xx = np.linspace(-1 * maxEcc, maxEcc, max(int(maxEcc * 30), 300) + 1)
 
@@ -372,7 +372,7 @@ def plot_covMap(
 
     # create folder if not exist
     if not path.isdir(savePathB):
-        os.makedirs(savePathB)
+        makedirs(savePathB)
 
     # warning if the chosen method is not possible
     if not path.isfile(savePath) or show or force:
@@ -498,7 +498,7 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
         savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}_hemi-{hemi[0].upper()}_desc{Pstr}_{ending}"
 
     if not path.isdir(savePathB):
-        os.makedirs(savePathB)
+        makedirs(savePathB)
 
     return savePathB, savePathF
 
@@ -526,7 +526,7 @@ def _make_gif(self, frameFolder, outFilename):
     )
     print(f"new Cortex Map saved to {outFilename}")
     # Delete the png-s
-    [os.remove(image) for image in glob(f"{frameFolder}/frame*.png")]
+    [remove(image) for image in glob(f"{frameFolder}/frame*.png")]
 
 
 def plot_toSurface(
@@ -767,7 +767,7 @@ def plot_toSurface(
                 posPath = path.join(posSavePath, posSaveFile)
 
                 if not path.isdir(posSavePath):
-                    os.makedirs(posSavePath)
+                    makedirs(posSavePath)
 
                 if not path.isfile(posPath) or forceNewPosition:
                     if hemi[0].upper() == "L":
@@ -1083,3 +1083,186 @@ def manual_masking(self):
 
     # Return the mask after the plot is closed
     return plot_select_mask
+
+
+def save_results(
+    self,
+    force=False,
+    params=None,
+):
+    if not self._dataFrom == "docker":
+        raise ValueError("Data not from docker, cannot save results")
+
+    # set params to all if not defined
+    if params is None:
+        params = ["x0", "y0", "s0", "r0", "phi0", "varexp0", "mask"]
+
+    if self.analysisSpace == "volume":
+        outFpath = path.join(
+            self._derivatives_path,
+            "prfresult",
+            self._prfanalyze_method,
+            self._prfanaAn,
+            "volumeResults",
+            self.subject,
+            self.session,
+        )
+        makedirs(outFpath, exist_ok=True)
+
+        try:
+            dummy_file = nib.load(
+                glob(
+                    path.join(
+                        self._derivatives_path,
+                        "fmriprep",
+                        self.prfprepareOpts["fmriprep_analysis"],
+                        self.subject,
+                        self.session,
+                        "func",
+                        f"*{self.task}*space-T1w_desc-preproc_bold.nii*",
+                    )
+                )[0]
+            )
+
+        except (KeyError, IndexError) as e:
+            with open(
+                glob(
+                    path.join(
+                        self._derivatives_path,
+                        "prfprepare",
+                        f"analysis-{self.prfprepare_analysis}",
+                        self._subject,
+                        self._session,
+                        "func",
+                        f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
+                    )
+                )[0],
+                "r",
+            ) as f:
+                maskinfo = json.load(f)
+            img_shape = maskinfo["origImageSize"]
+            img_header = None
+            img_affine = np.eye(4)
+
+        else:
+            img = nib.funcs.four_to_three(dummy_file)[0]
+            img_shape = img.shape
+            img_header = img.header
+            img_affine = img.affine
+
+        # loop through prarams and save them
+        for param in params:
+            if param == "mask":
+                outFname = self._get_surfaceSavePath(
+                    param,
+                    "BOTH",
+                    "results",
+                    plain=False,
+                )
+            else:
+                outFname = self._get_surfaceSavePath(
+                    param, "BOTH", "results", plain=True
+                )
+
+            outF = path.join(outFpath, outFname[1] + ".nii.gz")
+            if not path.isfile(outF) or force:
+                if param == "voxelTC0":
+                    dat = np.zeros((*img_shape, self.voxelTC0.shape[-1])) * np.nan
+                else:
+                    dat = np.zeros(img_shape) * np.nan
+
+                for pos, boldI in zip(self._roiIndOrig, self._roiIndBold):
+                    dat[tuple(pos)] = getattr(self, param)[boldI]
+
+                newNii = nib.Nifti1Image(dat, header=img_header, affine=img_affine)
+                nib.save(newNii, outF)
+
+    elif self.analysisSpace == "fsnative":
+        outFpath = path.join(
+            self._derivatives_path,
+            "prfresult",
+            self._prfanalyze_method,
+            self._prfanaAn,
+            "surfaceResults",
+            self.subject,
+            self.session,
+        )
+        makedirs(outFpath, exist_ok=True)
+
+        if hemi == "both":
+            hemis = ["L", "R"]
+        else:
+            hemis = [hemi]
+
+        for hemi in hemis:
+            try:
+                dummyFile = nib.load(
+                    glob(
+                        path.join(
+                            self._derivatives_path,
+                            "fmriprep",
+                            self.prfprepareOpts["fmriprep_analysis"],
+                            self.subject,
+                            self.session,
+                            "func",
+                            f"*task-{self.task}*hemi-{hemi}_space-fsnative_bold.func.gii",
+                        )
+                    )[0]
+                )
+            except (KeyError, IndexError) as e:
+                with open(
+                    glob(
+                        path.join(
+                            self._derivatives_path,
+                            "prfprepare",
+                            f"analysis-{self.prfprepare_analysis}",
+                            self._subject,
+                            self._session,
+                            "func",
+                            f"{self._subject}_{self._session}_hemi-{hemi}_desc-*-*_maskinfo.json",
+                        )
+                    )[0],
+                    "r",
+                ) as f:
+                    maskinfo = json.load(f)
+                img_shape = maskinfo["thisHemiSize"]
+            else:
+                img_shape = dummyFile.agg_data().shape
+
+            for param in ["x0", "y0", "s0", "r0", "phi0", "varexp0", "mask"]:
+                if param == "mask":
+                    outFname = self._get_surfaceSavePath(
+                        param,
+                        hemi,
+                        "results",
+                        plain=False,
+                    )
+                else:
+                    outFname = self._get_surfaceSavePath(
+                        param, hemi, "results", plain=True
+                    )
+
+                outF = path.join(outFpath, outFname[1] + ".func.gii")
+                if not path.isfile(outF) or force:
+                    if param == "voxelTC0":
+                        dat = np.zeros((img_shape, self.voxelTC0.shape[-1])) * np.nan
+                    else:
+                        dat = np.zeros(img_shape) * np.nan
+
+                    # create mask dependent on used hemisphere
+                    if hemi[0].upper() == "L":
+                        hemiM = self._roiWhichHemi == "L"
+                    elif hemi[0].upper() == "R":
+                        hemiM = self._roiWhichHemi == "R"
+
+                    roiIndOrigHemi = self._roiIndOrig[hemiM]
+                    roiIndBoldHemi = self._roiIndBold[hemiM]
+
+                    for pos, boldI in zip(roiIndOrigHemi, roiIndBoldHemi):
+                        dat[pos] = getattr(self, param)[boldI]
+
+                    newGii = nib.gifti.gifti.GiftiImage()
+                    newGii.add_gifti_data_array(
+                        nib.gifti.gifti.GiftiDataArray(data=dat.astype(np.float32))
+                    )
+                    nib.save(newGii, outF)
