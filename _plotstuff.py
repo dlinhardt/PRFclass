@@ -1142,7 +1142,18 @@ def save_results(
                 maskinfo = json.load(f)
             img_shape = maskinfo["origImageSize"]
             img_header = None
-            img_affine = np.eye(4)
+
+            if self._study == "hcpret":
+                img_affine = np.array(
+                    [
+                        [-1.60000002, 0.0, 0.0, 90.0],
+                        [0.0, 1.60000002, 0.0, -126.0],
+                        [0.0, 0.0, 1.60000002, -72.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                )
+            else:
+                img_affine = np.eye(4)
 
         else:
             img = nib.funcs.four_to_three(dummy_file)[0]
