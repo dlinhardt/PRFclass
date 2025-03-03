@@ -384,8 +384,9 @@ class PRFgroup:
             a["prf"].maskBetaThresh(betaMax, doBorderThresh, doHighBetaThresh)
 
     # ----------------------------------- QUERY ----------------------------------#
-    def query(self, s):
-        print("Warning, no full class will be returned!")
+    def query(self, s, silent=False):
+        if not silent:
+            print("Warning, no full class will be returned!")
 
         return PRFgroup(
             data_from=self.data_from,
@@ -436,17 +437,20 @@ class PRFgroup:
         else:
             print("No analysis field in docker data")
 
+    def _get_prf_property(self, prop, combine_fn=np.hstack):
+        return combine_fn([getattr(a["prf"], prop) for _, a in self.data.iterrows()])
+
     @property
     def x0(self):
-        return np.hstack([a["prf"].x0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("x0")
 
     @property
     def y0(self):
-        return np.hstack([a["prf"].y0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("y0")
 
     @property
     def s0(self):
-        return np.hstack([a["prf"].s0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("s0")
 
     @property
     def sigma0(self):
@@ -454,7 +458,7 @@ class PRFgroup:
 
     @property
     def r0(self):
-        return np.hstack([a["prf"].r0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("r0")
 
     @property
     def ecc0(self):
@@ -462,7 +466,7 @@ class PRFgroup:
 
     @property
     def phi0(self):
-        return np.hstack([a["prf"].phi0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("phi0")
 
     @property
     def pol0(self):
@@ -470,27 +474,26 @@ class PRFgroup:
 
     @property
     def varexp0(self):
-        return np.hstack([a["prf"].varexp0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("varexp0")
 
     @property
     def varexp_easy0(self):
-        return np.hstack([a["prf"].varexp_easy0 for I, a in self.data.iterrows()])
-
+        return self._get_prf_property("varexp_easy0")
     @property
     def beta0(self):
-        return np.hstack([a["prf"].beta0 for I, a in self.data.iterrows()])
+        return self._get_prf_property("beta0")
 
     @property
     def x(self):
-        return np.hstack([a["prf"].x for I, a in self.data.iterrows()])
+        return self._get_prf_property("x")
 
     @property
     def y(self):
-        return np.hstack([a["prf"].y for I, a in self.data.iterrows()])
+        return self._get_prf_property("y")
 
     @property
     def s(self):
-        return np.hstack([a["prf"].s for I, a in self.data.iterrows()])
+        return self._get_prf_property("s")
 
     @property
     def sigma(self):
@@ -498,7 +501,7 @@ class PRFgroup:
 
     @property
     def r(self):
-        return np.hstack([a["prf"].r for I, a in self.data.iterrows()])
+        return self._get_prf_property("r")
 
     @property
     def ecc(self):
@@ -506,7 +509,7 @@ class PRFgroup:
 
     @property
     def phi(self):
-        return np.hstack([a["prf"].phi for I, a in self.data.iterrows()])
+        return self._get_prf_property("phi")
 
     @property
     def pol(self):
@@ -514,89 +517,69 @@ class PRFgroup:
 
     @property
     def varexp(self):
-        return np.hstack([a["prf"].varexp for I, a in self.data.iterrows()])
+        return self._get_prf_property("varexp")
 
     @property
     def varexp_easy(self):
-        return np.hstack([a["prf"].varexp_easy for I, a in self.data.iterrows()])
+        return self._get_prf_property("varexp_easy")
 
     @property
     def meanVarExp(self):
-        return np.mean([a["prf"].meanVarExp for I, a in self.data.iterrows()])
+        values = [getattr(a["prf"], "meanVarExp") for _, a in self.data.iterrows()]
+        return np.mean(values)
 
     @property
     def beta(self):
-        return np.hstack([a["prf"].beta for I, a in self.data.iterrows()])
+        return self._get_prf_property("beta")
 
     # ------------------------- SUBJECT VARS as MATRIX -----------------------#
 
+    def _get_sub_property(self, prop):
+        cache_attr = "_sub_" + prop
+        if not hasattr(self, cache_attr):
+            setattr(
+                self,
+                cache_attr,
+                {
+                    s: np.array(
+                        [getattr(a["prf"], prop) for _, a in self.data.iterrows() if a["subject"] == s]
+                    )
+                    for s in self.subject
+                },
+            )
+        return getattr(self, cache_attr)
+
     @property
     def sub_x0(self):
-        if not hasattr(self, "_sub_x0"):
-            self._sub_x0 = {}
-            for s in self.subject:
-                self._sub_x0[s] = np.array(
-                    [a["prf"].x0 for I, a in self.data.iterrows() if a["subject"] == s]
-                )
-        return self._sub_x0
+        return self._get_sub_property("x0")
 
     @property
     def sub_y0(self):
-        if not hasattr(self, "_sub_y0"):
-            self._sub_y0 = {}
-            for s in self.subject:
-                self._sub_y0[s] = np.array(
-                    [a["prf"].y0 for I, a in self.data.iterrows() if a["subject"] == s]
-                )
-        return self._sub_y0
+        return self._get_sub_property("y0")
 
     @property
     def sub_s0(self):
-        if not hasattr(self, "_sub_s0"):
-            self._sub_s0 = {}
-            for s in self.subject:
-                self._sub_s0[s] = np.array(
-                    [a["prf"].s0 for I, a in self.data.iterrows() if a["subject"] == s]
-                )
-        return self._sub_s0
+        return self._get_sub_property("s0")
 
     @property
     def sub_r0(self):
-        if not hasattr(self, "_sub_r0"):
-            self._sub_r0 = {}
-            for s in self.subject:
-                self._sub_r0[s] = np.array(
-                    [a["prf"].r0 for I, a in self.data.iterrows() if a["subject"] == s]
-                )
-        return self._sub_r0
+        return self._get_sub_property("r0")
 
     @property
     def sub_x(self):
-        self._sub_x = {}
-        for s in self.sub_x0:
-            self._sub_x[s] = self.sub_x0[s][:, self.sub_mask[s]]
-        return self._sub_x
+        return self._get_sub_property("x")
 
     @property
     def sub_y(self):
-        self._sub_y = {}
-        for s in self.sub_y0:
-            self._sub_y[s] = self.sub_y0[s][:, self.sub_mask[s]]
-        return self._sub_y
+        return self._get_sub_property("y")
 
     @property
     def sub_s(self):
-        self._sub_s = {}
-        for s in self.sub_s0:
-            self._sub_s[s] = self.sub_s0[s][:, self.sub_mask[s]]
-        return self._sub_s
+        return self._get_sub_property("s")
 
     @property
     def sub_r(self):
-        self._sub_r = {}
-        for s in self.sub_r0:
-            self._sub_r[s] = self.sub_r0[s][:, self.sub_mask[s]]
-        return self._sub_r
+        return self._get_sub_property("r")
 
     # --------------------------------- MASKS --------------------------------#
     @property
