@@ -378,7 +378,8 @@ def from_docker(
         derivatives_path = path.join(
             baseP,
             study,
-            "BIDS" "derivatives",
+            "BIDS",
+            "derivatives",
         )
 
         if not path.isdir(derivatives_path):
@@ -593,7 +594,8 @@ def from_hdf5(
         derivatives_path = path.join(
             baseP,
             study,
-            "BIDS" "derivatives",
+            "BIDS",
+            "derivatives",
         )
 
         if not path.isdir(derivatives_path):
@@ -685,7 +687,8 @@ def from_samsrf(
         derivatives_path = path.join(
             baseP,
             study,
-            "BIDS" "derivatives",
+            "BIDS",
+            "derivatives",
         )
 
         if not path.isdir(derivatives_path):
