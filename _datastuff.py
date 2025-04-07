@@ -399,8 +399,13 @@ def from_docker(
             f"{subject}_{session}_{task}_{run}_hemi-{h}_estimates.json",
         )
 
-        with open(estimates, "r") as fl:
-            this_est = json.load(fl)
+        try:
+            with open(estimates, "r") as fl:
+                this_est = json.load(fl)
+        except FileNotFoundError:
+            print(f"Could not find estimates file: {path.basename(estimates)}!")
+            print("Please check the params and try again.")
+            raise
 
         est.append(this_est)
 

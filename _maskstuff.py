@@ -211,7 +211,7 @@ def maskROI(
                             and f"desc-{ar}-" in path.basename(j)
                             and at in path.basename(j)
                         ][0]
-                    except:
+                    except IndexError:
                         continue
 
                     with open(areaJson, "r") as fl:
@@ -246,6 +246,12 @@ def maskROI(
                                 ]
                             )
                     doubleMask = doubleMask.astype(bool)
+
+                    if len(maskinfo["roiIndBold"]) != len(maskinfo[roiIndOrigName]):
+                        print(
+                            f"WARNING: ROI {ar} in {at} has different indices for bold and orig!"
+                        )
+                        continue
 
                     if h.upper() == "L":
                         self._roiIndBold = np.hstack(
@@ -301,6 +307,7 @@ def maskROI(
 
         if self._roiMsk.sum() == 0:
             print(f"WARNING: No data in ROI {self._area} in {self._atlas}!")
+            print('Check if the area and atlas are available in the maskinfo files!')
 
     elif data_from == "samsrf":
         # get the occ mask used in samsrf
