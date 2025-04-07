@@ -1200,45 +1200,51 @@ def save_results(
         )
         makedirs(outFpath, exist_ok=True)
 
-        if hemi == "both":
-            hemis = ["L", "R"]
+        if self._hemis.lower() == "both":
+            if self._study == "hcpret":
+                hemis = ["b"]
+            else:
+                hemis = ["L", "R"]
         else:
-            hemis = [hemi]
+            hemis = [self._hemis]
 
         for hemi in hemis:
-            try:
-                dummyFile = nib.load(
-                    glob(
-                        path.join(
-                            self._derivatives_path,
-                            "fmriprep",
-                            self.prfprepareOpts["fmriprep_analysis"],
-                            self.subject,
-                            self.session,
-                            "func",
-                            f"*task-{self.task}*hemi-{hemi}_space-fsnative_bold.func.gii",
-                        )
-                    )[0]
-                )
-            except (KeyError, IndexError) as e:
-                with open(
-                    glob(
-                        path.join(
-                            self._derivatives_path,
-                            "prfprepare",
-                            f"analysis-{self.prfprepare_analysis}",
-                            self._subject,
-                            self._session,
-                            "func",
-                            f"{self._subject}_{self._session}_hemi-{hemi}_desc-*-*_maskinfo.json",
-                        )
-                    )[0],
-                    "r",
-                ) as f:
-                    maskinfo = json.load(f)
-                img_shape = maskinfo["thisHemiSize"]
+            if self._study == "hcpret" and self._hemis.lower() == "both":
+                img_shape = 91282
             else:
-                img_shape = dummyFile.agg_data().shape
+                try:
+                    dummyFile = nib.load(
+                        glob(
+                            path.join(
+                                self._derivatives_path,
+                                "fmriprep",
+                                self.prfprepareOpts["fmriprep_analysis"],
+                                self.subject,
+                                self.session,
+                                "func",
+                                f"*task-{self.task}*hemi-{hemi}_space-fsnative_bold.func.gii",
+                            )
+                        )[0]
+                    )
+                except (KeyError, IndexError) as e:
+                    with open(
+                        glob(
+                            path.join(
+                                self._derivatives_path,
+                                "prfprepare",
+                                f"analysis-{self.prfprepare_analysis}",
+                                self._subject,
+                                self._session,
+                                "func",
+                                f"{self._subject}_{self._session}_hemi-{hemi}_desc-*-*_maskinfo.json",
+                            )
+                        )[0],
+                        "r",
+                    ) as f:
+                        maskinfo = json.load(f)
+                    img_shape = maskinfo["thisHemiSize"]
+                else:
+                    img_shape = dummyFile.agg_data().shape
 
             for param in ["x0", "y0", "s0", "r0", "phi0", "varexp0", "mask"]:
                 if param == "mask":
@@ -1265,6 +1271,8 @@ def save_results(
                         hemiM = self._roiWhichHemi == "L"
                     elif hemi[0].upper() == "R":
                         hemiM = self._roiWhichHemi == "R"
+                    elif hemi[0].upper() == "B":
+                        hemiM = self._roiWhichHemi == "b"
 
                     roiIndOrigHemi = self._roiIndOrig[hemiM]
                     roiIndBoldHemi = self._roiIndBold[hemiM]
