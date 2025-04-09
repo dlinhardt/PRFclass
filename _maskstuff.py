@@ -185,6 +185,9 @@ def maskROI(
         if self.analysisSpace == "fsnative":
             roiIndOrigName = "roiIndFsnative"
             roiIndOrigShape = 0
+        elif self.analysisSpace == "fsaverage":
+            roiIndOrigName = "roiIndFsaverage"
+            roiIndOrigShape = 0
         elif self.analysisSpace == "volume":
             roiIndOrigName = "roiPos3D"
             roiIndOrigShape = (0, 3)

@@ -52,7 +52,8 @@ class label:
             if "roiIndOrig" in maskinfo.keys():
                 self.vertices = np.array(maskinfo["roiIndOrig"])
             else:
-                self.vertices = np.array(maskinfo["roiIndFsnative"])
+                key = [a for a in maskinfo.keys() if a.startswith("roiIndFs")][0]
+                self.vertices = np.array(maskinfo[key])
         else:
             f = [j for j in allAreaFiles if f"/{he[0].lower()}h."][0]
             maskinfo = nib.load(f).get_fdata().squeeze()
@@ -551,7 +552,7 @@ def plot_toSurface(
     pmin=None,
 ):
     """
-    If we have docker data that was analyzed in fsnative space we can plot
+    If we have docker data that was analyzed in  or fsaverage space we can plot
     a given parameter to the cortex of one hemisphere and create a
     screenshot or gif.
 
@@ -608,6 +609,12 @@ def plot_toSurface(
         else:
             hemis = [hemi]
 
+        # define the subject as fsaverage
+        if self.analysisSpace == "fsaverage":
+            plot_subject = "fsaverage"
+        else:
+            plot_subject = self.subject
+
         for hemi in hemis:
             if save:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
@@ -619,7 +626,7 @@ def plot_toSurface(
                 if path.isfile(path.join(p, n + ".gif")) and not force:
                     return
 
-            pialP = path.join(fsP, self.subject, "surf", f"{hemi[0].lower()}h.pial")
+            pialP = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
             pial = nib.freesurfer.read_geometry(pialP)
 
             nVertices = len(pial[0])
@@ -692,7 +699,7 @@ def plot_toSurface(
 
             # plot the brain
             brain = Brain(
-                self.subject,
+                plot_subject,
                 f"{hemi[0].lower()}h",
                 surface,
                 subjects_dir=fsP,
@@ -755,14 +762,14 @@ def plot_toSurface(
                     self._derivatives_path,
                     "prfresult",
                     "positioning",
-                    self.subject,
+                    plot_subject,
                 )
                 areaStr = (
                     "multipleAreas" if len(self._area) > 10 else "".join(self._area)
                 )
 
                 posSaveFile = (
-                    f"{self.subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
+                    f"{plot_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
                 )
                 posPath = path.join(posSavePath, posSaveFile)
 
@@ -1131,10 +1138,10 @@ def save_results(
                         self._derivatives_path,
                         "prfprepare",
                         f"analysis-{self.prfprepare_analysis}",
-                        self._subject,
-                        self._session,
+                        self.subject,
+                        self.session,
                         "func",
-                        f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
+                        f"{self.subject}_{self.session}_hemi-*_desc-*-*_maskinfo.json",
                     )
                 )[0],
                 "r",
@@ -1188,7 +1195,7 @@ def save_results(
                 newNii = nib.Nifti1Image(dat, header=img_header, affine=img_affine)
                 nib.save(newNii, outF)
 
-    elif self.analysisSpace == "fsnative":
+    elif self.analysisSpace is "fsnative" or "fsaverage":
         outFpath = path.join(
             self._derivatives_path,
             "prfresult",
@@ -1222,7 +1229,7 @@ def save_results(
                                 self.subject,
                                 self.session,
                                 "func",
-                                f"*task-{self.task}*hemi-{hemi}_space-fsnative_bold.func.gii",
+                                f"*task-{self.task}*hemi-{hemi}_space-{self.analyisSpace}_bold.func.gii",
                             )
                         )[0]
                     )
