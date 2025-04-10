@@ -1094,8 +1094,8 @@ def manual_masking(self):
 
 def save_results(
     self,
-    force=False,
     params=None,
+    force=False,
 ):
     if not self._dataFrom == "docker":
         raise ValueError("Data not from docker, cannot save results")
@@ -1170,6 +1170,11 @@ def save_results(
 
         # loop through prarams and save them
         for param in params:
+            if not param.endswith("0") and param != "mask":
+                param_orig = param + "0"
+            else:
+                param_orig = param
+
             if param == "mask":
                 outFname = self._get_surfaceSavePath(
                     param,
@@ -1181,7 +1186,7 @@ def save_results(
                 outFname = self._get_surfaceSavePath(
                     param, "BOTH", "results", plain=True
                 )
-
+            print(outFname[1])
             outF = path.join(outFpath, outFname[1] + ".nii.gz")
             if not path.isfile(outF) or force:
                 if param == "voxelTC0":
@@ -1190,12 +1195,18 @@ def save_results(
                     dat = np.zeros(img_shape) * np.nan
 
                 for pos, boldI in zip(self._roiIndOrig, self._roiIndBold):
-                    dat[tuple(pos)] = getattr(self, param)[boldI]
+                    dat[tuple(pos)] = getattr(self, param_orig)[boldI]
+
+                if param != param_orig:
+                    # set everything outside mask (ROI, VarExp, ...) to nan
+                    dat = deepcopy(dat)
+                    for pos in self._roiIndOrig[~self.mask[self._roiIndBold]]:
+                        dat[tuple(pos)] = np.nan
 
                 newNii = nib.Nifti1Image(dat, header=img_header, affine=img_affine)
                 nib.save(newNii, outF)
 
-    elif self.analysisSpace is "fsnative" or "fsaverage":
+    elif self.analysisSpace == "fsnative" or self.analysisSpace == "fsaverage":
         outFpath = path.join(
             self._derivatives_path,
             "prfresult",
@@ -1253,7 +1264,12 @@ def save_results(
                 else:
                     img_shape = dummyFile.agg_data().shape
 
-            for param in ["x0", "y0", "s0", "r0", "phi0", "varexp0", "mask"]:
+            for param in params:
+                if not param.endswith("0") and param != "mask":
+                    param_orig = param + "0"
+                else:
+                    param_orig = param
+
                 if param == "mask":
                     outFname = self._get_surfaceSavePath(
                         param,
@@ -1285,7 +1301,12 @@ def save_results(
                     roiIndBoldHemi = self._roiIndBold[hemiM]
 
                     for pos, boldI in zip(roiIndOrigHemi, roiIndBoldHemi):
-                        dat[pos] = getattr(self, param)[boldI]
+                        dat[pos] = getattr(self, param_orig)[boldI]
+
+                    if param != param_orig:
+                        # set everything outside mask (ROI, VarExp, ...) to nan
+                        dat = deepcopy(dat)
+                        dat[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
                     newGii = nib.gifti.gifti.GiftiImage()
                     newGii.add_gifti_data_array(
