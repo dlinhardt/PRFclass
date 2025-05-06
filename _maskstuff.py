@@ -310,7 +310,7 @@ def maskROI(
 
         if self._roiMsk.sum() == 0:
             print(f"WARNING: No data in ROI {self._area} in {self._atlas}!")
-            print('Check if the area and atlas are available in the maskinfo files!')
+            print("Check if the area and atlas are available in the maskinfo files!")
 
     elif data_from == "samsrf":
         # get the occ mask used in samsrf

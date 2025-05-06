@@ -1,7 +1,8 @@
+import json
+from os import path
+
 import numpy as np
 from scipy.io import loadmat
-from os import path
-import json
 
 # class for loading mrVista results
 
@@ -14,39 +15,39 @@ class PRF:
     """
 
     # load in all the other files with functions
-    from ._datastuff import (
-        init_variables,
-        from_docker,
-        from_mrVista,
-        from_samsrf,
-        from_file,
-        from_hdf5,
-        spm_hrf_compat,
-    )
-    from ._maskstuff import (
-        maskROI,
-        maskVarExp,
-        maskEcc,
-        maskSigma,
-        maskBetaThresh,
-        _calcMask,
-        maskDartBoard,
-    )
-    from ._loadadditionalstuff import loadStim, loadJitter, loadRealign
     from ._calculatestuff import (
         calc_kde_diff,
         calc_prf_profiles,
         central_scot_border,
         plot_kdeDiff2d,
     )
+    from ._datastuff import (
+        from_docker,
+        from_file,
+        from_hdf5,
+        from_mrVista,
+        from_samsrf,
+        init_variables,
+        spm_hrf_compat,
+    )
+    from ._loadadditionalstuff import loadJitter, loadRealign, loadStim
+    from ._maskstuff import (
+        _calcMask,
+        maskBetaThresh,
+        maskDartBoard,
+        maskEcc,
+        maskROI,
+        maskSigma,
+        maskVarExp,
+    )
     from ._plotstuff import (
-        plot_covMap,
         _calcCovMap,
-        plot_toSurface,
         _createmask,
         _get_surfaceSavePath,
         _make_gif,
         manual_masking,
+        plot_covMap,
+        plot_toSurface,
         save_results,
     )
 

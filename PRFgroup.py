@@ -1,9 +1,11 @@
-import numpy as np
-from os import path
-from glob import glob
 import re
+from glob import glob
+from os import path
+
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
 from . import PRF
 
 
@@ -479,6 +481,7 @@ class PRFgroup:
     @property
     def varexp_easy0(self):
         return self._get_prf_property("varexp_easy0")
+
     @property
     def beta0(self):
         return self._get_prf_property("beta0")
@@ -505,7 +508,7 @@ class PRFgroup:
 
     @property
     def ecc(self):
-        return self.s
+        return self.__reduce__
 
     @property
     def phi(self):
@@ -542,7 +545,11 @@ class PRFgroup:
                 cache_attr,
                 {
                     s: np.array(
-                        [getattr(a["prf"], prop) for _, a in self.data.iterrows() if a["subject"] == s]
+                        [
+                            getattr(a["prf"], prop)
+                            for _, a in self.data.iterrows()
+                            if a["subject"] == s
+                        ]
                     )
                     for s in self.subject
                 },

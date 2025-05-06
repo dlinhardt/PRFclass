@@ -11,17 +11,15 @@ except (ModuleNotFoundError, ImportError):
 import json
 from copy import deepcopy
 from glob import glob
-from os import path, makedirs, remove
+from os import makedirs, path, remove
 
 import matplotlib.pyplot as plt
-from matplotlib import colors
-from matplotlib.widgets import Slider, Button
 import matplotlib.transforms as mtransforms
-from matplotlib import patches
 import nibabel as nib
 import numpy as np
+from matplotlib import colors, patches
+from matplotlib.widgets import Button, Slider
 from PIL import Image
-import json
 
 try:
     import neuropythy as ny
@@ -1240,7 +1238,7 @@ def save_results(
                                 self.subject,
                                 self.session,
                                 "func",
-                                f"*task-{self.task}*hemi-{hemi}_space-{self.analyisSpace}_bold.func.gii",
+                                f"*task-{self.task}*hemi-{hemi}_space-{self.analysisSpace}_bold.func.gii",
                             )
                         )[0]
                     )
