@@ -573,6 +573,14 @@ class PRFgroup:
         return self._get_sub_property("r0")
 
     @property
+    def sub_pol0(self):
+        return self._get_sub_property("pol0")
+
+    @property
+    def sub_varexp0(self):
+        return self._get_sub_property("varexp0")
+
+    @property
     def sub_x(self):
         return self._get_sub_property("x")
 
@@ -587,6 +595,14 @@ class PRFgroup:
     @property
     def sub_r(self):
         return self._get_sub_property("r")
+
+    @property
+    def sub_pol(self):
+        return self._get_sub_property("pol")
+
+    @property
+    def sub_varexp(self):
+        return self._get_sub_property("varexp")
 
     # --------------------------------- MASKS --------------------------------#
     @property
