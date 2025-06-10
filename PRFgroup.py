@@ -73,6 +73,7 @@ class PRFgroup:
         hemi="",
         baseP=None,
         orientation="VF",
+        load_mat_file=True,
     ):
         if not baseP:
             baseP = "/ceph/mri.meduniwien.ac.at/projects/physics/fmri/data"
@@ -145,6 +146,7 @@ class PRFgroup:
                     hemi=hemi,
                     baseP=baseP,
                     orientation=orientation,
+                    load_mat_file=load_mat_file,
                 )
             except Exception as e:
                 print(

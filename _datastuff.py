@@ -338,6 +338,7 @@ def from_docker(
     hemi="",
     baseP=None,
     orientation="VF",
+    load_mat_file=True,
 ):
     """
     With this constructor you can load results that were analyzed
@@ -388,7 +389,7 @@ def from_docker(
                 f"could not find derivatives folder at {derivatives_path} or {path.join(baseP, study, 'derivatives')}"
             )
 
-    mat = [] if method == "vista" else None
+    mat = [] if method == "vista" and load_mat_file == True else None
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
@@ -411,7 +412,7 @@ def from_docker(
 
         est.append(this_est)
 
-        if method == "vista":
+        if method == "vista" and load_mat_file == True:
             try:
                 resP = path.join(
                     baseP,
