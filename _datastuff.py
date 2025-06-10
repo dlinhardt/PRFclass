@@ -14,7 +14,10 @@ except ImportError:
 
 def init_variables(self):
     """
-    Initializes the variables loaded by the PRF.from_ methods
+    Initialize variables loaded by the PRF.from_ methods, depending on data source.
+
+    Raises:
+        ValueError: If the data source or orientation is invalid.
     """
 
     ############################# VISTA #############################
@@ -222,21 +225,20 @@ def from_mrVista(
     fit="fFit-fFit-fFit",
 ):
     """
-    With this constructor you can load results that were analyzed
-    with matlab based vistasoft pRF analysis in Vienna.
+    Load results from a MATLAB-based mrVista pRF analysis.
 
     Args:
-        study (str): Study name
-        subject (str): Subject name
-        session (str): Session name
-        analysis (str): Name of the full analysis as found in the subjects mrVista folder
-        server (str, optional): Defines the server name. Defaults to 'ceph'.
-        forcePath (str, optional): Set a path for the coords.mat file when not in the correct position. Defaults to None.
-        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
-        fit (str, optional): Changes the loaded mrVista name. Defaults to 'fFit-fFit-fFit'.
+        study (str): Study name.
+        subject (str): Subject name.
+        session (str): Session name.
+        analysis (str): Name of the analysis in the subject's mrVista folder.
+        server (str, optional): Server name. Defaults to 'ceph'.
+        forcePath (str, optional): Path for coords.mat file if not in standard location. Defaults to None.
+        orientation (str, optional): 'VF' for visual field space, 'MP' for microperimetry space. Defaults to 'VF'.
+        fit (str, optional): mrVista fit name. Defaults to 'fFit-fFit-fFit'.
 
     Returns:
-        cls: Instance of the PRF class with all the results
+        cls: Instance of the PRF class with loaded results.
     """
 
     if server == "ceph":
@@ -346,24 +348,26 @@ def from_docker(
     load_mat_file=True,
 ):
     """
-    With this constructor you can load results that were analyzed
-    with dockerized solution published in Lerma-Usabiaga 2020 and available
-    at github.com/vistalab/PRFmodel
+    Load results from dockerized prfanalyze-vistasoft analysis.
 
     Args:
-        study (str): Study name (e.g. 'stimsim')
-        subject (str): Subject name (e.g. 'p001')
-        session (str): Session name (e.g. '001')
-        task (str): Task name (e.g. 'prf')
-        run (str): Run number (e.g. '01')
-        method (str, optional): Different methods from the prfanalyze docker possibler, I think. Defaults to 'vista'.
-        analysis (str, optional): Number of the analysis within derivatives/prfanalyze. Defaults to '01'.
-        hemi (str, optional): When you want to load only one hemisphere ('L' or 'R'), empty when both. Defaults to ''.
-        forcePath (str, optional): If the analysis can be found in another location than standard (/z/fmri/data/)this changes the base path. Defaults to None.
-        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+        study (str): Study name.
+        subject (str): Subject name.
+        session (str): Session name.
+        task (str): Task name.
+        run (str): Run number.
+        method (str, optional): prfanalyze method. Defaults to 'vista'.
+        analysis (str, optional): Analysis number. Defaults to '01'.
+        hemi (str, optional): Hemisphere ('L', 'R', or ''). Defaults to ''.
+        baseP (str, optional): Base path for data. Defaults to None.
+        orientation (str, optional): 'VF' or 'MP'. Defaults to 'VF'.
+        load_mat_file (bool, optional): Whether to load .mat file. Defaults to True.
 
     Returns:
-        cls: Instance of the PRF class with all the results
+        cls: Instance of the PRF class with loaded results.
+
+    Raises:
+        FileNotFoundError: If required files are missing.
     """
 
     prfanaMe = method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
@@ -465,13 +469,18 @@ def from_file(
     orientation="VF",
 ):
     """
-    With this constructor you can load results from the given path
+    Load results from a given JSON file path.
 
     Args:
-        path (str): path to json
+        study (str): Study name.
+        force_path (str or list): Path(s) to JSON file(s).
+        orientation (str, optional): 'VF' or 'MP'. Defaults to 'VF'.
 
     Returns:
-        cls: Instance of the PRF class with all the results
+        cls: Instance of the PRF class with loaded results.
+
+    Raises:
+        ValueError: If file naming is inconsistent.
     """
 
     print(
@@ -569,22 +578,25 @@ def from_hdf5(
     derivatives_folder="michi",
 ):
     """
-    With this constructor you can load results that were saved as hdf5 file
+    Load results from an HDF5 file.
 
     Args:
-        study (str): Study name (e.g. 'stimsim')
-        subject (str): Subject name (e.g. 'p001')
-        session (str): Session name (e.g. '001')
-        task (str): Task name (e.g. 'prf')
-        run (str): Run number (e.g. '01')
-        method (str, optional): Different methods from the prfanalyze docker possibler, I think. Defaults to 'vista'.
-        analysis (str, optional): Number of the analysis within derivatives/prfanalyze. Defaults to '01'.
-        hemi (str, optional): When you want to load only one hemisphere ('L' or 'R'), empty when both. Defaults to ''.
-        forcePath (str, optional): If the analysis can be found in another location than standard (/z/fmri/data/)this changes the base path. Defaults to None.
-        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+        study (str): Study name.
+        subject (str): Subject name.
+        session (str): Session name.
+        task (str): Task name.
+        run (str): Run number.
+        analysis (str, optional): Analysis number. Defaults to '01'.
+        baseP (str, optional): Base path for data. Defaults to None.
+        orientation (str, optional): 'VF' or 'MP'. Defaults to 'VF'.
+        hemi (str, optional): Hemisphere ('L', 'R', or ''). Defaults to ''.
+        derivatives_folder (str, optional): Name of derivatives folder. Defaults to 'michi'.
 
     Returns:
-        cls: Instance of the PRF class with all the results
+        cls: Instance of the PRF class with loaded results.
+
+    Raises:
+        FileNotFoundError: If required files are missing.
     """
 
     prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
@@ -661,23 +673,24 @@ def from_samsrf(
     hemis=None,
 ):
     """
-    With this constructor you can load results that were analyzed
-    with SamSrf
+    Load results from SamSrf analysis.
 
     Args:
-        study (str): Study name (e.g. 'stimsim')
-        subject (str): Subject name (e.g. 'p001')
-        session (str): Session name (e.g. '001')
-        task (str): Task name (e.g. 'prf')
-        run (str): Run number (e.g. '01')
-        method (str, optional): Different methods from the prfanalyze docker possibler, I think. Defaults to 'vista'.
-        analysis (str, optional): Number of the analysis within derivatives/prfanalyze. Defaults to '01'.
-        hemi (str, optional): When you want to load only one hemisphere ('L' or 'R'), empty when both. Defaults to ''.
-        forcePath (str, optional): If the analysis can be found in another location than standard (/z/fmri/data/)this changes the base path. Defaults to None.
-        orientation (str, optional): Defines if y-axis should be flipped. Use 'VF' for yes (visual field space) or 'MP' for now (retina, microperimetry space). Defaults to 'VF'.
+        study (str): Study name.
+        subject (str): Subject name.
+        session (str): Session name.
+        task (str): Task name.
+        run (str): Run number.
+        analysis (str, optional): Analysis number. Defaults to '01'.
+        baseP (str, optional): Base path for data. Defaults to None.
+        orientation (str, optional): 'VF' or 'MP'. Defaults to 'VF'.
+        hemis (str or None, optional): Hemisphere(s) to load. Defaults to None.
 
     Returns:
-        cls: Instance of the PRF class with all the results
+        cls: Instance of the PRF class with loaded results.
+
+    Raises:
+        FileNotFoundError: If required files are missing.
     """
 
     prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"

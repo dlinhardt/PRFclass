@@ -7,11 +7,12 @@ import scipy.stats as st
 # ----------------------------------------------------------------------------#
 def calc_kde_diff(self):
     """
-    calculate the KDE differentials as in Hummer et al.
+    Calculate the 1D KDE (kernel density estimate) difference for pRF eccentricity, as in Hummer et al.
 
     Returns:
-        self.kdeX: lispace (x-axis)
-        self.kdeDiff: the difference (y-axis)
+        tuple:
+            - np.ndarray: Linspace for x-axis (eccentricity).
+            - np.ndarray: KDE difference (y-axis).
     """
 
     kde = st.gaussian_kde(self.r)
@@ -34,13 +35,13 @@ def calc_kde_diff(self):
 # ----------------------------------------------------------------------------#
 def central_scot_border(self, scotVal=0.1):
     """
-    calculate the central scotoma border as in Hummer et al.
+    Calculate the central scotoma border using the KDE difference, as in Hummer et al.
 
     Args:
-        scotVal (float, optional): Threshold value to define Scotoma border. Defaults to .1.
+        scotVal (float, optional): Threshold value to define scotoma border. Defaults to 0.1.
 
     Returns:
-        self.border: Scotoma border-line
+        float: Interpolated eccentricity value at the scotoma border.
     """
 
     if not hasattr(self, "kdeDiff"):
@@ -62,10 +63,10 @@ def central_scot_border(self, scotVal=0.1):
 # ----------------------------------------------------------------------------#
 def calc_prf_profiles(self):
     """
-    calculate PRF profiles as in Urale et al. 2022
+    Calculate pRF profiles as in Urale et al. 2022.
 
     Returns:
-        self.PRFprofiles: the calculated profile
+        np.ndarray: The calculated pRF profiles.
     """
 
     from scipy.signal import detrend
@@ -101,13 +102,13 @@ def calc_prf_profiles(self):
 # ----------------------------------------------------------------------------#
 def _calcKdeDiff2d(self, scotVal=0.1):
     """
-    calculate the 2D KDE differentials
+    Calculate the 2D KDE difference for pRF centers.
 
     Args:
-        scotVal (float, optional): Threshold value to define Scotoma border. Defaults to .1.
+        scotVal (float, optional): Threshold value to define scotoma border. Defaults to 0.1.
 
     Returns:
-        self.kdeDiff2d: returns the difference of 2D KDE
+        np.ndarray: 2D KDE difference array.
     """
 
     sstim = (
@@ -135,14 +136,14 @@ def _calcKdeDiff2d(self, scotVal=0.1):
 
 def plot_kdeDiff2d(self, title=None, scotVal=0.1):
     """
-    plots the 2D KDE difference
+    Plot the 2D KDE difference map.
 
     Args:
-        title (str, optional): Title of the plot. Defaults to None.
-        scotVal (float, optional): Threshold value to define Scotoma border. Defaults to .1.
+        title (str, optional): Title for the plot. Defaults to None.
+        scotVal (float, optional): Threshold value to define scotoma border. Defaults to 0.1.
 
     Returns:
-        fig: figure handle
+        matplotlib.figure.Figure: Figure handle for the plot.
     """
 
     if not hasattr(self, "kdeDiff2d"):

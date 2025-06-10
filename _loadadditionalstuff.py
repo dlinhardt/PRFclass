@@ -10,11 +10,13 @@ import warnings
 # ----------------------------------------------------------------------------#
 def loadStim(self, buildTC=True):
     """
-    loads the stimulus images from the reults.mat and builds the model TC
-    for all positions on the stimulus
+    Load stimulus images from results.mat and build the model time course.
 
     Args:
-        buildTC (bool, optional): Should we calculate the model TC. Defaults to True.
+        buildTC (bool, optional): Whether to calculate the model time course. Defaults to True.
+
+    Returns:
+        np.ndarray or None: Model time course if built, otherwise None.
     """
 
     if self._dataFrom == "mrVista":
@@ -79,12 +81,13 @@ def loadStim(self, buildTC=True):
 # ----------------------------------------------------------------------------#
 def loadJitter(self):
     """
-    loads the EyeTracker file when converted to .mat.
-    Needs to be passed to the analysis when data from mrVista (jitter)
-    Needs to be in BIDS/sourcedata/etdata/ in BIDS format for docker
+    Load the EyeTracker jitter file (.mat) and return x/y jitter.
 
     Returns:
-        self.jitterX, self.jitterY: both dimensions jitter
+        tuple: (jitterX, jitterY) arrays for both dimensions.
+
+    Raises:
+        FileNotFoundError: If the jitter file is not found.
     """
 
     if self._dataFrom == "mrVista":
@@ -133,9 +136,10 @@ def loadJitter(self):
 # ----------------------------------------------------------------------------#
 def loadRealign(self):
     """
-    loads realignment parameter and calculated framewise displacement
-    For nor only working with custom_preproc data where rp_avols.txt is available
+    Load realignment parameters and calculate framewise displacement.
 
+    Raises:
+        RuntimeError: If called for non-mrVista data.
     """
 
     if self._dataFrom == "mrVista":

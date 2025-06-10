@@ -9,9 +9,11 @@ from scipy.io import loadmat
 
 class PRF:
     """
-    This class loads data from PRF mapping analysis done with a matlab
-    based mrVista analysis or the prfanalyze-vistasoft docker.
-    Initialize with PRF.from_mrVista or PRF.from_docker method!
+    Population Receptive Field (pRF) analysis object.
+
+    This class provides an interface for loading, managing, masking, and analyzing
+    pRF mapping results from various sources (mrVista, docker, samsrf, hdf5).
+    Use the alternative constructors (from_mrVista, from_docker, etc.) to initialize.
     """
 
     # load in all the other files with functions
@@ -79,6 +81,30 @@ class PRF:
         orientation="VF",
         method=None,
     ):
+        """
+        Initialize a PRF object. Use alternative constructors for typical usage.
+
+        Args:
+            dataFrom (str): Data source ('mrVista', 'docker', 'samsrf', 'hdf5').
+            study (str): Study name.
+            subject (str): Subject identifier.
+            session (str): Session identifier.
+            baseP (str): Base path for data.
+            derivatives_path (str, optional): Path to derivatives folder.
+            mat (dict, optional): Loaded .mat file data.
+            est (dict, optional): Estimates data.
+            analysis (str, optional): Analysis name.
+            task (str, optional): Task name.
+            run (str, optional): Run identifier.
+            area (str or list, optional): ROI area(s).
+            coords (np.ndarray, optional): Coordinates array.
+            niftiFolder (str, optional): Path to NIfTI folder.
+            hemis (str or list, optional): Hemisphere(s).
+            prfanaMe (str, optional): prfanalyze method.
+            prfanaAn (str, optional): prfanalyze analysis.
+            orientation (str, optional): 'VF' or 'MP'. Defaults to 'VF'.
+            method (str, optional): Analysis method.
+        """
         self._dataFrom = dataFrom
         self._study = study
         self._subject = subject
@@ -127,75 +153,97 @@ class PRF:
         # initialize
         self.init_variables()
 
+    # All properties below should have a short docstring describing what they return.
     @property
     def subject(self):
+        """str: Subject identifier."""
         return self._subject
 
     @property
     def session(self):
+        """str: Session identifier."""
         return self._session
 
     @property
     def task(self):
+        """str: Task name."""
         return self._task
 
     @property
     def run(self):
+        """str: Run identifier."""
         return self._run
 
     @property
     def y0(self):
+        """np.ndarray: Unmasked y0 pRF parameter."""
         return self._y0.astype(np.float32)
 
     @property
     def x0(self):
+        """np.ndarray: Unmasked x0 pRF parameter."""
         return self._x0.astype(np.float32)
 
     @property
     def s0(self):
+        """np.ndarray: Unmasked sigma (size) pRF parameter."""
         return self._s0.astype(np.float32)
 
     @property
     def sigma0(self):
+        """np.ndarray: Alias for s0 (unmasked sigma)."""
         return self._s0.astype(np.float32)
 
     @property
     def r0(self):
+        """np.ndarray: Unmasked eccentricity (radius) pRF parameter."""
         return np.sqrt(np.square(self.x0) + np.square(self.y0)).astype(np.float32)
 
     @property
     def ecc0(self):
+        """np.ndarray: Alias for r0 (unmasked eccentricity)."""
         return np.sqrt(np.square(self.x0) + np.square(self.y0)).astype(np.float32)
 
     @property
     def phi0(self):
+        """np.ndarray: Unmasked polar angle (0 to 2pi)."""
         p = np.arctan2(self.y0, self.x0)
         p[p < 0] += 2 * np.pi
         return p.astype(np.float32)
 
     @property
     def phi0_orig(self):
+        """np.ndarray: Unmasked polar angle (original, -pi to pi)."""
         p = np.arctan2(self.y0, self.x0)
         return p.astype(np.float32)
 
     @property
     def pol0(self):
+        """np.ndarray: Alias for phi0 (unmasked polar angle)."""
         return self.phi0.astype(np.float32)
 
     @property
     def pol0_orig(self):
+        """np.ndarray: Alias for phi0_orig (unmasked polar angle, original)."""
         return self.phi0_orig.astype(np.float32)
 
     @property
     def beta0(self):
+        """np.ndarray: Unmasked beta parameter."""
         return self._beta0.astype(np.float32)
 
     @property
     def varexp0(self):
+        """np.ndarray: Unmasked variance explained."""
         return self._varexp0.astype(np.float32)
 
     @property
     def varexp_easy0(self):
+        """
+        np.ndarray: Unmasked 'easy' variance explained.
+
+        Calculated if not present, using a simple model fit.
+        """
         if not hasattr(self, "_varexp_easy"):
             print(
                 f"calculating varexp_easy for {self.subject}_{self.session}_{self.task}_{self.run}..."
@@ -239,6 +287,11 @@ class PRF:
 
     @property
     def voxelTC0(self):
+        """
+        np.ndarray: Unmasked voxel time courses.
+
+        Loaded from source if not already present.
+        """
         if not hasattr(self, "_voxelTC0"):
             if self._dataFrom == "mrVista":
                 self._voxelTC0 = loadmat(
@@ -272,6 +325,11 @@ class PRF:
 
     @property
     def modelpred0(self):
+        """
+        np.ndarray: Unmasked model predictions.
+
+        Loaded or calculated from source if not already present.
+        """
         if not hasattr(self, "_modelpred0"):
             if self._dataFrom == "mrVista":
                 print("No modelpred with data_from mrVista")
@@ -301,14 +359,17 @@ class PRF:
 
     @property
     def maxEcc(self):
+        """np.ndarray: Maximum eccentricity for the stimulus grid."""
         return self._maxEcc.astype(np.float32)
 
     @property
     def model(self):
+        """Model object(s) loaded from source."""
         return self._model
 
     @property
     def params(self):
+        """Parameter object(s) loaded from source."""
         return self._params
 
     # -------------------------- DO MASKING? --------------------------#

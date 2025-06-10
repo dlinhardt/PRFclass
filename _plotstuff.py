@@ -67,14 +67,14 @@ class label:
 # ----------------------------------------------------------------------------#
 def _createmask(self, shape, otherRratio=None):
     """
-    This creates a round mask of given size
+    Create a circular boolean mask of a given size.
 
     Args:
-        shape (tuple): Tuple giving the shape of the mask (squared)
-        otherRratio (float, optional): Ratio of area to mask, otherwise full size. Defaults to None.
+        shape (tuple): Shape of the mask (height, width).
+        otherRratio (float, optional): Ratio for the mask radius. If None, uses full size.
 
     Returns:
-        _type_: _description_
+        np.ndarray: Boolean mask array of the specified shape.
     """
 
     x0, y0 = shape[0] // 2, shape[1] // 2
@@ -89,6 +89,13 @@ def _createmask(self, shape, otherRratio=None):
 
 
 def draw_grid(ax, maxEcc):
+    """
+    Draw a polar grid on the given matplotlib axis for coverage map visualization.
+
+    Args:
+        ax (matplotlib.axes.Axes): The axis to draw the grid on.
+        maxEcc (float): Maximum eccentricity for the grid.
+    """
     # draw grid
     maxEcc13 = maxEcc / 3
     maxEcc23 = maxEcc / 3 * 2
@@ -121,14 +128,16 @@ def draw_grid(ax, maxEcc):
 
 def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
     """
-    Calculates the coverage map
+    Calculate the pRF coverage map and save it as a .npy file.
 
     Args:
-        method (str, optional): Used method to calc, choose from [max, mean]. Defaults to 'max'.
-        force (bool, optional): Force overwire if file already exists. Defaults to False.
+        maxEcc (float): Maximum eccentricity for the coverage map.
+        method (str, optional): Method to calculate the coverage map ('max', 'mean', 'sumClip'). Defaults to 'max'.
+        force (bool, optional): If True, overwrite existing file. Defaults to False.
+        background (str, optional): Background color for the map ('black' or 'white'). Defaults to 'black'.
 
     Returns:
-        self.covMap: the array that describes the coverage map
+        np.ndarray: The calculated coverage map.
     """
 
     # create the filename
@@ -270,18 +279,27 @@ def plot_covMap(
     background="white",
 ):
     """
-    This plots the coverage map and eventually saves it
+    Plot the pRF coverage map and optionally save it.
 
     Args:
-        method (str, optional): Used method to calc, choose from [max, mean]. Defaults to 'max'.
-        cmapMin (float, optional): Define where the covMap colorbar should start on the bottom. Defaults to 0.
-        title (str, optional): Set a title. Defaults to None.
-        show (bool, optional): Should we show the figure as popup. Defaults to True.
-        save (bool, optional): Should we save the figure to standard path. Defaults to False.
-        force (bool, optional): Should we overwrite. Defaults to False.
+        method (str, optional): Method to calculate the coverage map ('max', 'mean', 'sumClip'). Defaults to 'max'.
+        cmapMin (float, optional): Minimum value for the colormap (0-1). Defaults to 0.
+        cmapMax (float, optional): Maximum value for the colormap. If None, set automatically. Defaults to None.
+        title (str, optional): Title for the plot. Defaults to None.
+        show (bool, optional): Whether to display the plot interactively. Defaults to True.
+        save (bool, optional): Whether to save the plot to disk. Defaults to False.
+        force (bool, optional): If True, overwrite existing files. Defaults to False.
+        maxEcc (float, optional): Maximum eccentricity for the plot axes. If None, uses self.maxEcc. Defaults to None.
+        do_scatter (bool, optional): Whether to overlay scatter plot of pRF centers. Defaults to True.
+        output_format (str, optional): File format for saving (e.g., 'svg', 'pdf'). Defaults to 'svg'.
+        plot_colorbar (bool, optional): Whether to display a colorbar. Defaults to True.
+        background (str, optional): Background color for the plot. Defaults to 'white'.
 
     Returns:
-        figure: if not save this is the figure handle
+        matplotlib.figure.Figure or str: Figure handle if not saving, otherwise the path to the saved file.
+
+    Raises:
+        ValueError: If method is not recognized or colormap limits are invalid.
     """
 
     if not show:
@@ -447,16 +465,16 @@ def plot_covMap(
 # ----------------------------------------------------------------------------#
 def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
     """
-    Defines the path and filename to save the Cortex plot
+    Define the path and filename to save the cortex plot.
 
     Args:
-        param (str): The plotted parameter
-        hemi (str): The shown hemisphere
-        surface (str, optional): The used surface to plot to. Defaults to 'cortex'.
+        param (str): The parameter to plot.
+        hemi (str): The hemisphere ('L', 'R', or 'both').
+        surface (str, optional): Surface type (e.g., 'cortex', 'inflated'). Defaults to 'cortex'.
+        plain (bool, optional): If True, use a simplified filename. Defaults to False.
 
     Returns:
-        savePathB: The folder we save to
-        savePathF: The filename we save to, without extension
+        tuple: (savePathB, savePathF) where savePathB is the directory and savePathF is the filename (without extension).
     """
 
     VEstr = (
@@ -504,11 +522,11 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
 
 def _make_gif(self, frameFolder, outFilename):
     """
-    Reads the single frames and creates GIF from them
+    Create a GIF from a sequence of PNG frames in a folder.
 
     Args:
-        frameFolder (str): Folder containing the frames as well as output folder
-        outFilename (str): file name without extension
+        frameFolder (str): Folder containing the frames and output GIF.
+        outFilename (str): Output GIF filename (with extension).
     """
 
     # Read the images
@@ -550,22 +568,31 @@ def plot_toSurface(
     pmin=None,
 ):
     """
-    If we have docker data that was analyzed in  or fsaverage space we can plot
-    a given parameter to the cortex of one hemisphere and create a
-    screenshot or gif.
+    Plot a parameter (eccentricity, polar angle, sigma, or variance explained) to the cortical surface.
 
     Args:
-        param (str, optional): The parameter to plot to the surface, choose from [ecc,pol,sig,var]. Defaults to 'ecc'.
-        hemi (str, optional): Hemisphere to show, choose from [both,L,R]. Defaults to 'left'.
-        fmriprepAna (str, optional): The analysis number of fMRIPrep, so we can find the freesurfer folder. Defaults to '01'.
-        save (bool, optional): Should we save the screenshot. Defaults to False.
-        forceNewPosition (bool, optional): If manual positioning was done already this forces us to define this anew. Defaults to False.
-        surface (str, optional): Choose the freesurfer surface to plot on, if sphere gif and manualPosition is disabeled. Defaults to 'inflated'.
-        showBordersAtlas (list, optional): Define the atlas to show the area borders from. Defaults to None.
-        showBordersArea (list, optional): Define the areas to show borders. Defaults to None.
-        interactive (bool, optional): Set if we should be able to interactively move the plot. Defaults to True.
-        create_gif (bool, optional): Should we create a GIF, this disabels manual positioning. Defaults to False.
-        headless (bool, optional): This supresses all pop-ups. Defaults to False.
+        param (str or np.ndarray, optional): Parameter to plot ('ecc', 'pol', 'sig', 'var') or array. Defaults to 'ecc'.
+        hemi (str, optional): Hemisphere to plot ('L', 'R', or 'both'). Defaults to 'left'.
+        fmriprepAna (str, optional): fMRIPrep analysis number. Defaults to '01'.
+        save (bool, optional): Whether to save the screenshot. Defaults to False.
+        forceNewPosition (bool, optional): Force manual positioning. Defaults to False.
+        force (bool, optional): Overwrite existing files. Defaults to False.
+        surface (str, optional): Surface type (e.g., 'inflated', 'sphere'). Defaults to 'inflated'.
+        showBordersAtlas (list or str, optional): Atlases to show area borders from. Defaults to None.
+        showBordersArea (list or str, optional): Areas to show borders for. Defaults to None.
+        interactive (bool, optional): Enable interactive mode. Defaults to True.
+        create_gif (bool, optional): Create a GIF instead of a static image. Defaults to False.
+        headless (bool, optional): Suppress pop-ups. Defaults to False.
+        maxEcc (float, optional): Maximum eccentricity for plotting. Defaults to None.
+        plot_colorbar (bool, optional): Show colorbar. Defaults to True.
+        background (str, optional): Background color. Defaults to 'black'.
+        output_format (str, optional): Output file format. Defaults to 'pdf'.
+        pmax (float, optional): Maximum value for color scaling. Defaults to None.
+        pmin (float, optional): Minimum value for color scaling. Defaults to None.
+
+    Raises:
+        RuntimeError: If plotting is not supported for the data type or space.
+        ValueError: If the parameter is not recognized.
     """
 
     maxEcc = maxEcc if maxEcc else self.maxEcc
@@ -905,9 +932,10 @@ def plot_toSurface(
 # ----------------------------------------------------------------------------#
 def manual_masking(self):
     """
-    This function is plotting a coverage map and lets you draw a mask on it.
-    Choose the center position and size of the circular mask with the sliders
-    and press the button to return the mask.
+    Interactively draw a manual mask on the coverage map using sliders and buttons.
+
+    Returns:
+        np.ndarray: Boolean mask array indicating selected points.
     """
 
     maxEcc = self.maxEcc + 1e-12
@@ -1093,6 +1121,17 @@ def save_results(
     params=None,
     force=False,
 ):
+    """
+    Save pRF results (parameters and mask) to disk in NIfTI or GIFTI format.
+
+    Args:
+        params (list, optional): List of parameter names to save. Defaults to ['x0', 'y0', 's0', 'r0', 'phi0', 'varexp0', 'mask'].
+        force (bool, optional): Overwrite existing files if True. Defaults to False.
+
+    Raises:
+        ValueError: If data is not from docker.
+    """
+
     if not self._dataFrom == "docker":
         raise ValueError("Data not from docker, cannot save results")
 
