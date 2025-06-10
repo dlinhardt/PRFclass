@@ -377,8 +377,8 @@ def plot_covMap(
     if not path.isfile(savePath) or show or force:
         methods = ["max", "mean", "sumClip"]
         if method not in methods:
-            raise Warning(
-                f'Chosen method "{method}" is not a available methods {methods}.'
+            raise ValueError(
+                f'Chosen method "{method}" is not available. Choose from {methods}.'
             )
 
         # calculate the coverage map
@@ -394,13 +394,13 @@ def plot_covMap(
 
         # adapt the colorbar for the passed cmapMax and cmapMin
         if cmapMin > 1 or cmapMin < 0:
-            raise Warning("Choose a cmap min between 0 and 1.")
+            raise ValueError("Choose a cmap min between 0 and 1.")
         else:
             vmin = cmapMin
 
         if cmapMax is not None:
             if cmapMax < vmin:
-                raise Warning("Choose a cmapMax bigger than cmapMin.")
+                raise ValueError("Choose a cmapMax bigger than cmapMin.")
             vmax = cmapMax
 
         fig = plt.figure(constrained_layout=True, facecolor="white")
@@ -571,12 +571,10 @@ def plot_toSurface(
     maxEcc = maxEcc if maxEcc else self.maxEcc
 
     if self._dataFrom == "mrVista":
-        print("We can not do that with non-docker data!")
+        raise RuntimeError("plot_toSurface is not supported for non-docker data!")
     elif self._dataFrom in ["docker", "samsrf", "hdf5"]:
         if self.analysisSpace == "volume":
-            print("We can not yet do that with volumentric data!")
-            return
-
+            raise RuntimeError("plot_toSurface is not yet supported for volumetric data!")
         if headless:
             mlab.options.offscreen = True
             # mlab.init_notebook('x3d', 800, 800)
@@ -631,7 +629,7 @@ def plot_toSurface(
 
             # create mask dependent on used hemisphere
             if not hasattr(self, "_roiWhichHemi"):
-                raise Warning("Please mask for visual area with instance.maskROI()!")
+                raise RuntimeError("Please mask for visual area with instance.maskROI()!")
             if hemi[0].upper() == "L":
                 hemiM = self._roiWhichHemi == "L"
             elif hemi[0].upper() == "R":
@@ -677,8 +675,8 @@ def plot_toSurface(
                 )
 
             else:
-                raise Warning(
-                    'Parameter string must be in ["ecc", "pol", "sig", "var"] or a np.array of the same size with values !'
+                raise ValueError(
+                    'Parameter string must be in ["ecc", "pol", "sig", "var"] or a np.array of the same size with values!'
                 )
 
             # manually set plot max and min

@@ -4,6 +4,7 @@ from os import path
 import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
+import warnings
 
 
 # ----------------------------------------------------------------------------#
@@ -101,13 +102,11 @@ def loadJitter(self):
 
         if path.exists(self.jitterP):
             jitter = loadmat(self.jitterP, simplify_cells=True)
-
             self.jitterX = jitter["x"] - jitter["x"].mean()
             self.jitterY = jitter["y"] - jitter["y"].mean()
-
             return self.jitterX, self.jitterY
         else:
-            raise Warning("No jitter file found!")
+            raise FileNotFoundError("No jitter file found at: " + self.jitterP)
 
     elif self._dataFrom == "docker":
         self.jitterP = path.join(
@@ -146,4 +145,4 @@ def loadRealign(self):
         self.dispS = displ.sum()
         self.dispM = displ.mean()
     else:
-        raise Warning("[loadStim] is only possible with data from mrVista!")
+        raise RuntimeError("[loadRealign] is only possible with data from mrVista!")

@@ -14,7 +14,7 @@ except ImportError:
 
 def init_variables(self):
     """
-    Initializes the variables loaded by the PRF.from_ amethods
+    Initializes the variables loaded by the PRF.from_ methods
     """
 
     ############################# VISTA #############################
@@ -28,8 +28,8 @@ def init_variables(self):
         elif self._orientation == "MP":
             self._y0 = self._model["y0"]  # same orientation as MP
         else:
-            Warning(
-                "Choose orientation form [VF, MP], you specified {self._orientation}"
+            raise ValueError(
+                f"Choose orientation from [VF, MP], you specified {self._orientation}"
             )
 
         a = self._model["sigma"]["minor"]
@@ -189,6 +189,11 @@ def init_variables(self):
         self._x0 = np.hstack([m["thetas"][:, 0] for m in self._estimates])
         self._y0 = np.hstack([m["thetas"][:, 1] for m in self._estimates])
         self._s0 = np.hstack([m["thetas"][:, 2] for m in self._estimates])
+
+    else:
+        raise ValueError(
+            f"Unknown data source '{self._dataFrom}' in init_variables."
+        )
 
     self._isROIMasked = None
     self._isVarExpMasked = None
@@ -401,14 +406,13 @@ def from_docker(
             session,
             f"{subject}_{session}_{task}_{run}_hemi-{h}_estimates.json",
         )
-
         try:
             with open(estimates, "r") as fl:
                 this_est = json.load(fl)
-        except FileNotFoundError:
-            print(f"Could not find estimates file: {path.basename(estimates)}!")
-            print("Please check the params and try again.")
-            raise
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Could not find estimates file: {path.basename(estimates)}! Please check the params and try again."
+            ) from e
 
         est.append(this_est)
 

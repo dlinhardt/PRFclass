@@ -1,6 +1,7 @@
 import json
 from glob import glob
 from os import path
+import warnings
 
 import numpy as np
 from scipy.io import loadmat
@@ -33,7 +34,7 @@ def maskROI(
 
     if data_from == "mrVista":
         if isinstance(area, list):
-            Warning("You can not give area lists for mrVista data!")
+            warnings.warn("You cannot give area lists for mrVista data!", UserWarning)
         if doV123:
             self._roiV1 = loadmat(
                 path.join(
@@ -329,7 +330,6 @@ def maskROI(
 
         if isinstance(atlas, list) or isinstance(area, list):
             raise ValueError("Only one area and one atlas implemented for samsrf data")
-
         if not "benson" in atlas:
             raise ValueError("Only benson atlas implemented for samsrf data")
 
@@ -443,7 +443,7 @@ def maskSigma(self, s_min, s_max=None):
         rad (float): Threshold
     """
 
-    if s_max:
+    if s_max is not None:
         self._sigMsk = (self.s0 > s_min) & (self.s0 < s_max)
         self._isSigMasked = f"{s_min}_{s_max}"
     else:
@@ -477,7 +477,6 @@ def maskBetaThresh(
         )
     if doHighBetaThresh:
         self._betaMsk = np.all((self._betaMsk, self.beta0 < betaMax), 0)
-
     if doLowBetaThresh:
         self._betaMsk = np.all((self._betaMsk, self.beta0 > betaMin), 0)
 
