@@ -194,9 +194,7 @@ def init_variables(self):
         self._s0 = np.hstack([m["thetas"][:, 2] for m in self._estimates])
 
     else:
-        raise ValueError(
-            f"Unknown data source '{self._dataFrom}' in init_variables."
-        )
+        raise ValueError(f"Unknown data source '{self._dataFrom}' in init_variables.")
 
     self._isROIMasked = None
     self._isVarExpMasked = None
@@ -252,22 +250,26 @@ def from_mrVista(
         coords = loadmat(forcePath[1])["coords"].astype("uint16")
     elif study == "hcpret":  # spetial treatment for study hcpret
         loadROIpossible = False
-        mat = loadmat(
-            glob(
-                path.join(
-                    baseP,
-                    study,
-                    "hcpret_mrVista",
-                    "subjects",
-                    subject,
-                    analysis,
-                    "Gray",
-                    "*",
-                    f"*{fit}.mat",
-                )
-            )[0],
-            simplify_cells=True,
-        )
+        try:
+            mat_file_path = path.join(
+                baseP,
+                study,
+                "hcpret_mrVista",
+                "subjects",
+                subject,
+                analysis,
+                "Gray",
+                "*",
+                f"*{fit}.mat",
+            )
+            mat = loadmat(
+                glob(mat_file_path)[0],
+                simplify_cells=True,
+            )
+        except IndexError:
+            raise FileNotFoundError(
+                f"Could not find .mat file: {mat_file_path}.\nPlease check the parameters and try again."
+            )
         # read in the corresponding coordinates
         coords = loadmat(
             path.join(
@@ -285,24 +287,27 @@ def from_mrVista(
         )["coords"].astype("uint16")
     else:
         loadROIpossible = True
-        mat = loadmat(
-            glob(
-                path.join(
-                    baseP,
-                    study,
-                    "subjects",
-                    subject,
-                    session,
-                    "mrVista",
-                    analysis,
-                    "Gray",
-                    "*",
-                    f"*{fit}.mat",
-                )
-            )[0],
-            simplify_cells=True,
-        )
-
+        try:
+            mat_file_path = path.join(
+                baseP,
+                study,
+                "subjects",
+                subject,
+                session,
+                "mrVista",
+                analysis,
+                "Gray",
+                "*",
+                f"*{fit}.mat",
+            )
+            mat = loadmat(
+                glob(mat_file_path)[0],
+                simplify_cells=True,
+            )
+        except IndexError:
+            raise FileNotFoundError(
+                f"Could not find .mat file: {mat_file_path}.\nPlease check the parameters and try again."
+            )
         # read in the corresponding coordinates
         coords = loadmat(
             path.join(
