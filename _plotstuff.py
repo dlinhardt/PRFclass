@@ -19,6 +19,7 @@ import nibabel as nib
 import numpy as np
 from matplotlib import colors, patches
 from matplotlib.widgets import Button, Slider
+from nilearn.surface import vol_to_surf
 from PIL import Image
 
 try:
@@ -88,7 +89,7 @@ def _createmask(self, shape, otherRratio=None):
     return x * x + y * y <= r * r
 
 
-def draw_grid(ax, maxEcc):
+def _draw_grid(ax, maxEcc):
     """
     Draw a polar grid on the given matplotlib axis for coverage map visualization.
 
@@ -263,6 +264,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
         return self.covMap
 
 
+# ----------------------------------------------------------------------------#
 def plot_covMap(
     self,
     method="max",
@@ -443,7 +445,7 @@ def plot_covMap(
             fig.colorbar(im, location="right", ax=ax)
 
         # draw grid
-        draw_grid(ax, maxEcc)
+        _draw_grid(ax, maxEcc)
 
         if title is not None:
             ax.set_title(title, pad=16, fontsize=16)
@@ -497,15 +499,25 @@ def _get_surfaceSavePath(self, param, hemi, surface="cortex", plain=False):
     else:
         Pstr = "-manualParam"
 
-    savePathB = path.join(
-        self._derivatives_path,
-        "prfresult",
-        self._prfanalyze_method,
-        self._prfanaAn,
-        "cortex",
-        self.subject,
-        self.session,
-    )
+    if self._dataFrom == "mrVista":
+        savePathB = path.join(
+            self._baseP,
+            self._study,
+            "plots",
+            "cortex",
+            self.subject,
+            self.session,
+        )
+    else:
+        savePathB = path.join(
+            self._derivatives_path,
+            "prfresult",
+            self._prfanalyze_method,
+            self._prfanaAn,
+            "cortex",
+            self.subject,
+            self.session,
+        )
     ending = surface
     areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
@@ -546,6 +558,11 @@ def _make_gif(self, frameFolder, outFilename):
     [remove(image) for image in glob(f"{frameFolder}/frame*.png")]
 
 
+def _prepare_mrVista_for_surface_plot(self):
+    pass
+
+
+# ----------------------------------------------------------------------------#
 def plot_toSurface(
     self,
     param="ecc",
@@ -597,27 +614,29 @@ def plot_toSurface(
 
     maxEcc = maxEcc if maxEcc else self.maxEcc
 
-    if self._dataFrom == "mrVista":
-        raise RuntimeError("plot_toSurface is not supported for non-docker data!")
-    elif self._dataFrom in ["docker", "samsrf", "hdf5"]:
+    if headless:
+        mlab.options.offscreen = True
+        # mlab.init_notebook('x3d', 800, 800)
+    else:
+        mlab.options.offscreen = False
+
+    if surface == "sphere":
+        create_gif = False
+
+    # turn of other functionality when creating gif
+    if create_gif:
+        manualPosition = False
+        save = False
+        interactive = True
+    else:
+        manualPosition = True if not surface == "sphere" else False
+
+    if self._dataFrom in ["docker", "samsrf", "hdf5"]:
         if self.analysisSpace == "volume":
-            raise RuntimeError("plot_toSurface is not yet supported for volumetric data!")
-        if headless:
-            mlab.options.offscreen = True
-            # mlab.init_notebook('x3d', 800, 800)
-        else:
-            mlab.options.offscreen = False
-
-        if surface == "sphere":
-            create_gif = False
-
-        # turn of other functionality when creating gif
-        if create_gif:
-            manualPosition = False
-            save = False
-            interactive = True
-        else:
-            manualPosition = True if not surface == "sphere" else False
+            raise RuntimeError(
+                "plot_toSurface is not yet supported for volumetric data!"
+            )
+            need_to_convert = True
 
         fsP = path.join(
             self._derivatives_path,
@@ -627,36 +646,80 @@ def plot_toSurface(
             "freesurfer",
         )
 
-        if hemi == "both":
-            hemis = ["L", "R"]
-        else:
-            hemis = [hemi]
-
         # define the subject as fsaverage
         if self.analysisSpace == "fsaverage":
             plot_subject = "fsaverage"
         else:
             plot_subject = self.subject
+        need_to_convert = False
 
-        for hemi in hemis:
-            if save:
+    elif self._dataFrom == "mrVista":
+        fsP = path.join(
+            self._baseP,
+            self._study,
+            "subjects",
+            self.subject,
+            self.session,
+            "segmentation",
+        )
+        plot_subject = "freesurfer"
+        need_to_convert = True
+
+    # if self._dataFrom == "mrVista":
+    #     raise RuntimeError("plot_toSurface is not supported for non-docker data!")
+    # elif self._dataFrom in ["docker", "samsrf", "hdf5"]:
+
+    if hemi == "both":
+        hemis = ["L", "R"]
+    else:
+        hemis = [hemi]
+
+    for hemi in hemis:
+        hemi_full = "left" if hemi[0].upper() == "L" else "right"
+
+        if save:
+            if self._dataFrom == "mrVista":
+                p = path.join(
+                    self._baseP,
+                    self._study,
+                    "plots",
+                    "volumeResults",
+                    self.subject,
+                    self.session,
+                    self._analysis,
+                )
+                n = f"{self.subject}_{self.session}_{self._analysis}_hemi-{hemi_full[0].upper()}_desc-{param}_{surface}"
+            else:
                 p, n = self._get_surfaceSavePath(param, hemi, surface)
-                if path.isfile(path.join(p, n + ".pdf")) and not force:
-                    return
+            if path.isfile(path.join(p, n + ".pdf")) and not force:
+                return
 
-            if create_gif:
-                p, n = self._get_surfaceSavePath(param, hemi)
-                if path.isfile(path.join(p, n + ".gif")) and not force:
-                    return
+            makedirs(p, exist_ok=True)
 
-            pialP = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
-            pial = nib.freesurfer.read_geometry(pialP)
+        if create_gif:
+            p, n = self._get_surfaceSavePath(param, hemi)
+            if path.isfile(path.join(p, n + ".gif")) and not force:
+                return
 
-            nVertices = len(pial[0])
+            makedirs(p, exist_ok=True)
 
-            # create mask dependent on used hemisphere
+        pialP = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
+        pial = nib.freesurfer.read_geometry(pialP)
+
+        nVertices = len(pial[0])
+
+        # create mask dependent on used hemisphere
+        if need_to_convert:
+            # now we need to convert the volume data to the surface
+            # first get the 3D versions of the data
+            data_in_3d = self.save_results(params=[param + "0"], save=False, force=True)
+            fs_pial = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
+            fs_white = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.white")
+        else:
             if not hasattr(self, "_roiWhichHemi"):
-                raise RuntimeError("Please mask for visual area with instance.maskROI()!")
+                raise RuntimeError(
+                    "Please mask for visual area with instance.maskROI()!"
+                )
             if hemi[0].upper() == "L":
                 hemiM = self._roiWhichHemi == "L"
             elif hemi[0].upper() == "R":
@@ -668,51 +731,83 @@ def plot_toSurface(
             # write data array to plot
             plotData = np.ones(nVertices) * np.nan
 
-            # depending on used parameter set the plot data, colormap und ranges
-            if isinstance(param, str):
-                if param == "ecc":
-                    plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
-                    cmap = "rainbow_r"
-                    datMin, datMax = 0, maxEcc
-
-                elif param == "pol":
-                    plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
-                    # cmap = "hsv"
-                    cmap = colors.LinearSegmentedColormap.from_list(
-                        "", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
+        # depending on used parameter set the plot data, colormap und ranges
+        if isinstance(param, str):
+            if param == "ecc":
+                if need_to_convert:
+                    plotData = vol_to_surf(
+                        data_in_3d["r0"],
+                        surf_mesh=fs_pial,
+                        inner_mesh=fs_white,
+                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
                     )
-                    datMin, datMax = 0, 2 * np.pi
+                else:
+                    plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
+                cmap = "rainbow_r"
+                datMin, datMax = 0, maxEcc
 
-                elif param == "sig":
+            elif param == "pol":
+                if need_to_convert:
+                    plotData = vol_to_surf(
+                        data_in_3d["phi0"],
+                        surf_mesh=fs_pial,
+                        inner_mesh=fs_white,
+                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
+                    )
+                else:
+                    plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
+                cmap = colors.LinearSegmentedColormap.from_list(
+                    "", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
+                )
+                datMin, datMax = 0, 2 * np.pi
+
+            elif param == "sig":
+                if need_to_convert:
+                    plotData = vol_to_surf(
+                        data_in_3d["s0"],
+                        surf_mesh=fs_pial,
+                        inner_mesh=fs_white,
+                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
+                    )
+                else:
                     plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
-                    cmap = "rainbow_r"
-                    datMin, datMax = 0, 4
+                cmap = "rainbow_r"
+                datMin, datMax = 0, 4
 
-                elif param == "var":
+            elif param == "var":
+                if need_to_convert:
+                    plotData = vol_to_surf(
+                        data_in_3d["varexp0"],
+                        surf_mesh=fs_pial,
+                        inner_mesh=fs_white,
+                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
+                    )
+                else:
                     plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
-                    cmap = "hot"
-                    datMin, datMax = 0, 1
-
-            elif isinstance(param, (np.ndarray, np.generic)):
-                plotData[roiIndOrigHemi] = param[roiIndBoldHemi]
                 cmap = "hot"
-                datMin, datMax = (
-                    param[roiIndBoldHemi].min(),
-                    param[roiIndBoldHemi].max(),
-                )
+                datMin, datMax = 0, 1
 
-            else:
-                raise ValueError(
-                    'Parameter string must be in ["ecc", "pol", "sig", "var"] or a np.array of the same size with values!'
-                )
+        elif isinstance(param, (np.ndarray, np.generic)):
+            plotData[roiIndOrigHemi] = param[roiIndBoldHemi]
+            cmap = "hot"
+            datMin, datMax = (
+                param[roiIndBoldHemi].min(),
+                param[roiIndBoldHemi].max(),
+            )
 
-            # manually set plot max and min
-            if pmax is not None:
-                datMax = pmax
-            if pmin is not None:
-                datMin = pmin
+        else:
+            raise ValueError(
+                'Parameter string must be in ["ecc", "pol", "sig", "var"] or a np.array of the same size with values!'
+            )
 
-            # set everything outside mask (ROI, VarExp, ...) to nan
+        # manually set plot max and min
+        if pmax is not None:
+            datMax = pmax
+        if pmin is not None:
+            datMin = pmin
+
+        # set everything outside mask (ROI, VarExp, ...) to nan
+        if not self._dataFrom == "mrVista":
             plotData = deepcopy(plotData)
             if isinstance(param, str):
                 if not param == "var":
@@ -720,86 +815,188 @@ def plot_toSurface(
             else:
                 plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
-            # plot the brain
-            brain = Brain(
-                plot_subject,
-                f"{hemi[0].lower()}h",
-                surface,
-                subjects_dir=fsP,
-                background=background,
-            )
-            # plot the data
-            brain.add_data(
-                np.float16(plotData),
-                colormap=cmap,
-                min=datMin,
-                max=datMax,
-                smoothing_steps="nearest",
-                remove_existing=True,
-                colorbar=plot_colorbar,
-            )
+        # plot the brain
+        brain = Brain(
+            plot_subject,
+            f"{hemi[0].lower()}h",
+            surface,
+            subjects_dir=fsP,
+            background=background,
+        )
+        # plot the data
+        brain.add_data(
+            np.float16(plotData),
+            colormap=cmap,
+            min=datMin,
+            max=datMax,
+            smoothing_steps="nearest",
+            remove_existing=True,
+            colorbar=plot_colorbar,
+        )
 
-            # set nan to transparent
-            brain.data["surfaces"][
-                0
-            ].module_manager.scalar_lut_manager.lut.nan_color = (0, 0, 0, 0)
-            brain.data["surfaces"][0].update_pipeline()
+        # set nan to transparent
+        brain.data["surfaces"][0].module_manager.scalar_lut_manager.lut.nan_color = (
+            0,
+            0,
+            0,
+            0,
+        )
+        brain.data["surfaces"][0].update_pipeline()
 
-            # print borders (freesurfer)
-            if showBordersArea is not None and showBordersAtlas is not None:
-                if showBordersAtlas == "all":
-                    ats = self._atlas
-                elif isinstance(showBordersAtlas, list):
-                    ats = showBordersAtlas
-                elif isinstance(showBordersAtlas, str):
-                    ats = [showBordersAtlas]
-                elif showBordersAtlas is True:
-                    ats = ["benson"]
+        # print borders (freesurfer)
+        if showBordersArea is not None and showBordersAtlas is not None:
+            if showBordersAtlas == "all":
+                ats = self._atlas
+            elif isinstance(showBordersAtlas, list):
+                ats = showBordersAtlas
+            elif isinstance(showBordersAtlas, str):
+                ats = [showBordersAtlas]
+            elif showBordersAtlas is True:
+                ats = ["benson"]
 
-                if isinstance(showBordersArea, list):
-                    ars = showBordersArea
-                else:
-                    ars = self._area
+            if isinstance(showBordersArea, list):
+                ars = showBordersArea
+            else:
+                ars = self._area
 
-                for at in ats:
-                    for ar in ars:
-                        try:
-                            if self._dataFrom == "samsrf":
-                                aaf = self._area_files_p
-                                left_hemi = self._vertices_left_hemi
-                            else:
-                                aaf = self._allAreaFiles
-                                left_hemi = None
-                            brain.add_label(
-                                label(ar, at, hemi, aaf, left_hemi),
-                                borders=True,
-                                color="black",
-                                alpha=0.7,
-                            )
-                        except:
-                            pass
+            for at in ats:
+                for ar in ars:
+                    try:
+                        if self._dataFrom == "samsrf":
+                            aaf = self._area_files_p
+                            left_hemi = self._vertices_left_hemi
+                        else:
+                            aaf = self._allAreaFiles
+                            left_hemi = None
+                        brain.add_label(
+                            label(ar, at, hemi, aaf, left_hemi),
+                            borders=True,
+                            color="black",
+                            alpha=0.7,
+                        )
+                    except:
+                        pass
 
-            # save the positioning for left and right once per subject
-            if manualPosition:
+        # save the positioning for left and right once per subject
+        if manualPosition:
+            if self._dataFrom == "mrVista":
+                posSavePath = path.join(
+                    self._baseP, self._study, "plots", "volumeResults", "positioning"
+                )
+
+            else:
                 posSavePath = path.join(
                     self._derivatives_path,
                     "prfresult",
                     "positioning",
                     plot_subject,
                 )
-                areaStr = (
-                    "multipleAreas" if len(self._area) > 10 else "".join(self._area)
+            if not path.isdir(posSavePath):
+                makedirs(posSavePath)
+
+            areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
+
+            posSaveFile = (
+                f"{plot_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
+            )
+            posPath = path.join(posSavePath, posSaveFile)
+
+            if not path.isfile(posPath) or forceNewPosition:
+                if hemi[0].upper() == "L":
+                    brain.show_view(
+                        {
+                            "azimuth": -57.5,
+                            "elevation": 106,
+                            "distance": 300,
+                            "focalpoint": np.array([-43, -23, -8]),
+                        },
+                        roll=-130,
+                    )
+                elif hemi[0].upper() == "R":
+                    brain.show_view(
+                        {
+                            "azimuth": -127,
+                            "elevation": 105,
+                            "distance": 300,
+                            "focalpoint": np.array([-11, -93, -49]),
+                        },
+                        roll=142,
+                    )
+
+                print(posPath)
+
+                mlab.show(stop=True)
+                pos = np.array(brain.show_view(), dtype="object")
+                np.save(posPath, pos.astype("object"), allow_pickle=True)
+                # print(pos)
+            else:
+                pos = np.load(posPath, allow_pickle=True)
+                # print(pos)
+                brain.show_view(
+                    {
+                        "azimuth": pos[0][0],
+                        "elevation": pos[0][1],
+                        "distance": pos[0][2],
+                        "focalpoint": pos[0][3],
+                    },
+                    roll=pos[1],
                 )
+        else:
+            if create_gif:
+                p, n = self._get_surfaceSavePath(param, hemi)
 
-                posSaveFile = (
-                    f"{plot_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
-                )
-                posPath = path.join(posSavePath, posSaveFile)
+                if hemi[0].upper() == "L":
+                    for iI, i in enumerate(np.linspace(-1, 89, 10)):
+                        brain.show_view(
+                            {
+                                "azimuth": -i,
+                                "elevation": 90,
+                                "distance": 350,
+                                "focalpoint": np.array([30, -130, -60]),
+                            },
+                            roll=-90,
+                        )
+                        brain.save_image(path.join(p, f"frame-{iI}.png"))
 
-                if not path.isdir(posSavePath):
-                    makedirs(posSavePath)
+                elif hemi[0].upper() == "R":
+                    for iI, i in enumerate(np.linspace(-1, 89, 10)):
+                        brain.show_view(
+                            {
+                                "azimuth": i,
+                                "elevation": -90,
+                                "distance": 350,
+                                "focalpoint": np.array([-30, -130, -60]),
+                            },
+                            roll=90,
+                        )
+                        brain.save_image(path.join(p, f"frame-{iI}.png"))
 
-                if not path.isfile(posPath) or forceNewPosition:
+                self._make_gif(p, n + ".gif")
+
+            else:
+                if surface == "sphere":
+                    if hemi[0].upper() == "L":
+                        brain.show_view(
+                            {
+                                "azimuth": -80,
+                                "elevation": 125,
+                                "distance": 500,
+                                "focalpoint": np.array([0, 0, 0]),
+                            },
+                            roll=-170,
+                        )
+                    elif hemi[0].upper() == "R":
+                        brain.show_view(
+                            {
+                                "azimuth": 80,
+                                "elevation": -125,
+                                "distance": 500,
+                                "focalpoint": np.array([0, 0, 0]),
+                            },
+                            roll=170,
+                        )
+
+                else:
                     if hemi[0].upper() == "L":
                         brain.show_view(
                             {
@@ -821,112 +1018,14 @@ def plot_toSurface(
                             roll=142,
                         )
 
-                    print(posPath)
+        if save:
+            brain.save_image(path.join(p, n + f".{output_format}"))
+            print(f'new Cortex Map saved to {path.join(p, n + "." + output_format)}')
 
-                    mlab.show(stop=True)
-                    pos = np.array(brain.show_view(), dtype="object")
-                    np.save(posPath, pos.astype("object"), allow_pickle=True)
-                    # print(pos)
-                else:
-                    pos = np.load(posPath, allow_pickle=True)
-                    # print(pos)
-                    brain.show_view(
-                        {
-                            "azimuth": pos[0][0],
-                            "elevation": pos[0][1],
-                            "distance": pos[0][2],
-                            "focalpoint": pos[0][3],
-                        },
-                        roll=pos[1],
-                    )
-            else:
-                if create_gif:
-                    p, n = self._get_surfaceSavePath(param, hemi)
-
-                    if hemi[0].upper() == "L":
-                        for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                            brain.show_view(
-                                {
-                                    "azimuth": -i,
-                                    "elevation": 90,
-                                    "distance": 350,
-                                    "focalpoint": np.array([30, -130, -60]),
-                                },
-                                roll=-90,
-                            )
-                            brain.save_image(path.join(p, f"frame-{iI}.png"))
-
-                    elif hemi[0].upper() == "R":
-                        for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                            brain.show_view(
-                                {
-                                    "azimuth": i,
-                                    "elevation": -90,
-                                    "distance": 350,
-                                    "focalpoint": np.array([-30, -130, -60]),
-                                },
-                                roll=90,
-                            )
-                            brain.save_image(path.join(p, f"frame-{iI}.png"))
-
-                    self._make_gif(p, n + ".gif")
-
-                else:
-                    if surface == "sphere":
-                        if hemi[0].upper() == "L":
-                            brain.show_view(
-                                {
-                                    "azimuth": -80,
-                                    "elevation": 125,
-                                    "distance": 500,
-                                    "focalpoint": np.array([0, 0, 0]),
-                                },
-                                roll=-170,
-                            )
-                        elif hemi[0].upper() == "R":
-                            brain.show_view(
-                                {
-                                    "azimuth": 80,
-                                    "elevation": -125,
-                                    "distance": 500,
-                                    "focalpoint": np.array([0, 0, 0]),
-                                },
-                                roll=170,
-                            )
-
-                    else:
-                        if hemi[0].upper() == "L":
-                            brain.show_view(
-                                {
-                                    "azimuth": -57.5,
-                                    "elevation": 106,
-                                    "distance": 300,
-                                    "focalpoint": np.array([-43, -23, -8]),
-                                },
-                                roll=-130,
-                            )
-                        elif hemi[0].upper() == "R":
-                            brain.show_view(
-                                {
-                                    "azimuth": -127,
-                                    "elevation": 105,
-                                    "distance": 300,
-                                    "focalpoint": np.array([-11, -93, -49]),
-                                },
-                                roll=142,
-                            )
-
-            if save:
-                p, n = self._get_surfaceSavePath(param, hemi, surface)
-                brain.save_image(path.join(p, n + f".{output_format}"))
-                print(
-                    f'new Cortex Map saved to {path.join(p, n + "." + output_format)}'
-                )
-
-            if interactive:
-                mlab.show(stop=True)
-            else:
-                mlab.clf()
+        if interactive:
+            mlab.show(stop=True)
+        else:
+            mlab.clf()
 
 
 # ----------------------------------------------------------------------------#
@@ -944,7 +1043,7 @@ def manual_masking(self):
     plt.subplots_adjust(bottom=0.25, left=0.25)
     scatter = ax.scatter(self.x, self.y, s=0.2)
     ax.set_aspect("equal", "box")
-    draw_grid(ax, maxEcc)
+    _draw_grid(ax, maxEcc)
     ax.set_xlim(-maxEcc, maxEcc)
     ax.set_ylim(-maxEcc, maxEcc)
 
@@ -1116,94 +1215,172 @@ def manual_masking(self):
     return plot_select_mask
 
 
-def save_results(
-    self,
-    params=None,
-    force=False,
-):
-    """
-    Save pRF results (parameters and mask) to disk in NIfTI or GIFTI format.
+def _save_results_volume_docker(self, params, force, save):
+    outFpath = path.join(
+        self._derivatives_path,
+        "prfresult",
+        self._prfanalyze_method,
+        self._prfanaAn,
+        "volumeResults",
+        self.subject,
+        self.session,
+    )
+    makedirs(outFpath, exist_ok=True)
 
-    Args:
-        params (list, optional): List of parameter names to save. Defaults to ['x0', 'y0', 's0', 'r0', 'phi0', 'varexp0', 'mask'].
-        force (bool, optional): Overwrite existing files if True. Defaults to False.
-
-    Raises:
-        ValueError: If data is not from docker.
-    """
-
-    if not self._dataFrom == "docker":
-        raise ValueError("Data not from docker, cannot save results")
-
-    # set params to all if not defined
-    if params is None:
-        params = ["x0", "y0", "s0", "r0", "phi0", "varexp0", "mask"]
-
-    if self.analysisSpace == "volume":
-        outFpath = path.join(
-            self._derivatives_path,
-            "prfresult",
-            self._prfanalyze_method,
-            self._prfanaAn,
-            "volumeResults",
-            self.subject,
-            self.session,
-        )
-        makedirs(outFpath, exist_ok=True)
-
-        try:
-            dummy_file = nib.load(
-                glob(
-                    path.join(
-                        self._derivatives_path,
-                        "fmriprep",
-                        self.prfprepareOpts["fmriprep_analysis"],
-                        self.subject,
-                        self.session,
-                        "func",
-                        f"*{self.task}*space-T1w_desc-preproc_bold.nii*",
-                    )
-                )[0]
-            )
-
-        except (KeyError, IndexError) as e:
-            with open(
-                glob(
-                    path.join(
-                        self._derivatives_path,
-                        "prfprepare",
-                        f"analysis-{self.prfprepare_analysis}",
-                        self.subject,
-                        self.session,
-                        "func",
-                        f"{self.subject}_{self.session}_hemi-*_desc-*-*_maskinfo.json",
-                    )
-                )[0],
-                "r",
-            ) as f:
-                maskinfo = json.load(f)
-            img_shape = maskinfo["origImageSize"]
-            img_header = None
-
-            if self._study == "hcpret":
-                img_affine = np.array(
-                    [
-                        [-1.60000002, 0.0, 0.0, 90.0],
-                        [0.0, 1.60000002, 0.0, -126.0],
-                        [0.0, 0.0, 1.60000002, -72.0],
-                        [0.0, 0.0, 0.0, 1.0],
-                    ]
+    try:
+        dummy_file = nib.load(
+            glob(
+                path.join(
+                    self._derivatives_path,
+                    "fmriprep",
+                    self.prfprepareOpts["fmriprep_analysis"],
+                    self.subject,
+                    self.session,
+                    "func",
+                    f"*{self.task}*space-T1w_desc-preproc_bold.nii*",
                 )
-            else:
-                img_affine = np.eye(4)
+            )[0]
+        )
 
+    except (KeyError, IndexError) as e:
+        with open(
+            glob(
+                path.join(
+                    self._derivatives_path,
+                    "prfprepare",
+                    f"analysis-{self.prfprepare_analysis}",
+                    self.subject,
+                    self.session,
+                    "func",
+                    f"{self.subject}_{self.session}_hemi-*_desc-*-*_maskinfo.json",
+                )
+            )[0],
+            "r",
+        ) as f:
+            maskinfo = json.load(f)
+        img_shape = maskinfo["origImageSize"]
+        img_header = None
+
+        if self._study == "hcpret":
+            img_affine = np.array(
+                [
+                    [-1.60000002, 0.0, 0.0, 90.0],
+                    [0.0, 1.60000002, 0.0, -126.0],
+                    [0.0, 0.0, 1.60000002, -72.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            )
         else:
-            img = nib.funcs.four_to_three(dummy_file)[0]
-            img_shape = img.shape
-            img_header = img.header
-            img_affine = img.affine
+            img_affine = np.eye(4)
 
-        # loop through prarams and save them
+    else:
+        img = nib.funcs.four_to_three(dummy_file)[0]
+        img_shape = img.shape
+        img_header = img.header
+        img_affine = img.affine
+
+    # loop through prarams and save them
+    all_params = {}
+    for param in params:
+        if not param.endswith("0") and param != "mask":
+            param_orig = param + "0"
+        else:
+            param_orig = param
+
+        if param == "mask":
+            outFname = self._get_surfaceSavePath(
+                param,
+                "BOTH",
+                "results",
+                plain=False,
+            )
+        else:
+            outFname = self._get_surfaceSavePath(param, "BOTH", "results", plain=True)
+        print(outFname[1])
+        outF = path.join(outFpath, outFname[1] + ".nii.gz")
+        if not path.isfile(outF) or force:
+            if param == "voxelTC0":
+                dat = np.zeros((*img_shape, self.voxelTC0.shape[-1])) * np.nan
+            else:
+                dat = np.zeros(img_shape) * np.nan
+
+            for pos, boldI in zip(self._roiIndOrig, self._roiIndBold):
+                dat[tuple(pos)] = getattr(self, param_orig)[boldI]
+
+            if param != param_orig:
+                # set everything outside mask (ROI, VarExp, ...) to nan
+                dat = deepcopy(dat)
+                for pos in self._roiIndOrig[~self.mask[self._roiIndBold]]:
+                    dat[tuple(pos)] = np.nan
+
+            newNii = nib.Nifti1Image(dat, header=img_header, affine=img_affine)
+            if save:
+                nib.save(newNii, outF)
+            all_params[param] = newNii
+
+    return all_params
+
+
+def _save_results_surface_docker(self, params, force, save):
+    outFpath = path.join(
+        self._derivatives_path,
+        "prfresult",
+        self._prfanalyze_method,
+        self._prfanaAn,
+        "surfaceResults",
+        self.subject,
+        self.session,
+    )
+    makedirs(outFpath, exist_ok=True)
+
+    if self._hemis.lower() == "both":
+        if self._study == "hcpret":
+            hemis = ["b"]
+        else:
+            hemis = ["L", "R"]
+    else:
+        hemis = [self._hemis]
+
+    all_hemis_params = {}
+    for hemi in hemis:
+        if self._study == "hcpret" and self._hemis.lower() == "both":
+            img_shape = 91282
+        else:
+            try:
+                dummyFile = nib.load(
+                    glob(
+                        path.join(
+                            self._derivatives_path,
+                            "fmriprep",
+                            self.prfprepareOpts["fmriprep_analysis"],
+                            self.subject,
+                            self.session,
+                            "func",
+                            f"*task-{self.task}*hemi-{hemi}_space-{self.analysisSpace}_bold.func.gii",
+                        )
+                    )[0]
+                )
+            except (KeyError, IndexError) as e:
+                with open(
+                    glob(
+                        path.join(
+                            self._derivatives_path,
+                            "prfprepare",
+                            f"analysis-{self.prfprepare_analysis}",
+                            self._subject,
+                            self._session,
+                            "func",
+                            f"{self._subject}_{self._session}_hemi-{hemi}_desc-*-*_maskinfo.json",
+                        )
+                    )[0],
+                    "r",
+                ) as f:
+                    maskinfo = json.load(f)
+                img_shape = maskinfo["thisHemiSize"]
+            else:
+                img_shape = dummyFile.agg_data().shape
+
+        all_params = {}
         for param in params:
             if not param.endswith("0") and param != "mask":
                 param_orig = param + "0"
@@ -1213,138 +1390,182 @@ def save_results(
             if param == "mask":
                 outFname = self._get_surfaceSavePath(
                     param,
-                    "BOTH",
+                    hemi,
                     "results",
                     plain=False,
                 )
             else:
-                outFname = self._get_surfaceSavePath(
-                    param, "BOTH", "results", plain=True
-                )
-            print(outFname[1])
-            outF = path.join(outFpath, outFname[1] + ".nii.gz")
+                outFname = self._get_surfaceSavePath(param, hemi, "results", plain=True)
+
+            outF = path.join(outFpath, outFname[1] + ".func.gii")
             if not path.isfile(outF) or force:
                 if param == "voxelTC0":
-                    dat = np.zeros((*img_shape, self.voxelTC0.shape[-1])) * np.nan
+                    dat = np.zeros((img_shape, self.voxelTC0.shape[-1])) * np.nan
                 else:
                     dat = np.zeros(img_shape) * np.nan
 
-                for pos, boldI in zip(self._roiIndOrig, self._roiIndBold):
-                    dat[tuple(pos)] = getattr(self, param_orig)[boldI]
+                # create mask dependent on used hemisphere
+                if hemi[0].upper() == "L":
+                    hemiM = self._roiWhichHemi == "L"
+                elif hemi[0].upper() == "R":
+                    hemiM = self._roiWhichHemi == "R"
+                elif hemi[0].upper() == "B":
+                    hemiM = self._roiWhichHemi == "b"
+
+                roiIndOrigHemi = self._roiIndOrig[hemiM]
+                roiIndBoldHemi = self._roiIndBold[hemiM]
+
+                for pos, boldI in zip(roiIndOrigHemi, roiIndBoldHemi):
+                    dat[pos] = getattr(self, param_orig)[boldI]
 
                 if param != param_orig:
                     # set everything outside mask (ROI, VarExp, ...) to nan
                     dat = deepcopy(dat)
-                    for pos in self._roiIndOrig[~self.mask[self._roiIndBold]]:
-                        dat[tuple(pos)] = np.nan
+                    dat[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
 
-                newNii = nib.Nifti1Image(dat, header=img_header, affine=img_affine)
-                nib.save(newNii, outF)
-
-    elif self.analysisSpace == "fsnative" or self.analysisSpace == "fsaverage":
-        outFpath = path.join(
-            self._derivatives_path,
-            "prfresult",
-            self._prfanalyze_method,
-            self._prfanaAn,
-            "surfaceResults",
-            self.subject,
-            self.session,
-        )
-        makedirs(outFpath, exist_ok=True)
-
-        if self._hemis.lower() == "both":
-            if self._study == "hcpret":
-                hemis = ["b"]
-            else:
-                hemis = ["L", "R"]
-        else:
-            hemis = [self._hemis]
-
-        for hemi in hemis:
-            if self._study == "hcpret" and self._hemis.lower() == "both":
-                img_shape = 91282
-            else:
-                try:
-                    dummyFile = nib.load(
-                        glob(
-                            path.join(
-                                self._derivatives_path,
-                                "fmriprep",
-                                self.prfprepareOpts["fmriprep_analysis"],
-                                self.subject,
-                                self.session,
-                                "func",
-                                f"*task-{self.task}*hemi-{hemi}_space-{self.analysisSpace}_bold.func.gii",
-                            )
-                        )[0]
-                    )
-                except (KeyError, IndexError) as e:
-                    with open(
-                        glob(
-                            path.join(
-                                self._derivatives_path,
-                                "prfprepare",
-                                f"analysis-{self.prfprepare_analysis}",
-                                self._subject,
-                                self._session,
-                                "func",
-                                f"{self._subject}_{self._session}_hemi-{hemi}_desc-*-*_maskinfo.json",
-                            )
-                        )[0],
-                        "r",
-                    ) as f:
-                        maskinfo = json.load(f)
-                    img_shape = maskinfo["thisHemiSize"]
-                else:
-                    img_shape = dummyFile.agg_data().shape
-
-            for param in params:
-                if not param.endswith("0") and param != "mask":
-                    param_orig = param + "0"
-                else:
-                    param_orig = param
-
-                if param == "mask":
-                    outFname = self._get_surfaceSavePath(
-                        param,
-                        hemi,
-                        "results",
-                        plain=False,
-                    )
-                else:
-                    outFname = self._get_surfaceSavePath(
-                        param, hemi, "results", plain=True
-                    )
-
-                outF = path.join(outFpath, outFname[1] + ".func.gii")
-                if not path.isfile(outF) or force:
-                    if param == "voxelTC0":
-                        dat = np.zeros((img_shape, self.voxelTC0.shape[-1])) * np.nan
-                    else:
-                        dat = np.zeros(img_shape) * np.nan
-
-                    # create mask dependent on used hemisphere
-                    if hemi[0].upper() == "L":
-                        hemiM = self._roiWhichHemi == "L"
-                    elif hemi[0].upper() == "R":
-                        hemiM = self._roiWhichHemi == "R"
-                    elif hemi[0].upper() == "B":
-                        hemiM = self._roiWhichHemi == "b"
-
-                    roiIndOrigHemi = self._roiIndOrig[hemiM]
-                    roiIndBoldHemi = self._roiIndBold[hemiM]
-
-                    for pos, boldI in zip(roiIndOrigHemi, roiIndBoldHemi):
-                        dat[pos] = getattr(self, param_orig)[boldI]
-
-                    if param != param_orig:
-                        # set everything outside mask (ROI, VarExp, ...) to nan
-                        dat = deepcopy(dat)
-                        dat[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
-
-                    newGii = nib.gifti.gifti.GiftiImage()
-                    newGii.add_gifti_data_array(
-                        nib.gifti.gifti.GiftiDataArray(data=dat.astype(np.float32))
-                    )
+                newGii = nib.gifti.gifti.GiftiImage()
+                newGii.add_gifti_data_array(
+                    nib.gifti.gifti.GiftiDataArray(data=dat.astype(np.float32))
+                )
+                if save:
                     nib.save(newGii, outF)
+                all_params[param] = newGii
+
+        # if not saving, return all params for this hemisphere
+        all_hemis_params[hemi] = all_params
+    # if not saving, return all params for this hemisphere
+    return all_params
+
+
+def _save_results_mrVista(self, params, force, save):
+    outFpath = path.join(
+        self._baseP,
+        self._study,
+        "plots",
+        "volumeResults",
+        self.subject,
+        self.session,
+        self._analysis,
+    )
+    makedirs(outFpath, exist_ok=True)
+
+    print("Warning: this is not properly implemented tested!")
+
+    # lets load a dummy file to get the shape and header
+
+    img = nib.load(
+        glob(
+            path.join(
+                self._baseP,
+                self._study,
+                "subjects",
+                self.subject,
+                self.session,
+                f"anatomy",
+                "nifti",
+                f"lpibrain.nii",
+            )
+        )[0]
+    )
+
+    # img = nib.funcs.four_to_three(dummy_file)[0]
+    img_shape = img.shape
+    img_header = img.header
+    img_affine = img.affine
+
+    # loop through prarams and save them
+    all_params = {}
+    for param in params:
+        if not param.endswith("0") and param != "mask":
+            param_orig = param + "0"
+            varExpStr = f"_VarExp-{int(self._isVarExpMasked*100)}"
+        else:
+            param_orig = param
+            varExpStr = ""
+
+        if param == "mask":
+            outFname = f"{self.subject}_{self.session}_hemi-BOTH_VarExp-{int(self._isVarExpMasked*100)}_desc-mask.nii.gz"
+        else:
+            outFname = f"{self.subject}_{self.session}_hemi-BOTH{varExpStr}_desc-{param}.nii.gz"
+
+        print(outFname)
+        outF = path.join(outFpath, outFname)
+        if not path.isfile(outF) or force:
+            if param == "voxelTC0":
+                dat = np.zeros((*img_shape, self.voxelTC0.shape[-1])) * np.nan
+            else:
+                dat = np.zeros(img_shape) * np.nan
+
+            coords_swap = self._coords[[2, 1, 0], ...].T.astype(int)
+            coords_swap[:, 1] = coords_swap[:, 1] * -1 + img_shape[1] - 1
+            coords_swap[:, 2] = coords_swap[:, 2] * -1 + img_shape[2] - 1
+
+            if param == param_orig or param == "mask":
+                for pos, boldI in zip(coords_swap, range(len(coords_swap))):
+                    dat[tuple(pos)] = getattr(self, param_orig)[boldI]
+            else:
+                for pos, boldI in zip(coords_swap[self.mask], range(self.mask.sum())):
+                    dat[tuple(pos)] = getattr(self, param)[boldI]
+
+            self.dat = dat
+            newNii = nib.Nifti1Image(dat, header=img_header, affine=img_affine)
+
+            if save:
+                nib.save(newNii, outF)
+            all_params[param] = newNii
+
+    return all_params
+
+
+def save_results(
+    self,
+    params=None,
+    force=False,
+    save=True,
+):
+    """
+    Save pRF results (parameters and mask) to disk in NIfTI or GIFTI format.
+
+    Args:
+        params (list, optional): List of parameter names to save. Defaults to ['x0', 'y0', 's0', 'r0', 'phi0', 'varexp0', 'mask'].
+        force (bool, optional): Overwrite existing files if True. Defaults to False.
+        save (bool, optional): Save the results to disk if True. Defaults to True.
+
+    Raises:
+        ValueError: If data is not from docker.
+    """
+
+    # set params to all if not defined
+    if params is None:
+        params = ["x0", "y0", "s0", "r0", "phi0", "varexp0", "mask"]
+    else:
+        # replace other names for params
+        params_old = params
+        params = []
+        for p in params_old:
+            if "ecc" in p:
+                params.append(p.replace("ecc", "r"))
+            elif "pol" in p:
+                params.append(p.replace("pol", "phi"))
+            else:
+                params.append(p)
+
+    if not isinstance(params, list):
+        params = [params]
+
+    # data from docker analysis
+    if self._dataFrom == "docker":
+        if self.analysisSpace == "volume":
+            return _save_results_volume_docker(self, params, force, save)
+
+        elif self.analysisSpace == "fsnative" or self.analysisSpace == "fsaverage":
+            return _save_results_surface_docker(self, params, force, save)
+
+    # data from mrVista
+    elif self._dataFrom == "mrVista":
+        return _save_results_mrVista(self, params, force, save)
+
+    else:
+        raise NotImplementedError(
+            f"Unknown data source: {self._dataFrom}. Cannot save results."
+        )

@@ -1,4 +1,5 @@
 import json
+from glob import glob
 from os import path
 
 import numpy as np
@@ -360,7 +361,7 @@ class PRF:
     @property
     def maxEcc(self):
         """np.ndarray: Maximum eccentricity for the stimulus grid."""
-        return self._maxEcc.astype(np.float32)
+        return np.float32(self._maxEcc)
 
     @property
     def model(self):
