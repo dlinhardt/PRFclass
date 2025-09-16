@@ -652,6 +652,7 @@ def plot_toSurface(
         else:
             plot_subject = self.subject
         need_to_convert = False
+        positioning_subject = plot_subject
 
     elif self._dataFrom == "mrVista":
         fsP = path.join(
@@ -664,6 +665,7 @@ def plot_toSurface(
         )
         plot_subject = "freesurfer"
         need_to_convert = True
+        positioning_subject = self.subject
 
     # if self._dataFrom == "mrVista":
     #     raise RuntimeError("plot_toSurface is not supported for non-docker data!")
@@ -712,7 +714,9 @@ def plot_toSurface(
         if need_to_convert:
             # now we need to convert the volume data to the surface
             # first get the 3D versions of the data
-            data_in_3d = self.save_results(params=[param + "0"], save=False, force=True)
+            data_in_3d = self.save_results(
+                params=[param + "0", "mask"], save=False, force=True
+            )
             fs_pial = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
             fs_white = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.white")
         else:
@@ -881,7 +885,12 @@ def plot_toSurface(
         if manualPosition:
             if self._dataFrom == "mrVista":
                 posSavePath = path.join(
-                    self._baseP, self._study, "plots", "volumeResults", "positioning"
+                    self._baseP,
+                    self._study,
+                    "plots",
+                    "volumeResults",
+                    "positioning",
+                    positioning_subject,
                 )
 
             else:
@@ -889,16 +898,14 @@ def plot_toSurface(
                     self._derivatives_path,
                     "prfresult",
                     "positioning",
-                    plot_subject,
+                    positioning_subject,
                 )
             if not path.isdir(posSavePath):
                 makedirs(posSavePath)
 
             areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
-            posSaveFile = (
-                f"{plot_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
-            )
+            posSaveFile = f"{positioning_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
             posPath = path.join(posSavePath, posSaveFile)
 
             if not path.isfile(posPath) or forceNewPosition:
