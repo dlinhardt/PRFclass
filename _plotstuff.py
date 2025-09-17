@@ -724,10 +724,8 @@ def plot_toSurface(
                 raise RuntimeError(
                     "Please mask for visual area with instance.maskROI()!"
                 )
-            if hemi[0].upper() == "L":
-                hemiM = self._roiWhichHemi == "L"
-            elif hemi[0].upper() == "R":
-                hemiM = self._roiWhichHemi == "R"
+
+            hemiM = self._roiWhichHemi == hemi[0].upper()
 
             roiIndOrigHemi = self._roiIndOrig[hemiM]
             roiIndBoldHemi = self._roiIndBold[hemiM]

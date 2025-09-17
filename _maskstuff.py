@@ -1,7 +1,7 @@
 import json
+import warnings
 from glob import glob
 from os import path
-import warnings
 
 import numpy as np
 from scipy.io import loadmat
@@ -11,6 +11,15 @@ try:
     import nibabel as nib
 except:
     print("neuropythy not installed, samsrf data not available")
+
+# New ROI pack helper
+try:
+    from .roipack.roipack import RoiPack  # preferred (package style)
+except Exception:
+    try:
+        from roipack.roipack import RoiPack  # fallback if installed in path
+    except Exception:
+        RoiPack = None
 
 
 # ----------------------------------MASKING-----------------------------------#
@@ -145,6 +154,32 @@ def maskROI(
             # if hasattr(self, 'tValues'): self._tValues = self._tValues[self._msk]
 
     elif data_from in ["docker", "hdf5"]:
+        # Prefer consolidated ROI pack (HDF5 + meta JSON) if present in the subject folder
+        roipack_dir = path.join(
+            self._derivatives_path,
+            "prfprepare",
+            f"analysis-{self.prfprepare_analysis}",
+            self._subject,
+        )
+        h5_file = path.join(roipack_dir, "all_roi_masks.h5")
+        meta_file = path.join(roipack_dir, "all_roi_masks_meta.json")
+
+        if RoiPack is not None and path.isfile(h5_file) and path.isfile(meta_file):
+            # Try new RoiPack-based path; pass space from analysisSpace by default
+            _used = _maskROI_from_roipack(
+                self,
+                area=area,
+                atlas=atlas,
+                roipack_path=roipack_dir,
+                img=None,
+            )
+            if _used:
+                self._isROIMasked = 1
+                print("Using RoiPack path for ROI masking")
+                return
+        print("Falling back to legacy path using the maskinfo.json files")
+
+        # --- Backward compatibility path (legacy maskinfo.json) ---
         self._atlas = atlas if isinstance(atlas, list) else [atlas]
         self._area = area if isinstance(area, list) else [area]
 
@@ -384,6 +419,195 @@ def maskROI(
         self.analysisSpace = "fsnative"
 
     self._isROIMasked = 1
+
+
+def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
+    """Internal: fill ROI fields using RoiPack when available.
+
+    Returns True if successfully applied, else False to allow fallback.
+    Populates:
+      - _roiMsk (bool [n_masked_space])
+      - _roiIndBold (int index into masked space ~ self.x0)
+      - _roiIndOrig (int per-vertex index for surface; int[:,3] ijk for volume)
+      - _roiWhichHemi ("L"/"R" for surface; "B" for volume)
+      - _atlas, _area (normalized lists)
+    """
+    if RoiPack is None:
+        return False
+
+    try:
+        # Read the all_roi_masks_meta.json
+        with open(path.join(roipack_path, "all_roi_masks_meta.json"), "r") as f:
+            meta = json.load(f)
+        self.rp = RoiPack(
+            key=meta["key"],
+            h5_path=path.join(roipack_path, "all_roi_masks.h5"),
+            meta=meta,
+        )
+        # Choose grid selection using either provided image or explicit space label
+        try:
+            if self.analysisSpace == "volume":
+                if img is not None:
+                    self.rp.select_grid_for_input(img)
+                else:
+                    self.rp.select_grid_for_input(self.analysisSpace)
+            else:
+                self.rp.select_grid_for_input(self.analysisSpace)
+        except Exception as e:
+            print(
+                f"RoiPack grid selection failed (analysisSpace={self.analysisSpace}): {e}"
+            )
+            return False
+    except Exception as e:
+        print(f"Failed to open ROI pack: {e}")
+        return False
+
+    # ---------------- Normalize atlas/area filters ----------------
+    self._atlas = atlas if isinstance(atlas, list) else [atlas]
+    self._area = area if isinstance(area, list) else [area]
+
+    # Build atlas and area lists (expand "all" if needed)
+    available_atlases = self.rp.list_atlases()
+    if len(self._atlas) == 1 and str(self._atlas[0]).lower() == "all":
+        self._atlas = available_atlases
+
+    all_areas = set()
+    for a in self._atlas:
+        if a in available_atlases:
+            all_areas.update(self.rp.list_rois(a))
+
+    if len(self._area) == 1 and str(self._area[0]).lower() == "all":
+        self._area = sorted(list(all_areas))
+
+    # Hemisphere query list (lowercase for RoiPack, uppercase for output)
+    hemi_query = ["l", "r"] if self._hemis == "" else [h.lower() for h in self._hemis]
+
+    # Get masked space flat indices for each hemisphere to build total space
+    masked_space_indices = {}
+    total_masked_len = 0
+    hemi_order = []
+
+    for h in hemi_query:
+        try:
+            flat_idx = self.rp.get_masked_space_flat_index(h)
+            masked_space_indices[h] = flat_idx
+            total_masked_len += len(flat_idx)
+            hemi_order.append(h)
+        except Exception as e:
+            print(f"Failed to load masked space flat index for hemi {h}: {e}")
+            return False
+
+    if total_masked_len != len(self.x0):
+        print(
+            f"Combined masked space length {total_masked_len} != parameter length {len(self.x0)}; falling back."
+        )
+        return False
+
+    # Precompute offsets for combined masked space ordering (l then r)
+    offsets = {}
+    running = 0
+    for h in hemi_order:
+        offsets[h] = running
+        running += len(masked_space_indices[h])
+
+    # Accumulators
+    masked_pos_list: list[int] = []
+    hemi_list: list[str] = []  # 'L' / 'R'
+    area_list: list[str] = []
+    atlas_list: list[str] = []
+    orig_indices_list: list = []
+
+    # Iterate through requested ROIs
+    for a in self._atlas:
+        if a not in available_atlases:
+            continue
+        for r in self._area:
+            available_rois = self.rp.list_rois(a)
+            if r not in available_rois:
+                continue
+            for h in hemi_query:
+                if not self.rp.has_roi(a, r, h):
+                    continue
+
+                try:
+                    # Get indices in masked space for this ROI
+                    roi_masked_indices = self.rp.get_masked_space_indices(a, r, h)
+                    if roi_masked_indices.size == 0:
+                        continue
+
+                    # Convert to combined masked space positions (offset by hemisphere)
+                    combined_positions = roi_masked_indices + offsets[h]
+
+                    # Get original space indices
+                    roi_orig_indices = self.rp.get_original_space_indices(a, r, h)
+
+                    # Store data
+                    masked_pos_list.extend(combined_positions.tolist())
+                    hemi_list.extend(
+                        ["L" if h == "l" else "R"] * len(roi_masked_indices)
+                    )
+                    area_list.extend([r] * len(roi_masked_indices))
+                    atlas_list.extend([a] * len(roi_masked_indices))
+
+                    if self.analysisSpace in ["fsnative", "fsaverage"]:
+                        orig_indices_list.extend(roi_orig_indices.tolist())
+                    else:  # volume - convert flat indices to (i,j,k) coordinates
+                        # We need the volume shape - try to get it from meta or infer
+                        try:
+                            # Try to get shape from first dense mask
+                            dummy_shape = (100, 100, 100)  # fallback
+                            if hasattr(self, "_vol_shape"):
+                                vol_shape = self._vol_shape
+                            else:
+                                # Try to infer from meta or use a reasonable default
+                                vol_shape = dummy_shape
+
+                            ijk = np.vstack(
+                                np.unravel_index(roi_orig_indices, vol_shape)
+                            ).T
+                            orig_indices_list.extend(
+                                [tuple(map(int, row)) for row in ijk]
+                            )
+                        except Exception:
+                            # Fallback: just store flat indices
+                            orig_indices_list.extend(roi_orig_indices.tolist())
+
+                except Exception as e:
+                    print(f"Failed to process ROI {a}/{r}/{h}: {e}")
+                    continue
+
+    if not masked_pos_list:
+        print(f"WARNING: No ROI data found for atlas={self._atlas}, area={self._area}")
+        return False
+
+    # Remove duplicates while preserving order
+    seen = set()
+    keep_idx = []
+    for i, p in enumerate(masked_pos_list):
+        if p not in seen:
+            seen.add(p)
+            keep_idx.append(i)
+
+    # Build final arrays
+    self._roiIndBold = np.asarray([masked_pos_list[i] for i in keep_idx], dtype=int)
+    self._roiWhichHemi = np.asarray([hemi_list[i] for i in keep_idx])
+    self._roiWhichArea = np.asarray([area_list[i] for i in keep_idx])
+    self._roiWhichAtlas = np.asarray([atlas_list[i] for i in keep_idx])
+
+    if self.analysisSpace in ["fsnative", "fsaverage"]:
+        self._roiIndOrig = np.asarray(
+            [orig_indices_list[i] for i in keep_idx], dtype=int
+        )
+    else:
+        self._roiIndOrig = np.asarray([orig_indices_list[i] for i in keep_idx])
+
+    # Build boolean mask over combined masked space
+    roi_mask = np.zeros(total_masked_len, dtype=bool)
+    roi_mask[self._roiIndBold] = True
+    self._roiMsk = roi_mask
+
+    self._isROIMasked = 1
+    return True
 
 
 # ---------------------------------------------------------------------------#
