@@ -47,6 +47,7 @@ class PRF:
         _calcCovMap,
         _createmask,
         _get_surfaceSavePath,
+        _get_covMap_savePath,
         _make_gif,
         manual_masking,
         plot_covMap,
@@ -496,6 +497,10 @@ class PRF:
     @property
     def pol(self):
         return self.phi0[self.mask]
+
+    @property
+    def pol_orig(self):
+        return self.phi0_orig[self.mask]
 
     @property
     def beta(self):
