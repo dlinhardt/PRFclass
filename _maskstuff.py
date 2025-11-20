@@ -175,7 +175,7 @@ def maskROI(
             )
             if _used:
                 self._isROIMasked = 1
-                print("Using RoiPack path for ROI masking")
+                # print("Using RoiPack path for ROI masking")
                 return
         print("Falling back to legacy path using the maskinfo.json files")
 
@@ -218,7 +218,7 @@ def maskROI(
 
         self._roiMsk = np.zeros(self.x0.shape)
 
-        if self.analysisSpace == "fsnative":
+        if self.analysisSpace in ("fsnative", "surface"):
             roiIndOrigName = "roiIndFsnative"
             roiIndOrigShape = 0
         elif self.analysisSpace == "fsaverage":
@@ -549,7 +549,7 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
                     area_list.extend([r] * len(roi_masked_indices))
                     atlas_list.extend([a] * len(roi_masked_indices))
 
-                    if self.analysisSpace in ["fsnative", "fsaverage"]:
+                    if self.analysisSpace in ["fsnative", "fsaverage", "surface"]:
                         orig_indices_list.extend(roi_orig_indices.tolist())
                     else:  # volume - convert flat indices to (i,j,k) coordinates
                         # We need the volume shape - try to get it from meta or infer
