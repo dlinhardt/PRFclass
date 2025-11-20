@@ -264,53 +264,7 @@ def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
         return self.covMap
 
 
-# ----------------------------------------------------------------------------#
-def plot_covMap(
-    self,
-    method="max",
-    cmapMin=0,
-    cmapMax=None,
-    title=None,
-    show=True,
-    save=False,
-    force=False,
-    maxEcc=None,
-    do_scatter=True,
-    output_format="svg",
-    plot_colorbar=True,
-    background="white",
-):
-    """
-    Plot the pRF coverage map and optionally save it.
-
-    Args:
-        method (str, optional): Method to calculate the coverage map ('max', 'mean', 'sumClip'). Defaults to 'max'.
-        cmapMin (float, optional): Minimum value for the colormap (0-1). Defaults to 0.
-        cmapMax (float, optional): Maximum value for the colormap. If None, set automatically. Defaults to None.
-        title (str, optional): Title for the plot. Defaults to None.
-        show (bool, optional): Whether to display the plot interactively. Defaults to True.
-        save (bool, optional): Whether to save the plot to disk. Defaults to False.
-        force (bool, optional): If True, overwrite existing files. Defaults to False.
-        maxEcc (float, optional): Maximum eccentricity for the plot axes. If None, uses self.maxEcc. Defaults to None.
-        do_scatter (bool, optional): Whether to overlay scatter plot of pRF centers. Defaults to True.
-        output_format (str, optional): File format for saving (e.g., 'svg', 'pdf'). Defaults to 'svg'.
-        plot_colorbar (bool, optional): Whether to display a colorbar. Defaults to True.
-        background (str, optional): Background color for the plot. Defaults to 'white'.
-
-    Returns:
-        matplotlib.figure.Figure or str: Figure handle if not saving, otherwise the path to the saved file.
-
-    Raises:
-        ValueError: If method is not recognized or colormap limits are invalid.
-    """
-
-    if not show:
-        plt.ioff()
-
-    # do maxEcc
-    maxEcc = maxEcc if maxEcc else self.maxEcc
-
-    # create the filename
+def _get_covMap_savePath(self, method="max", cmapMin=0, output_format="svg"):
     if self._dataFrom == "mrVista":
         VEstr = (
             f"_VarExp-{int(self._isVarExpMasked*100)}"
@@ -387,11 +341,61 @@ def plot_covMap(
         )
         savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}{CBstr}_covmap.{output_format}"
 
-    savePath = path.join(savePathB, savePathF)
-
     # create folder if not exist
     if not path.isdir(savePathB):
         makedirs(savePathB)
+
+    return path.join(savePathB, savePathF)
+
+
+# ----------------------------------------------------------------------------#
+def plot_covMap(
+    self,
+    method="max",
+    cmapMin=0,
+    cmapMax=None,
+    title=None,
+    show=True,
+    save=False,
+    force=False,
+    maxEcc=None,
+    do_scatter=True,
+    output_format="svg",
+    plot_colorbar=True,
+    background="white",
+):
+    """
+    Plot the pRF coverage map and optionally save it.
+
+    Args:
+        method (str, optional): Method to calculate the coverage map ('max', 'mean', 'sumClip'). Defaults to 'max'.
+        cmapMin (float, optional): Minimum value for the colormap (0-1). Defaults to 0.
+        cmapMax (float, optional): Maximum value for the colormap. If None, set automatically. Defaults to None.
+        title (str, optional): Title for the plot. Defaults to None.
+        show (bool, optional): Whether to display the plot interactively. Defaults to True.
+        save (bool, optional): Whether to save the plot to disk. Defaults to False.
+        force (bool, optional): If True, overwrite existing files. Defaults to False.
+        maxEcc (float, optional): Maximum eccentricity for the plot axes. If None, uses self.maxEcc. Defaults to None.
+        do_scatter (bool, optional): Whether to overlay scatter plot of pRF centers. Defaults to True.
+        output_format (str, optional): File format for saving (e.g., 'svg', 'pdf'). Defaults to 'svg'.
+        plot_colorbar (bool, optional): Whether to display a colorbar. Defaults to True.
+        background (str, optional): Background color for the plot. Defaults to 'white'.
+
+    Returns:
+        matplotlib.figure.Figure or str: Figure handle if not saving, otherwise the path to the saved file.
+
+    Raises:
+        ValueError: If method is not recognized or colormap limits are invalid.
+    """
+
+    if not show:
+        plt.ioff()
+
+    # do maxEcc
+    maxEcc = maxEcc if maxEcc else self.maxEcc
+
+    # create the filename
+    savePath = self._get_covMap_savePath(method, cmapMin, output_format)
 
     # warning if the chosen method is not possible
     if not path.isfile(savePath) or show or force:
@@ -452,7 +456,7 @@ def plot_covMap(
 
     if save and not path.isfile(savePath):
         fig.savefig(savePath, bbox_inches="tight")
-        print(f"new Coverage Map saved to {savePathF}")
+        print(f"new Coverage Map saved to {savePath}")
         # plt.close('all')
 
     if not show:
