@@ -70,9 +70,9 @@ def init_variables(self):
                         [e["centerx0"] for ee in self._estimates for e in ee]
                     )
 
-                self._s0 = np.array(
+                self._s0 = np.abs(np.array(
                     [e["sigmaMajor"] for ee in self._estimates for e in ee]
-                )
+                ))
                 try:
                     self._varexp0 = np.array(
                         [e["R2"] for ee in self._estimates for e in ee]
@@ -102,9 +102,9 @@ def init_variables(self):
                         "Choose orientation form [VF, MP], you specified {self._orientation}"
                     )
 
-                self._s0 = np.array(
+                self._s0 = np.abs(np.array(
                     [e["sigmaMajor"] for ee in self._estimates for e in ee]
-                )
+                ))
 
                 try:
                     self._varexp0 = np.array(
@@ -131,9 +131,9 @@ def init_variables(self):
                         "Choose orientation form [VF, MP], you specified {self._orientation}"
                     )
 
-                self._s0 = np.array(
+                self._s0 = np.abs(np.array(
                     [e["sigmamajor"] for ee in self._estimates for e in ee]
-                )
+                ))
 
                 try:
                     self._varexp0 = np.array(
@@ -189,9 +189,19 @@ def init_variables(self):
     ############################# HDF5 #############################
     #!!! this should be fixed once we decide on a standard for the hdf5 files
     elif self._dataFrom == "hdf5":
-        self._x0 = np.hstack([m["thetas"][:, 0] for m in self._estimates])
-        self._y0 = np.hstack([m["thetas"][:, 1] for m in self._estimates])
-        self._s0 = np.hstack([m["thetas"][:, 2] for m in self._estimates])
+        # Check for 'thetas' dataset, otherwise use x0, y0, s0, r2
+        if all("thetas" in m for m in self._estimates):
+            self._x0 = np.hstack([m["thetas"][:, 0] for m in self._estimates])
+            self._y0 = np.hstack([m["thetas"][:, 1] for m in self._estimates])
+            self._s0 = np.hstack([m["thetas"][:, 2] for m in self._estimates])
+        else:
+            self._x0 = np.hstack([m["x0"][:] for m in self._estimates])
+            self._y0 = np.hstack([m["y0"][:] for m in self._estimates])
+            self._s0 = np.hstack([m["s0"][:] for m in self._estimates])
+            if all("r2" in m for m in self._estimates):
+                self._varexp0 = np.hstack([m["r2"][:] for m in self._estimates])
+            else:
+                self._varexp0 = None
 
     else:
         raise ValueError(f"Unknown data source '{self._dataFrom}' in init_variables.")
@@ -576,11 +586,11 @@ def from_hdf5(
     session,
     task,
     run,
+    method='',
     analysis="01",
     baseP=None,
     orientation="VF",
     hemi="",
-    derivatives_folder="michi",
 ):
     """
     Load results from an HDF5 file.
@@ -591,6 +601,7 @@ def from_hdf5(
         session (str): Session name.
         task (str): Task name.
         run (str): Run number.
+        method (str, optional): Analysis method. Defaults to ''.
         analysis (str, optional): Analysis number. Defaults to '01'.
         baseP (str, optional): Base path for data. Defaults to None.
         orientation (str, optional): 'VF' or 'MP'. Defaults to 'VF'.
@@ -604,6 +615,7 @@ def from_hdf5(
         FileNotFoundError: If required files are missing.
     """
 
+    prfanaMe = '' if method == '' else method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
     prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
     subject = subject if subject.startswith("sub-") else f"sub-{subject}"
     session = session if session.startswith("ses-") else f"ses-{session}"
@@ -634,13 +646,14 @@ def from_hdf5(
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
+        print('WARNING: i hardcoded a strange name here!!')
         estimates = path.join(
             derivatives_path,
-            derivatives_folder,
+            prfanaMe,
             prfanaAn,
             subject,
             session,
-            f"{subject}_{session}_{task}_{run}_hemi-{h}_theta.h5",
+            f"{subject}_{session}_{task}_{run}_hemi-{h}_desc-prfestimates.h5",
         )
 
         this_est = h5py.File(estimates, "r")
@@ -657,7 +670,7 @@ def from_hdf5(
         task=task,
         run=run,
         hemis=hemi,
-        prfanaMe=derivatives_folder,
+        prfanaMe=prfanaMe,
         prfanaAn=prfanaAn,
         orientation=orientation,
         est=est,
