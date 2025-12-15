@@ -2,6 +2,7 @@ import json
 from glob import glob
 from os import path
 
+import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
 
@@ -46,8 +47,8 @@ class PRF:
     from ._plotstuff import (
         _calcCovMap,
         _createmask,
-        _get_surfaceSavePath,
         _get_covMap_savePath,
+        _get_surfaceSavePath,
         _make_gif,
         manual_masking,
         plot_covMap,
@@ -313,9 +314,32 @@ class PRF:
                 )["tSeries"].T
 
             elif self._dataFrom == "docker":
-                self._voxelTC0 = np.array(
-                    [e["testdata"] for ee in self._estimates for e in ee]
-                )
+                try:
+                    self._voxelTC0 = np.array(
+                        [e["testdata"] for ee in self._estimates for e in ee]
+                    )
+                except:
+                    hemis = ["L", "R"] if not self._hemis else self._hemis
+
+                    tc = []
+
+                    for hemi in hemis:
+                        p = glob(
+                            path.join(
+                                self._baseP,
+                                self._study,
+                                self._derivatives_path,
+                                "prfprepare",
+                                f"analysis-{self.prfprepare_analysis}",
+                                self.subject,
+                                self.session,
+                                "func",
+                                f"{self.subject}_{self.session}_{self.task}_{self.run}_hemi-{hemi}_bold.nii*",
+                            )
+                        )[0]
+                        tc.append(nib.load(p).get_fdata().squeeze())
+
+                    self._voxelTC0 = np.concatenate(tc, axis=0)
 
             elif self._dataFrom == "samsrf":
                 self._voxelTC0 = self._mat["Srf"]["Y"][0][0].T
@@ -543,6 +567,10 @@ class PRF:
     @property
     def prfprepare_analysis(self):
         return self.prfanalyzeOpts["prfprepareAnalysis"]
+
+    @property
+    def fmriprep_analysis(self):
+        return self.prfprepareOpts["fmriprep_analysis"]
 
     @property
     def prfprepareOpts(self):
