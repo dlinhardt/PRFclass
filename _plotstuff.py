@@ -571,7 +571,6 @@ def plot_toSurface(
     self,
     param="ecc",
     hemi="left",
-    fmriprepAna="01",
     save=False,
     forceNewPosition=False,
     force=False,
@@ -645,7 +644,7 @@ def plot_toSurface(
         fsP = path.join(
             self._derivatives_path,
             "fmriprep",
-            f"analysis-{fmriprepAna}",
+            f"analysis-{self.fmriprep_analysis}",
             "sourcedata",
             "freesurfer",
         )
@@ -1242,7 +1241,7 @@ def _save_results_volume_docker(self, params, force, save):
                 path.join(
                     self._derivatives_path,
                     "fmriprep",
-                    self.prfprepareOpts["fmriprep_analysis"],
+                    self.fmriprep_analysis,
                     self.subject,
                     self.session,
                     "func",
@@ -1361,7 +1360,7 @@ def _save_results_surface_docker(self, params, force, save):
                         path.join(
                             self._derivatives_path,
                             "fmriprep",
-                            self.prfprepareOpts["fmriprep_analysis"],
+                            self.fmriprep_analysis,
                             self.subject,
                             self.session,
                             "func",
