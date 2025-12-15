@@ -987,6 +987,16 @@ class PRFgroup:
         return self._get_prf_property("beta0")
 
     @property
+    def voxelTC0(self):
+        """
+        Get the voxelTC0 property for all PRF objects in the group.
+
+        Returns:
+            list: List of voxel time courses.
+        """
+        return self._get_prf_property("voxelTC0", combine_fn=np.vstack)
+
+    @property
     def x(self):
         """
         Get the x property for all PRF objects in the group.
@@ -1116,6 +1126,16 @@ class PRFgroup:
             np.ndarray: Combined beta values.
         """
         return self._get_prf_property("beta")
+
+    @property
+    def voxelTC(self):
+        """
+        Get the voxelTC0 property for all PRF objects in the group.
+
+        Returns:
+            list: List of voxel time courses.
+        """
+        return self._get_prf_property("voxelTC", combine_fn=np.vstack)
 
     # ------------------------- SUBJECT VARS as MATRIX -----------------------#
 
@@ -1503,7 +1523,20 @@ class PRFgroup:
                 session_task_runs[sess] = {}
 
                 # Get unique tasks for this session
-                tasks = sorted(sess_data["task"].unique())
+                # Sort tasks, moving joint analyses (containing multiple individual task names) to the end
+                all_tasks = list(sess_data["task"].unique())
+                # Detect joint analyses: tasks whose name contains other task names
+                individual_tasks = []
+                joint_tasks = []
+                for task in all_tasks:
+                    is_joint = any(
+                        other != task and other in task for other in all_tasks
+                    )
+                    if is_joint:
+                        joint_tasks.append(task)
+                    else:
+                        individual_tasks.append(task)
+                tasks = sorted(individual_tasks) + sorted(joint_tasks)
 
                 for task in tasks:
                     task_data = sess_data[sess_data["task"] == task]
@@ -1712,7 +1745,7 @@ class PRFgroup:
             # Draw title (subject name)
             c.setFont("Helvetica-Bold", 16)
             title_x = page_width / 2
-            title_y = page_height - margin * cm
+            title_y = page_height - margin * 1.5 * cm
             c.drawCentredString(title_x, title_y, f"Subject {subject}")
 
             # Starting positions
@@ -1736,7 +1769,23 @@ class PRFgroup:
                 # Sequentially draw task/run columns for this session
                 col_idx = 0
                 tasks = session_task_runs.get(sess, {})
-                for task in sorted(tasks.keys()):
+                # Sort tasks with joint analyses (containing other task names) at the end
+                all_task_keys = list(tasks.keys())
+                individual_task_keys = []
+                joint_task_keys = []
+                for task in all_task_keys:
+                    is_joint = any(
+                        other != task and other in task for other in all_task_keys
+                    )
+                    if is_joint:
+                        joint_task_keys.append(task)
+                    else:
+                        individual_task_keys.append(task)
+                sorted_task_keys = sorted(individual_task_keys) + sorted(
+                    joint_task_keys
+                )
+
+                for task in sorted_task_keys:
                     runs = tasks[task]
                     for run in runs:
                         x_pos = start_x + (col_idx * plot_width * 0.95 * cm)
