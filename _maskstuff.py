@@ -2,6 +2,7 @@ import json
 import warnings
 from glob import glob
 from os import path
+from pathlib import Path
 
 import numpy as np
 from scipy.io import loadmat
@@ -354,8 +355,8 @@ def maskROI(
             self._derivatives_path,
             "samsrf",
             self._prfanaAn,
-            self._subject,
-            self._session,
+            self.subject,
+            self.session,
             "occ.label",
         )
         occ_label = nib.freesurfer.read_label(occ_file)  # as this is coming from matlab
@@ -376,7 +377,7 @@ def maskROI(
                     f"analysis-01",
                     "sourcedata",
                     "freesurfer",
-                    self._subject,
+                    self.subject,
                     "surf",
                     "*h.benson14_varea.mgz",
                 )

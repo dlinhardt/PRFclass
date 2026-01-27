@@ -12,6 +12,7 @@ import json
 from copy import deepcopy
 from glob import glob
 from os import makedirs, path, remove
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
@@ -26,6 +27,48 @@ try:
     import neuropythy as ny
 except:
     print("neuropythy not installed, samsrf data not available")
+
+
+def _resolve_fs_subject_dir(
+    fs_dir: Path | str, sub: str, sess: str | None = None
+) -> Path:
+    """
+    Resolve FreeSurfer subject directory, checking for new layout if old doesn't exist.
+
+    Parameters
+    ----------
+    fs_dir : Path | str
+        Base FreeSurfer directory
+    sub : str
+        Subject ID
+    sess : str | None, optional
+        Session ID for new layout fallback
+
+    Returns
+    -------
+    Path
+        Resolved subject directory path
+    """
+    fs_dir = Path(fs_dir)
+    old_path = fs_dir / f"{sub}"
+
+    if old_path.exists():
+        return f"{sub}", str(old_path)
+
+    # Try new layout with session if available
+    if sess:
+        new_path = fs_dir / f"{sub}_{sess}"
+    if new_path.exists():
+        return f"{sub}_{sess}", str(new_path)
+
+    # Try to find any session directory for this subject
+    pattern = fs_dir / f"{sub}_ses-*"
+    matches = sorted(pattern.parent.glob(pattern.name))
+    if matches:
+        return f"{sub}_{sess}", str(matches[0])
+
+    # Return old path as default (will fail later if doesn't exist)
+    return f"{sub}", str(old_path)
 
 
 class label:
@@ -684,7 +727,7 @@ def plot_toSurface(
 
         if save:
             if self._dataFrom == "mrVista":
-                p = path.join(
+                plot_out_p = path.join(
                     self._baseP,
                     self._study,
                     "plots",
@@ -695,20 +738,36 @@ def plot_toSurface(
                 )
                 n = f"{self.subject}_{self.session}_{self._analysis}_hemi-{hemi_full[0].upper()}_desc-{param}_{surface}"
             else:
-                p, n = self._get_surfaceSavePath(param, hemi, surface)
-            if path.isfile(path.join(p, n + ".pdf")) and not force:
+                plot_out_p, n = self._get_surfaceSavePath(param, hemi, surface)
+            if path.isfile(path.join(plot_out_p, n + f".{output_format}")) and not force:
                 return
 
-            makedirs(p, exist_ok=True)
-
+            makedirs(plot_out_p, exist_ok=True)
         if create_gif:
-            p, n = self._get_surfaceSavePath(param, hemi)
-            if path.isfile(path.join(p, n + ".gif")) and not force:
+            plot_out_p, n = self._get_surfaceSavePath(param, hemi)
+            if path.isfile(path.join(plot_out_p, n + ".gif")) and not force:
                 return
 
-            makedirs(p, exist_ok=True)
+            makedirs(plot_out_p, exist_ok=True)
+        (
+            a,
+            p,
+        ) = _resolve_fs_subject_dir(fsP, plot_subject, self.session)
 
-        pialP = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
+        pialP = path.join(
+            p,
+            "surf",
+            f"{hemi[0].lower()}h.pial",
+        )
+        if not path.isfile(pialP):
+            pialP = path.join(
+                p,
+                "surf",
+                f"{hemi[0].lower()}h.pial.T1",
+            )
+        if not path.isfile(pialP):
+            raise RuntimeError(f"Pial surface not found, {pialP}!")
+
         pial = nib.freesurfer.read_geometry(pialP)
 
         nVertices = len(pial[0])
@@ -720,8 +779,16 @@ def plot_toSurface(
             data_in_3d = self.save_results(
                 params=[param + "0", "mask"], save=False, force=True
             )
-            fs_pial = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.pial")
-            fs_white = path.join(fsP, plot_subject, "surf", f"{hemi[0].lower()}h.white")
+            fs_pial = path.join(
+                p,
+                "surf",
+                f"{hemi[0].lower()}h.pial",
+            )
+            fs_white = path.join(
+                p,
+                "surf",
+                f"{hemi[0].lower()}h.white",
+            )
         else:
             if not hasattr(self, "_roiWhichHemi"):
                 raise RuntimeError(
@@ -822,7 +889,7 @@ def plot_toSurface(
 
         # plot the brain
         brain = Brain(
-            plot_subject,
+            a,
             f"{hemi[0].lower()}h",
             surface,
             subjects_dir=fsP,
@@ -951,7 +1018,7 @@ def plot_toSurface(
                 )
         else:
             if create_gif:
-                p, n = self._get_surfaceSavePath(param, hemi)
+                plot_out_p, n = self._get_surfaceSavePath(param, hemi)
 
                 if hemi[0].upper() == "L":
                     for iI, i in enumerate(np.linspace(-1, 89, 10)):
@@ -977,9 +1044,9 @@ def plot_toSurface(
                             },
                             roll=90,
                         )
-                        brain.save_image(path.join(p, f"frame-{iI}.png"))
+                        brain.save_image(path.join(plot_out_p, f"frame-{iI}.png"))
 
-                self._make_gif(p, n + ".gif")
+                self._make_gif(plot_out_p, n + ".gif")
 
             else:
                 if surface == "sphere":
@@ -1027,8 +1094,8 @@ def plot_toSurface(
                         )
 
         if save:
-            brain.save_image(path.join(p, n + f".{output_format}"))
-            print(f'new Cortex Map saved to {path.join(p, n + "." + output_format)}')
+            brain.save_image(path.join(plot_out_p, n + f".{output_format}"))
+            print(f'new Cortex Map saved to {path.join(plot_out_p, n + "." + output_format)}')
 
         if interactive:
             mlab.show(stop=True)
