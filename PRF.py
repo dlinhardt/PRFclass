@@ -37,6 +37,7 @@ class PRF:
     from ._loadadditionalstuff import loadJitter, loadRealign, loadStim
     from ._maskstuff import (
         _calcMask,
+        list_atlases_and_rois,
         maskBetaThresh,
         maskDartBoard,
         maskEcc,

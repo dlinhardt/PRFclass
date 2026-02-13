@@ -706,6 +706,61 @@ class PRFgroup:
         """
         self.iterate("maskBetaThresh", betaMax, doBorderThresh, doHighBetaThresh)
 
+    # --------------- INFO/LISTING FUNCTIONS ---------------#
+    def list_atlases_and_rois(self, subject=None, session=None, task=None, run=None, atlas=None):
+        """
+        List available atlases and ROIs for subject(s) in the group without masking.
+        
+        This method allows you to explore what atlases and ROIs are available
+        before calling maskROI(). You can specify a particular subject/session/task/run
+        combination or leave them blank to use the first subject in the group.
+        
+        Args:
+            subject (str, optional): Subject identifier. If None, uses first subject.
+            session (str, optional): Session identifier. If None, uses first session.
+            task (str, optional): Task identifier. If None, uses first task.
+            run (str, optional): Run identifier. If None, uses first run.
+            atlas (str or list, optional): Specific atlas(es) to show. If None, shows all.
+            
+        Returns:
+            dict: Dictionary with structure {atlas_name: [roi1, roi2, ...]}
+        """
+        # If no subject specified, use the first one
+        if subject is None:
+            subject = self.data.iloc[0]['subject']
+        if session is None:
+            session = self.data.iloc[0]['session']
+        if task is None:
+            # Try to get task if it exists
+            if 'task' in self.data.columns:
+                task = self.data.iloc[0]['task']
+        if run is None:
+            # Try to get run if it exists
+            if 'run' in self.data.columns:
+                run = self.data.iloc[0]['run']
+        
+        # Find the PRF object matching these criteria
+        prf_obj = None
+        for idx, row in self.data.iterrows():
+            if row['subject'] == subject and row['session'] == session:
+                # Check task and run if they exist
+                if 'task' in row:
+                    if task is not None and row['task'] != task:
+                        continue
+                if 'run' in row:
+                    if run is not None and row['run'] != run:
+                        continue
+                prf_obj = row['prf']
+                break
+        
+        if prf_obj is None:
+            print(f"[ERROR] Could not find PRF object for subject={subject}, session={session}")
+            print(f"        Available subjects: {self.data['subject'].unique().tolist()}")
+            return {}
+        
+        # Call the list_atlases_and_rois method on the PRF object
+        return prf_obj.list_atlases_and_rois(atlas=atlas)
+
     # ----------------------------------- QUERY ----------------------------------#
     def query(self, s, silent=False):
         """
@@ -1054,7 +1109,7 @@ class PRFgroup:
         Returns:
             np.ndarray: Combined eccentricity values.
         """
-        return self.__reduce__
+        return self._get_prf_property("ecc")
 
     @property
     def phi(self):

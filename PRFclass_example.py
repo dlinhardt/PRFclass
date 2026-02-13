@@ -6,9 +6,10 @@ p = "/z/fmrilab/home/dlinhardt/pythonclass"  # this is the path where you clone 
 if not p in sys.path:
     sys.path.append(p)
 
-from PRFclass import PRF, PRFgroup
 import numpy as np
 from matplotlib import pyplot as plt
+
+from PRFclass import PRF, PRFgroup
 
 # define some parameters
 path = "/z/fmri/data/"  # path to the study folder
@@ -19,7 +20,7 @@ remember, the data structure is as follows:
 /z/fmri/data/test_study/
 └── derivatives
     ├── prfanalyze-gem
-    │   └── analysis-01Graz
+    │   └── analysis-01Graz
     └── prfprepare
         └── analysis-01
 """
@@ -39,16 +40,21 @@ ana = PRF.from_docker(
     task=task,
     run=run,
     method="gem",
-    analysis="01Graz",
+    analysis="01",
     hemi="",  # here we load both hemispheres, alternatively use "L" or "R"
 )
 
 # mask the data for variance explained
-ana.maskVarExp(0.01)  # variance explained threshold in percent
+ana.maskVarExp(0.1)  # variance explained threshold in percent
+
+# you can print all available atlases and ROIs
+all_atlases_and_rois = ana.list_atlases_and_rois()
 
 # mask the data for a specific ROI, those are the two options:
-ana.maskROI("claus", "claus")
-# ana.maskROI("V1", 'wang')
+ana.maskROI("V1", "benson")
+
+# you can also mask multiple ROIs at once, e.g. V1 and V2
+# ana.maskROI(["V1","V2"], "benson")
 
 # now you can access the data, e.g. the x-position
 plt.hist(ana.x, bins=np.linspace(0, 5, 26))
@@ -71,13 +77,13 @@ anas = PRFgroup.from_docker(
     tasks=".*",
     runs=".*",
     method="gem",
-    prfanalyze="01Graz",
+    prfanalyze="01",
     hemi="",  # same as above, you can also choose just one hemisphere
 )
 
 # again as before, you can mask the data
-anas.maskVarExp(0.01)
-anas.maskROI("claus", "claus")
+anas.maskVarExp(0.1)
+anas.maskROI("V1", "benson")
 
 # access a dataframe holding all info
 # the ["prf"] field are instances of the original PRF class

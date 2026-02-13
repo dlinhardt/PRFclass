@@ -739,7 +739,10 @@ def plot_toSurface(
                 n = f"{self.subject}_{self.session}_{self._analysis}_hemi-{hemi_full[0].upper()}_desc-{param}_{surface}"
             else:
                 plot_out_p, n = self._get_surfaceSavePath(param, hemi, surface)
-            if path.isfile(path.join(plot_out_p, n + f".{output_format}")) and not force:
+            if (
+                path.isfile(path.join(plot_out_p, n + f".{output_format}"))
+                and not force
+            ):
                 return
 
             makedirs(plot_out_p, exist_ok=True)
@@ -1095,7 +1098,9 @@ def plot_toSurface(
 
         if save:
             brain.save_image(path.join(plot_out_p, n + f".{output_format}"))
-            print(f'new Cortex Map saved to {path.join(plot_out_p, n + "." + output_format)}')
+            print(
+                f'new Cortex Map saved to {path.join(plot_out_p, n + "." + output_format)}'
+            )
 
         if interactive:
             mlab.show(stop=True)

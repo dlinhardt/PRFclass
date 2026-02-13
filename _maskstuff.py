@@ -23,6 +23,113 @@ except Exception:
         RoiPack = None
 
 
+# ----------------------------------INFO/LISTING FUNCTIONS -------------------------#
+def list_atlases_and_rois(self, atlas=None):
+    """
+    List all available atlases and ROIs without masking the data.
+    
+    This function inspects the ROI pack files and displays what atlases and ROIs
+    are available for the current subject/session. Useful for exploring options
+    before calling maskROI().
+    
+    Args:
+        atlas (str or list, optional): Specific atlas(es) to show. If None, shows all.
+                                       Use 'all' or None to list all atlases.
+    
+    Returns:
+        dict: Dictionary with structure {atlas_name: [roi1, roi2, ...]}
+    """
+    
+    data_from = self._dataFrom
+    available_atlases_dict = {}
+    
+    if data_from == "mrVista":
+        print("[INFO] mrVista data does not use the RoiPack atlas system.")
+        print("[INFO] Available ROIs for mrVista are typically: V1, V2, V3")
+        return {"mrVista": ["V1", "V2", "V3"]}
+    
+    elif data_from in ["docker", "hdf5"]:
+        # Construct path to ROI pack
+        roipack_dir = path.join(
+            self._derivatives_path,
+            "prfprepare",
+            f"analysis-{self.prfprepare_analysis}",
+            self._subject,
+        )
+        h5_file = path.join(roipack_dir, "all_roi_masks.h5")
+        meta_file = path.join(roipack_dir, "all_roi_masks_meta.json")
+        
+        if RoiPack is None:
+            print("[ERROR] RoiPack not available. Cannot list atlases and ROIs.")
+            return {}
+        
+        if not path.isfile(h5_file) or not path.isfile(meta_file):
+            print(f"[WARNING] ROI pack files not found at: {roipack_dir}")
+            print(f"  Looking for: {h5_file}")
+            print(f"  Looking for: {meta_file}")
+            return {}
+        
+        try:
+            # Load metadata and initialize RoiPack
+            with open(meta_file, "r") as f:
+                meta = json.load(f)
+            
+            rp = RoiPack(
+                key=meta["key"],
+                h5_path=h5_file,
+                meta=meta,
+            )
+            
+            # Select grid based on analysis space
+            try:
+                rp.select_grid_for_input(self.analysisSpace)
+            except Exception as e:
+                print(f"[WARNING] Grid selection failed: {e}")
+                return {}
+            
+            # Get list of available atlases
+            all_atlases = rp.list_atlases()
+            
+            if not all_atlases:
+                print("[WARNING] No atlases found in ROI pack.")
+                return {}
+            
+            # Filter atlases if requested
+            atlases_to_show = all_atlases
+            if atlas is not None:
+                if isinstance(atlas, str):
+                    atlases_to_show = [atlas] if atlas.lower() != "all" else all_atlases
+                elif isinstance(atlas, list):
+                    atlases_to_show = [a for a in atlas if a in all_atlases]
+            
+            # Get ROIs for each atlas and display
+            print("\n" + "="*70)
+            print(f"AVAILABLE ATLASES AND ROIs for {self._subject} (analysis space: {self.analysisSpace})")
+            print("="*70)
+            
+            for atlas_name in atlases_to_show:
+                rois = rp.list_rois(atlas_name)
+                available_atlases_dict[atlas_name] = sorted(rois)
+                print(f"\n[ATLAS] {atlas_name} ({len(rois)} ROIs)")
+                print(f"  ROIs: {', '.join(sorted(rois))}")
+            
+            print("\n" + "="*70 + "\n")
+            
+            return available_atlases_dict
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to list atlases and ROIs: {e}")
+            return {}
+    
+    elif data_from == "samsrf":
+        print("[INFO] samsrf data may use different ROI systems. Please check the specific data.")
+        return {}
+    
+    else:
+        print(f"[WARNING] Unknown data source: {data_from}")
+        return {}
+
+
 # ----------------------------------MASKING-----------------------------------#
 def maskROI(
     self, area="V1", atlas="benson", doV123=False, forcePath=False, masking_style=None
