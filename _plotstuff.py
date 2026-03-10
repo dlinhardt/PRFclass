@@ -14,6 +14,7 @@ from glob import glob
 from os import makedirs, path, remove
 from pathlib import Path
 
+import h5py
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import nibabel as nib
@@ -976,10 +977,16 @@ def plot_toSurface(
 
             areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
-            posSaveFile = f"{positioning_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.npy"
+            posSaveFile = (
+                f"{positioning_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.h5"
+            )
             posPath = path.join(posSavePath, posSaveFile)
+            posPath_npy = path.join(posSavePath, posSaveFile.replace(".h5", ".npy"))
 
-            if not path.isfile(posPath) or forceNewPosition:
+            if (
+                not (path.isfile(posPath) or path.isfile(posPath_npy))
+                or forceNewPosition
+            ):
                 if hemi[0].upper() == "L":
                     brain.show_view(
                         {
@@ -1003,22 +1010,68 @@ def plot_toSurface(
 
                 print(posPath)
 
-                mlab.show(stop=True)
-                pos = np.array(brain.show_view(), dtype="object")
-                np.save(posPath, pos.astype("object"), allow_pickle=True)
-                # print(pos)
-            else:
-                pos = np.load(posPath, allow_pickle=True)
-                # print(pos)
-                brain.show_view(
-                    {
-                        "azimuth": pos[0][0],
-                        "elevation": pos[0][1],
-                        "distance": pos[0][2],
-                        "focalpoint": pos[0][3],
-                    },
-                    roll=pos[1],
+                print(
+                    "\nPosition the brain, then close the window to save the position.\n"
                 )
+                mlab.show(stop=True)
+
+                # Read position after window close
+                try:
+                    _captured_view = brain.show_view()
+                except Exception:
+                    _captured_view = None
+
+                if _captured_view is not None:
+                    view_info, roll_val = _captured_view
+                    if not isinstance(view_info, dict):
+                        view_info = {
+                            "azimuth": view_info[0],
+                            "elevation": view_info[1],
+                            "distance": view_info[2],
+                            "focalpoint": view_info[3],
+                        }
+                    with h5py.File(posPath, "w") as f:
+                        f.create_dataset("azimuth", data=float(view_info["azimuth"]))
+                        f.create_dataset(
+                            "elevation", data=float(view_info["elevation"])
+                        )
+                        f.create_dataset("distance", data=float(view_info["distance"]))
+                        f.create_dataset(
+                            "focalpoint", data=np.array(view_info["focalpoint"])
+                        )
+                        f.create_dataset("roll", data=float(roll_val))
+                else:
+                    print(f"Warning: Could not save brain position to {posPath}")
+
+            else:
+                if path.isfile(posPath):
+                    # Load from h5 (current format)
+                    with h5py.File(posPath, "r") as f:
+                        view_info = {
+                            "azimuth": float(f["azimuth"][()]),
+                            "elevation": float(f["elevation"][()]),
+                            "distance": float(f["distance"][()]),
+                            "focalpoint": f["focalpoint"][()],
+                        }
+                        roll_val = float(f["roll"][()])
+                    brain.show_view(view_info, roll=roll_val)
+                else:
+                    # Backward compat: load legacy .npy file
+                    pos = np.load(posPath_npy, allow_pickle=True)
+                    view_info = pos[0]
+                    roll_val = pos[1]
+                    if isinstance(view_info, dict):
+                        brain.show_view(view_info, roll=roll_val)
+                    else:
+                        brain.show_view(
+                            {
+                                "azimuth": view_info[0],
+                                "elevation": view_info[1],
+                                "distance": view_info[2],
+                                "focalpoint": view_info[3],
+                            },
+                            roll=roll_val,
+                        )
         else:
             if create_gif:
                 plot_out_p, n = self._get_surfaceSavePath(param, hemi)
