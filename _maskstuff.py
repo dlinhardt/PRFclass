@@ -64,10 +64,8 @@ def list_atlases_and_rois(self, atlas=None):
             return {}
         
         if not path.isfile(h5_file) or not path.isfile(meta_file):
-            print(f"[WARNING] ROI pack files not found at: {roipack_dir}")
-            print(f"  Looking for: {h5_file}")
-            print(f"  Looking for: {meta_file}")
-            return {}
+            # Fall back to legacy maskinfo.json system
+            return _list_atlases_and_rois_legacy(self, atlas=atlas)
         
         try:
             # Load metadata and initialize RoiPack
@@ -128,6 +126,72 @@ def list_atlases_and_rois(self, atlas=None):
     else:
         print(f"[WARNING] Unknown data source: {data_from}")
         return {}
+
+
+def _list_atlases_and_rois_legacy(self, atlas=None):
+    """List atlases and ROIs from legacy per-ROI maskinfo.json files."""
+    roipack_dir = path.join(
+        self._derivatives_path,
+        "prfprepare",
+        f"analysis-{self.prfprepare_analysis}",
+        self._subject,
+        self._session,
+        "func",
+    )
+
+    all_files = sorted(
+        glob(
+            path.join(
+                roipack_dir,
+                f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
+            )
+        )
+    )
+
+    if not all_files:
+        print(f"[WARNING] No maskinfo.json files found at: {roipack_dir}")
+        return {}
+
+    # Parse atlas and area from each filename
+    available_atlases_dict = {}
+    for f in all_files:
+        basename = path.basename(f)
+        desc = basename.split("desc-")[1].split("_maskinfo")[0]
+        parts = desc.split("-")
+        area_name = parts[0]
+        atlas_name = parts[1] if len(parts) > 1 else "unknown"
+        if atlas_name not in available_atlases_dict:
+            available_atlases_dict[atlas_name] = set()
+        available_atlases_dict[atlas_name].add(area_name)
+
+    # Convert sets to sorted lists
+    available_atlases_dict = {k: sorted(v) for k, v in available_atlases_dict.items()}
+
+    # Filter by requested atlas
+    if atlas is not None and isinstance(atlas, str) and atlas.lower() != "all":
+        available_atlases_dict = {
+            k: v for k, v in available_atlases_dict.items() if k == atlas
+        }
+    elif atlas is not None and isinstance(atlas, list):
+        available_atlases_dict = {
+            k: v for k, v in available_atlases_dict.items() if k in atlas
+        }
+
+    if not available_atlases_dict:
+        print(f"[WARNING] No atlases found in legacy maskinfo.json files.")
+        return {}
+
+    print("\n" + "=" * 70)
+    print(
+        f"AVAILABLE ATLASES AND ROIs for {self._subject} (legacy maskinfo.json, analysis space: {self.analysisSpace})"
+    )
+    print("=" * 70)
+    for atlas_name, rois in available_atlases_dict.items():
+        print(f"\n[ATLAS] {atlas_name} ({len(rois)} ROIs)")
+        print(f"  ROIs: {', '.join(rois)}")
+    print("\n" + "=" * 70 + "\n")
+
+    return available_atlases_dict
 
 
 # ----------------------------------MASKING-----------------------------------#
