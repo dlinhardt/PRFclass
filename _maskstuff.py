@@ -24,174 +24,118 @@ except Exception:
 
 
 # ----------------------------------INFO/LISTING FUNCTIONS -------------------------#
-def list_atlases_and_rois(self, atlas=None):
-    """
-    List all available atlases and ROIs without masking the data.
-    
-    This function inspects the ROI pack files and displays what atlases and ROIs
-    are available for the current subject/session. Useful for exploring options
-    before calling maskROI().
-    
-    Args:
-        atlas (str or list, optional): Specific atlas(es) to show. If None, shows all.
-                                       Use 'all' or None to list all atlases.
-    
-    Returns:
-        dict: Dictionary with structure {atlas_name: [roi1, roi2, ...]}
-    """
-    
-    data_from = self._dataFrom
-    available_atlases_dict = {}
-    
-    if data_from == "mrVista":
-        print("[INFO] mrVista data does not use the RoiPack atlas system.")
-        print("[INFO] Available ROIs for mrVista are typically: V1, V2, V3")
-        return {"mrVista": ["V1", "V2", "V3"]}
-    
-    elif data_from in ["docker", "hdf5"]:
-        # Construct path to ROI pack
-        roipack_dir = path.join(
-            self._derivatives_path,
-            "prfprepare",
-            f"analysis-{self.prfprepare_analysis}",
-            self._subject,
-        )
-        h5_file = path.join(roipack_dir, "all_roi_masks.h5")
-        meta_file = path.join(roipack_dir, "all_roi_masks_meta.json")
-        
-        if RoiPack is None:
-            print("[ERROR] RoiPack not available. Cannot list atlases and ROIs.")
-            return {}
-        
-        if not path.isfile(h5_file) or not path.isfile(meta_file):
-            # Fall back to legacy maskinfo.json system
-            return _list_atlases_and_rois_legacy(self, atlas=atlas)
-        
-        try:
-            # Load metadata and initialize RoiPack
-            with open(meta_file, "r") as f:
-                meta = json.load(f)
-            
-            rp = RoiPack(
-                key=meta["key"],
-                h5_path=h5_file,
-                meta=meta,
-            )
-            
-            # Select grid based on analysis space
-            try:
-                rp.select_grid_for_input(self.analysisSpace)
-            except Exception as e:
-                print(f"[WARNING] Grid selection failed: {e}")
-                return {}
-            
-            # Get list of available atlases
-            all_atlases = rp.list_atlases()
-            
-            if not all_atlases:
-                print("[WARNING] No atlases found in ROI pack.")
-                return {}
-            
-            # Filter atlases if requested
-            atlases_to_show = all_atlases
-            if atlas is not None:
-                if isinstance(atlas, str):
-                    atlases_to_show = [atlas] if atlas.lower() != "all" else all_atlases
-                elif isinstance(atlas, list):
-                    atlases_to_show = [a for a in atlas if a in all_atlases]
-            
-            # Get ROIs for each atlas and display
-            print("\n" + "="*70)
-            print(f"AVAILABLE ATLASES AND ROIs for {self._subject} (analysis space: {self.analysisSpace})")
-            print("="*70)
-            
-            for atlas_name in atlases_to_show:
-                rois = rp.list_rois(atlas_name)
-                available_atlases_dict[atlas_name] = sorted(rois)
-                print(f"\n[ATLAS] {atlas_name} ({len(rois)} ROIs)")
-                print(f"  ROIs: {', '.join(sorted(rois))}")
-            
-            print("\n" + "="*70 + "\n")
-            
-            return available_atlases_dict
-            
-        except Exception as e:
-            print(f"[ERROR] Failed to list atlases and ROIs: {e}")
-            return {}
-    
-    elif data_from == "samsrf":
-        print("[INFO] samsrf data may use different ROI systems. Please check the specific data.")
-        return {}
-    
-    else:
-        print(f"[WARNING] Unknown data source: {data_from}")
-        return {}
+def _get_available_atlases_and_rois(self):
+    """Return all available atlases/ROIs and legacy maskinfo files as a plain data dict.
 
+    Returns
+    -------
+    dict with keys:
+        "atlases"    : dict[atlas_name -> list[roi_name]]  (always present)
+        "area_files" : list[str]  legacy maskinfo.json paths (empty when RoiPack is used)
+        "source"     : "roipack" | "legacy" | "mrVista" | "samsrf" | "unknown"
+    """
+    result = {"atlases": {}, "area_files": [], "source": "unknown"}
 
-def _list_atlases_and_rois_legacy(self, atlas=None):
-    """List atlases and ROIs from legacy per-ROI maskinfo.json files."""
+    if self._dataFrom == "mrVista":
+        result["atlases"] = {"mrVista": ["V1", "V2", "V3"]}
+        result["source"] = "mrVista"
+        return result
+
+    if self._dataFrom == "samsrf":
+        result["source"] = "samsrf"
+        # samsrf exposes area files directly
+        if hasattr(self, "_area_files_p"):
+            result["area_files"] = self._area_files_p
+        return result
+
+    if self._dataFrom not in ("docker", "hdf5"):
+        return result
+
     roipack_dir = path.join(
         self._derivatives_path,
         "prfprepare",
         f"analysis-{self.prfprepare_analysis}",
         self._subject,
-        self._session,
-        "func",
     )
+    h5_file = path.join(roipack_dir, "all_roi_masks.h5")
+    meta_file = path.join(roipack_dir, "all_roi_masks_meta.json")
 
-    all_files = sorted(
+    # --- RoiPack path ---
+    if RoiPack is not None and path.isfile(h5_file) and path.isfile(meta_file):
+        try:
+            with open(meta_file, "r") as f:
+                meta = json.load(f)
+            rp = RoiPack(key=meta["key"], h5_path=h5_file, meta=meta)
+            rp.select_grid_for_input(self.analysisSpace)
+            for at in rp.list_atlases():
+                result["atlases"][at] = sorted(rp.list_rois(at))
+            result["source"] = "roipack"
+            result["roipack"] = rp
+            return result
+        except Exception:
+            pass  # fall through to legacy
+
+    # --- Legacy maskinfo.json path ---
+    legacy_files = sorted(
         glob(
             path.join(
-                roipack_dir,
+                self._derivatives_path,
+                "prfprepare",
+                f"analysis-{self.prfprepare_analysis}",
+                self._subject,
+                self._session,
+                "func",
                 f"{self._subject}_{self._session}_hemi-*_desc-*-*_maskinfo.json",
             )
         )
     )
-
-    if not all_files:
-        print(f"[WARNING] No maskinfo.json files found at: {roipack_dir}")
-        return {}
-
-    # Parse atlas and area from each filename
-    available_atlases_dict = {}
-    for f in all_files:
-        basename = path.basename(f)
-        desc = basename.split("desc-")[1].split("_maskinfo")[0]
+    result["area_files"] = legacy_files
+    result["source"] = "legacy"
+    for f in legacy_files:
+        desc = path.basename(f).split("desc-")[1].split("_maskinfo")[0]
         parts = desc.split("-")
         area_name = parts[0]
         atlas_name = parts[1] if len(parts) > 1 else "unknown"
-        if atlas_name not in available_atlases_dict:
-            available_atlases_dict[atlas_name] = set()
-        available_atlases_dict[atlas_name].add(area_name)
+        result["atlases"].setdefault(atlas_name, [])
+        if area_name not in result["atlases"][atlas_name]:
+            result["atlases"][atlas_name].append(area_name)
+    for at in result["atlases"]:
+        result["atlases"][at] = sorted(result["atlases"][at])
+    return result
 
-    # Convert sets to sorted lists
-    available_atlases_dict = {k: sorted(v) for k, v in available_atlases_dict.items()}
 
-    # Filter by requested atlas
-    if atlas is not None and isinstance(atlas, str) and atlas.lower() != "all":
-        available_atlases_dict = {
-            k: v for k, v in available_atlases_dict.items() if k == atlas
-        }
-    elif atlas is not None and isinstance(atlas, list):
-        available_atlases_dict = {
-            k: v for k, v in available_atlases_dict.items() if k in atlas
-        }
+def list_atlases_and_rois(self, atlas=None):
+    """Print and return available atlases and ROIs for the current subject/session.
 
-    if not available_atlases_dict:
-        print(f"[WARNING] No atlases found in legacy maskinfo.json files.")
+    Args:
+        atlas (str or list, optional): Filter to specific atlas(es). None shows all.
+
+    Returns:
+        dict: {atlas_name: [roi1, roi2, ...]}
+    """
+    info = _get_available_atlases_and_rois(self)
+    atlases = info["atlases"]
+
+    if not atlases:
+        print(f"[WARNING] No atlases found (source: {info['source']})")
         return {}
 
-    print("\n" + "=" * 70)
-    print(
-        f"AVAILABLE ATLASES AND ROIs for {self._subject} (legacy maskinfo.json, analysis space: {self.analysisSpace})"
-    )
-    print("=" * 70)
-    for atlas_name, rois in available_atlases_dict.items():
-        print(f"\n[ATLAS] {atlas_name} ({len(rois)} ROIs)")
-        print(f"  ROIs: {', '.join(rois)}")
-    print("\n" + "=" * 70 + "\n")
+    # Apply atlas filter
+    if atlas is not None:
+        filter_list = [atlas] if isinstance(atlas, str) and atlas.lower() != "all" else (
+            atlas if isinstance(atlas, list) else list(atlases.keys())
+        )
+        atlases = {k: v for k, v in atlases.items() if k in filter_list}
 
-    return available_atlases_dict
+    print(f"\n{'='*70}")
+    print(f"AVAILABLE ATLASES AND ROIs for {self._subject}  [{info['source']}, space: {self.analysisSpace}]")
+    print(f"{'='*70}")
+    for at, rois in atlases.items():
+        print(f"\n  {at}  ({len(rois)} ROIs)")
+        print(f"    {', '.join(rois)}")
+    print(f"\n{'='*70}\n")
+
+    return atlases
 
 
 # ----------------------------------MASKING-----------------------------------#
@@ -779,6 +723,7 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
     self._roiMsk = roi_mask
 
     self._isROIMasked = 1
+    
     return True
 
 

@@ -24,6 +24,8 @@ from matplotlib.widgets import Button, Slider
 from nilearn.surface import vol_to_surf
 from PIL import Image
 
+from ._maskstuff import _get_available_atlases_and_rois
+
 try:
     import neuropythy as ny
 except:
@@ -59,14 +61,15 @@ def _resolve_fs_subject_dir(
     # Try new layout with session if available
     if sess:
         new_path = fs_dir / f"{sub}_{sess}"
-    if new_path.exists():
-        return f"{sub}_{sess}", str(new_path)
+        if new_path.exists():
+            return f"{sub}_{sess}", str(new_path)
 
     # Try to find any session directory for this subject
     pattern = fs_dir / f"{sub}_ses-*"
     matches = sorted(pattern.parent.glob(pattern.name))
     if matches:
-        return f"{sub}_{sess}", str(matches[0])
+        match_name = matches[0].name
+        return match_name, str(matches[0])
 
     # Return old path as default (will fail later if doesn't exist)
     return f"{sub}", str(old_path)
@@ -74,39 +77,55 @@ def _resolve_fs_subject_dir(
 
 class label:
     """
-    Mini class that defines a label, needed to plot borders
+    Mini class that defines a label, needed to plot borders.
+    Accepts a roi_info dict from _get_available_atlases_and_rois.
     """
 
-    def __init__(self, ar, at, he, allAreaFiles, left_hemi):
+    def __init__(self, ar, at, he, roi_info, left_hemi):
         self.name = ar
         self.hemi = he[0].lower()[0] + "h"
+        h = he[0].lower()
 
-        if not "sourcedata/freesurfer" in allAreaFiles[0]:
-            vJsonName = [
-                j
-                for j in allAreaFiles
-                if f"hemi-{he[0].upper()}_" in path.basename(j)
-                and f"desc-{ar}-" in path.basename(j)
-                and at in path.basename(j)
-            ][0]
-            with open(vJsonName, "r") as fl:
-                maskinfo = json.load(fl)
+        source = roi_info.get("source", "legacy")
 
-            if "roiIndOrig" in maskinfo.keys():
-                self.vertices = np.array(maskinfo["roiIndOrig"])
+        if source == "roipack":
+            # Pull original-space vertex indices directly from the h5
+            rp = roi_info["roipack"]
+            self.vertices = rp.get_original_space_indices(at, ar, h)
+
+        elif source in ("legacy", "samsrf"):
+            area_files = roi_info["area_files"]
+
+            if area_files and "sourcedata/freesurfer" in area_files[0]:
+                # samsrf / freesurfer annotation path
+                f = [j for j in area_files if f"/{h}h." in j][0]
+                maskinfo = nib.load(f).get_fdata().squeeze()
+                mdl = ny.vision.retinotopy_model("benson17", "lh")
+                areaLabels = dict(mdl.area_id_to_name)
+                areaLabels = {areaLabels[k]: k for k in areaLabels}
+                self.vertices = np.where(maskinfo == areaLabels[ar])
+                if he[0].upper() == "R":
+                    self.vertices -= left_hemi
             else:
-                key = [a for a in maskinfo.keys() if a.startswith("roiIndFs")][0]
-                self.vertices = np.array(maskinfo[key])
+                # Legacy per-ROI maskinfo.json path
+                vJsonName = [
+                    j
+                    for j in area_files
+                    if f"hemi-{he[0].upper()}_" in path.basename(j)
+                    and f"desc-{ar}-" in path.basename(j)
+                    and at in path.basename(j)
+                ][0]
+                with open(vJsonName, "r") as fl:
+                    maskinfo = json.load(fl)
+
+                if "roiIndOrig" in maskinfo:
+                    self.vertices = np.array(maskinfo["roiIndOrig"])
+                else:
+                    key = [k for k in maskinfo if k.startswith("roiIndFs")][0]
+                    self.vertices = np.array(maskinfo[key])
+
         else:
-            f = [j for j in allAreaFiles if f"/{he[0].lower()}h."][0]
-            maskinfo = nib.load(f).get_fdata().squeeze()
-            mdl = ny.vision.retinotopy_model("benson17", "lh")
-            areaLabels = dict(mdl.area_id_to_name)
-            areaLabels = {areaLabels[k]: k for k in areaLabels}
-            labels = areaLabels[ar]
-            self.vertices = np.where(maskinfo == labels)
-            if he.upper() == "R":
-                self.vertices -= left_hemi
+            raise ValueError(f"Cannot draw borders: unsupported roi source '{source}'")
 
 
 # ----------------------------------------------------------------------------#
@@ -809,7 +828,7 @@ def plot_toSurface(
 
         # depending on used parameter set the plot data, colormap und ranges
         if isinstance(param, str):
-            if param == "ecc":
+            if param in ["r", "ecc", "eccentricity", "radius"]:
                 if need_to_convert:
                     plotData = vol_to_surf(
                         data_in_3d["r0"],
@@ -822,7 +841,7 @@ def plot_toSurface(
                 cmap = "rainbow_r"
                 datMin, datMax = 0, maxEcc
 
-            elif param == "pol":
+            elif param in ["pol", "polar", "polar angle"]:
                 if need_to_convert:
                     plotData = vol_to_surf(
                         data_in_3d["phi0"],
@@ -837,7 +856,7 @@ def plot_toSurface(
                 )
                 datMin, datMax = 0, 2 * np.pi
 
-            elif param == "sig":
+            elif param in ["s", "sig", "sigma", "size", "pRF size"]:
                 if need_to_convert:
                     plotData = vol_to_surf(
                         data_in_3d["s0"],
@@ -850,7 +869,14 @@ def plot_toSurface(
                 cmap = "rainbow_r"
                 datMin, datMax = 0, 4
 
-            elif param == "var":
+            elif param in [
+                "var",
+                "variance",
+                "variance explained",
+                "varexp",
+                "R2",
+                "r2",
+            ]:
                 if need_to_convert:
                     plotData = vol_to_surf(
                         data_in_3d["varexp0"],
@@ -921,37 +947,36 @@ def plot_toSurface(
 
         # print borders (freesurfer)
         if showBordersArea is not None and showBordersAtlas is not None:
-            if showBordersAtlas == "all":
-                ats = self._atlas
+            roi_info = _get_available_atlases_and_rois(self)
+
+            if self._dataFrom == "samsrf":
+                roi_info["area_files"] = self._area_files_p
+                left_hemi = self._vertices_left_hemi
+            else:
+                left_hemi = None
+
+            available_ats = list(roi_info["atlases"].keys())
+            if showBordersAtlas == "all" or showBordersAtlas is True:
+                ats = available_ats
             elif isinstance(showBordersAtlas, list):
                 ats = showBordersAtlas
-            elif isinstance(showBordersAtlas, str):
-                ats = [showBordersAtlas]
-            elif showBordersAtlas is True:
-                ats = ["benson"]
-
-            if isinstance(showBordersArea, list):
-                ars = showBordersArea
             else:
-                ars = self._area
+                ats = [showBordersAtlas]
+
+            ars = (
+                showBordersArea
+                if isinstance(showBordersArea, list)
+                else [showBordersArea]
+            )
 
             for at in ats:
                 for ar in ars:
-                    try:
-                        if self._dataFrom == "samsrf":
-                            aaf = self._area_files_p
-                            left_hemi = self._vertices_left_hemi
-                        else:
-                            aaf = self._allAreaFiles
-                            left_hemi = None
-                        brain.add_label(
-                            label(ar, at, hemi, aaf, left_hemi),
-                            borders=True,
-                            color="black",
-                            alpha=0.7,
-                        )
-                    except:
-                        pass
+                    brain.add_label(
+                        label(ar, at, hemi, roi_info, left_hemi),
+                        borders=True,
+                        color="black",
+                        alpha=0.7,
+                    )
 
         # save the positioning for left and right once per subject
         if manualPosition:
@@ -1109,7 +1134,7 @@ def plot_toSurface(
                     if hemi[0].upper() == "L":
                         brain.show_view(
                             {
-                                "azimuth": -80,
+                                "azimuth": -75,
                                 "elevation": 125,
                                 "distance": 500,
                                 "focalpoint": np.array([0, 0, 0]),
@@ -1119,7 +1144,7 @@ def plot_toSurface(
                     elif hemi[0].upper() == "R":
                         brain.show_view(
                             {
-                                "azimuth": 80,
+                                "azimuth": 75,
                                 "elevation": -125,
                                 "distance": 500,
                                 "focalpoint": np.array([0, 0, 0]),

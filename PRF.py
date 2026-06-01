@@ -1,3 +1,5 @@
+import os
+os.environ["QT_API"] = "pyqt5"
 import json
 from glob import glob
 from os import path
@@ -5,9 +7,6 @@ from os import path
 import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
-
-# class for loading mrVista results
-
 
 class PRF:
     """
@@ -37,6 +36,7 @@ class PRF:
     from ._loadadditionalstuff import loadJitter, loadRealign, loadStim
     from ._maskstuff import (
         _calcMask,
+        _get_available_atlases_and_rois,
         list_atlases_and_rois,
         maskBetaThresh,
         maskDartBoard,
@@ -398,6 +398,15 @@ class PRF:
     def params(self):
         """Parameter object(s) loaded from source."""
         return self._params
+
+    @property
+    def available_atlases_and_rois(self):
+        """dict: All atlases and ROIs available for this subject/session.
+
+        Returns {atlas_name: [roi1, roi2, ...]} and prints a summary table.
+        Works regardless of whether RoiPack or legacy maskinfo.json files are present.
+        """
+        return self.list_atlases_and_rois()
 
     # -------------------------- DO MASKING? --------------------------#
     @property
