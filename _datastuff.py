@@ -83,6 +83,34 @@ def init_variables(self):
                 Warning(
                     "DeepRF results should be loaded with orientation MP, not {self._orientation}"
                 )
+        # gem HDF5: estimates are dicts of numpy arrays (not list-of-dicts)
+        elif (
+            isinstance(self._estimates[0], dict)
+            and "Centerx0" in self._estimates[0]
+            and isinstance(self._estimates[0]["Centerx0"], np.ndarray)
+        ):
+            self._x0      = np.hstack([e["Centerx0"]  for e in self._estimates])
+            self._s0      = np.abs(np.hstack([e["sigmaMajor"] for e in self._estimates]))
+            self._varexp0 = np.hstack([e["R2"]         for e in self._estimates])
+            if self._orientation == "VF":
+                self._y0 = -np.hstack([e["Centery0"] for e in self._estimates])
+            else:
+                self._y0 =  np.hstack([e["Centery0"] for e in self._estimates])
+            if "_maxEcc" in self._estimates[0]:
+                self._maxEcc = np.float32(self._estimates[0]["_maxEcc"])
+            if "_model" in self._estimates[0]:
+                self._gem_model = self._estimates[0]["_model"]
+            if "_hrf" in self._estimates[0]:
+                self._gem_hrf = self._estimates[0]["_hrf"]
+            if "_run_type" in self._estimates[0]:
+                self._gem_run_type = self._estimates[0]["_run_type"]
+            if "_duration_sec" in self._estimates[0]:
+                self._gem_duration_sec = self._estimates[0]["_duration_sec"]
+            if "_input_files" in self._estimates[0]:
+                self._gem_input_files = self._estimates[0]["_input_files"]
+            if "_stimulus_filepath" in self._estimates[0]:
+                self._gem_stimulus_filepath = self._estimates[0]["_stimulus_filepath"]
+
         else:
             if "Centerx0" in self._estimates[0][0].keys():
                 self._x0 = np.array(
@@ -417,21 +445,42 @@ def from_docker(
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
-        estimates = path.join(
+        stem = path.join(
             derivatives_path,
             prfanaMe,
             prfanaAn,
             subject,
             session,
-            f"{subject}_{session}_{task}_{run}_hemi-{h}_estimates.json",
+            f"{subject}_{session}_{task}_{run}_hemi-{h}_estimates",
         )
-        try:
-            with open(estimates, "r") as fl:
+        h5_path   = stem + ".h5"
+        json_path = stem + ".json"
+
+        if path.isfile(h5_path):
+            with h5py.File(h5_path, "r") as f:
+                this_est = {k: f["parameters"][k][()] for k in f["parameters"].keys()}
+                if "metadata/search_space/visual_field_radius" in f:
+                    this_est["_maxEcc"] = float(f["metadata/search_space/visual_field_radius"][()])
+                if "metadata/analysis/model" in f:
+                    this_est["_model"] = str(f["metadata/analysis/model"][()])
+                if "metadata/hrf" in f:
+                    this_est["_hrf"] = {k: f[f"metadata/hrf/{k}"][()] for k in f["metadata/hrf"].keys()}
+                if "metadata/run_info/run_type" in f:
+                    this_est["_run_type"] = str(f["metadata/run_info/run_type"][()])
+                if "metadata/run_info/analysis_duration_sec" in f:
+                    this_est["_duration_sec"] = float(f["metadata/run_info/analysis_duration_sec"][()])
+                if "metadata/input_files/measured_data" in f:
+                    this_est["_input_files"] = list(f["metadata/input_files/measured_data"][()])
+                if "metadata/input_files/stimulus_filepath" in f:
+                    this_est["_stimulus_filepath"] = str(f["metadata/input_files/stimulus_filepath"][()])
+        elif path.isfile(json_path):
+            with open(json_path, "r") as fl:
                 this_est = json.load(fl)
-        except FileNotFoundError as e:
+        else:
             raise FileNotFoundError(
-                f"Could not find estimates file: {path.basename(estimates)}! Please check the params and try again."
-            ) from e
+                f"Could not find estimates file (.h5 or .json): "
+                f"{path.basename(h5_path)}! Please check the params and try again."
+            )
 
         est.append(this_est)
 
