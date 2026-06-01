@@ -545,6 +545,14 @@ class PRF:
         return self.varexp0[self.mask]
 
     @property
+    def r2(self):
+        return self.varexp
+
+    @property
+    def R2(self):
+        return self.varexp
+
+    @property
     def varexp_easy(self):
         return self.varexp_easy0[self.mask]
 
