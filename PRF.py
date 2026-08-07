@@ -15,6 +15,8 @@ class PRF:
     Use the alternative constructors (from_mrVista, from_docker, etc.) to initialize.
     """
 
+    from ._version import __version__
+
     # load in all the other files with functions
     from ._calculatestuff import (
         calc_kde_diff,

@@ -33,6 +33,8 @@ class PRFgroup:
     Provides methods for batch masking, querying, and property aggregation.
     """
 
+    from ._version import __version__
+
     def __init__(
         self,
         data_from,
