@@ -1,6 +1,3 @@
-import os
-
-os.environ["QT_API"] = "pyqt5"
 import re
 import tempfile
 from fnmatch import translate as fnmatch_translate

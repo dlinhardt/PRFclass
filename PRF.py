@@ -1,5 +1,3 @@
-import os
-os.environ["QT_API"] = "pyqt5"
 import json
 from glob import glob
 from os import path
@@ -33,7 +31,18 @@ class PRF:
         init_variables,
         spm_hrf_compat,
     )
-    from ._loadadditionalstuff import loadJitter, loadRealign, loadStim
+    from ._loadadditionalstuff import (
+        _gem_convolved_stimulus,
+        _gem_modelsignal,
+        _gem_num_frames,
+        _gem_scale_to_data,
+        _gem_stim_cache_path,
+        _gem_stimulus_file,
+        loadJitter,
+        loadRealign,
+        loadStim,
+        r2_against,
+    )
     from ._maskstuff import (
         _calcMask,
         _get_available_atlases_and_rois,
@@ -45,7 +54,9 @@ class PRF:
         maskSigma,
         maskVarExp,
     )
+    from ._flatmapstuff import plot_toFlatmap, prepare_flatmap_surface
     from ._plotstuff import (
+        _build_surface_overlay,
         _calcCovMap,
         _createmask,
         _get_covMap_savePath,
@@ -350,10 +361,84 @@ class PRF:
 
         return self._voxelTC0.astype(np.float32)
 
+    def _stored_modelpred(self):
+        """Model predictions as stored by the analysis, or None if unusable.
+
+        Handles both estimate layouts: the older list-of-dicts (one dict per
+        voxel) and gem's dict-of-arrays (one dict per hemisphere).
+
+        gem currently never stores a real one -- both write paths in
+        run_gem_prf_analysis.py pass refined_signals_present=False -- so what
+        lands in the h5 is a (nVertices, 1) placeholder. Returning None here
+        sends the caller to the recomputation path.
+        """
+        try:
+            if isinstance(self._estimates[0], dict):
+                mp = np.vstack([np.asarray(e["modelpred"]) for e in self._estimates])
+            else:
+                mp = np.array([e["modelpred"] for ee in self._estimates for e in ee])
+        except (KeyError, TypeError, IndexError, ValueError):
+            return None, "no modelpred in the estimates"
+
+        mp = np.atleast_2d(mp)
+        if mp.shape[0] != len(self.x0):
+            return None, f"modelpred has {mp.shape[0]} rows for {len(self.x0)} vertices"
+        if mp.shape[-1] < 2:
+            return None, f"modelpred is a placeholder of shape {mp.shape}"
+        if not np.isfinite(mp).any() or not np.any(mp != 0):
+            return None, "modelpred is all NaN or all zero"
+
+        # some older vistasoft runs wrote the measured data into modelpred
+        try:
+            tc = self.voxelTC0
+        except Exception:
+            tc = None
+        if tc is not None and mp.shape == tc.shape:
+            probe = slice(None, None, max(1, len(mp) // 50))
+            if np.allclose(
+                mp[probe] - mp[probe].mean(1)[:, None],
+                tc[probe] - tc[probe].mean(1)[:, None],
+            ):
+                return None, "stored modelpred is a copy of the measured data"
+
+        return mp, None
+
+    @property
+    def modelsignal0(self):
+        """np.ndarray: Unmasked model time courses, without amplitude scaling.
+
+        A property of the fit alone, so it also works for a concatenated gem
+        run, which has no BOLD file of its own. Pair it with any run's data
+        through `r2_against`; `modelpred0` is this scaled to `voxelTC0`.
+        """
+        if not hasattr(self, "_modelsignal0"):
+            if self._dataFrom != "docker":
+                raise RuntimeError(
+                    f"modelsignal0 is only available for docker data, not "
+                    f"{self._dataFrom!r}"
+                )
+
+            stored, why = self._stored_modelpred()
+            if stored is not None:
+                self._modelsignal0 = stored
+            else:
+                print(
+                    f"Warning: {self.subject} {self.session} {self.task} "
+                    f"{self.run}: {why}; recomputing the model time courses "
+                    "from the stimulus. This is cached, the next call is fast."
+                )
+                self._modelsignal0 = self._gem_modelsignal()
+
+        return self._modelsignal0.astype(np.float32)
+
+    @property
+    def modelsignal(self):
+        return self.modelsignal0[self.mask, :]
+
     @property
     def modelpred0(self):
         """
-        np.ndarray: Unmasked model predictions.
+        np.ndarray: Unmasked model predictions, scaled to the measured data.
 
         Loaded or calculated from source if not already present.
         """
@@ -362,17 +447,17 @@ class PRF:
                 print("No modelpred with data_from mrVista")
                 return None
             elif self._dataFrom == "docker":
-                self._modelpred0 = np.array(
-                    [e["modelpred"] for ee in self._estimates for e in ee]
-                )
-
-                if np.allclose(
-                    self._modelpred0[::1000, :]
-                    - self._modelpred0[::1000, :].mean(1)[:, None],
-                    self.voxelTC0[::1000, :]
-                    - self.voxelTC0[::1000, :].mean(1)[:, None],
-                ):
-                    self._modelpred0 = self.loadStim(buildTC=True)
+                try:
+                    tc = self.voxelTC0
+                except IndexError as exc:
+                    raise RuntimeError(
+                        f"No BOLD file for {self.subject} {self.session} "
+                        f"{self.task} {self.run}, so a model prediction cannot "
+                        "be scaled to it. A concatenated gem fit has no run of "
+                        "its own; use modelsignal0 and pair it with the data "
+                        "you want via r2_against()."
+                    ) from exc
+                self._modelpred0 = self._gem_scale_to_data(self.modelsignal0, tc)
             elif self._dataFrom == "samsrf":
                 self._modelpred0 = np.apply_along_axis(
                     lambda m: np.convolve(m, self._mat["Model"]["Hrf"][0][0].flatten()),
@@ -386,8 +471,28 @@ class PRF:
 
     @property
     def maxEcc(self):
-        """np.ndarray: Maximum eccentricity for the stimulus grid."""
+        """np.float32: Maximum eccentricity of the *stimulus*.
+
+        This is the stimulus aperture radius, not the model fitting grid. For
+        gem results the grid is deliberately larger (e.g. a search radius of 15
+        for a stimulus of 10) so pRFs can sit partly outside the aperture; see
+        `searchSpace` for that.
+        """
         return np.float32(self._maxEcc)
+
+    @property
+    def searchSpace(self):
+        """dict or None: gem's pRF fitting grid (radius, grid steps, sigma range).
+
+        `searchSpace["visual_field_radius"]` is where fits that ran to the grid
+        boundary pile up, so it is useful for masking those artefacts out.
+        """
+        return getattr(self, "_gem_search_space", None)
+
+    @property
+    def stimulusInfo(self):
+        """dict or None: gem's stimulus metadata (visual field, size, binarization)."""
+        return getattr(self, "_gem_stimulus", None)
 
     @property
     def model(self):
