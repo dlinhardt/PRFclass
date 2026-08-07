@@ -1,13 +1,3 @@
-try:
-    from mayavi import mlab
-except (ModuleNotFoundError, ImportError):
-    print("Package mayavi not installed!")
-try:
-    from surfer import Brain
-except (ModuleNotFoundError, ImportError):
-    print("Package pysurfer not installed!")
-    print("Install it or don't run plot_toSurface()")
-
 import json
 from copy import deepcopy
 from glob import glob
@@ -25,6 +15,7 @@ from nilearn.surface import vol_to_surf
 from PIL import Image
 
 from ._maskstuff import _get_available_atlases_and_rois
+from ._surfaceplot import Brain, CameraState, colorbar_style_for, resolve_surface
 
 try:
     import neuropythy as ny
@@ -103,9 +94,9 @@ class label:
                 mdl = ny.vision.retinotopy_model("benson17", "lh")
                 areaLabels = dict(mdl.area_id_to_name)
                 areaLabels = {areaLabels[k]: k for k in areaLabels}
-                self.vertices = np.where(maskinfo == areaLabels[ar])
+                self.vertices = np.where(maskinfo == areaLabels[ar])[0]
                 if he[0].upper() == "R":
-                    self.vertices -= left_hemi
+                    self.vertices = self.vertices - left_hemi
             else:
                 # Legacy per-ROI maskinfo.json path
                 vJsonName = [
@@ -190,7 +181,9 @@ def _draw_grid(ax, maxEcc):
     ax.set_box_aspect(1)
 
 
-def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
+def _calcCovMap(
+    self, maxEcc, method="max", force=False, background="black", n_points=None
+):
     """
     Calculate the pRF coverage map and save it as a .npy file.
 
@@ -199,6 +192,9 @@ def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
         method (str, optional): Method to calculate the coverage map ('max', 'mean', 'sumClip'). Defaults to 'max'.
         force (bool, optional): If True, overwrite existing file. Defaults to False.
         background (str, optional): Background color for the map ('black' or 'white'). Defaults to 'black'.
+        n_points (int, optional): Grid points per axis. None keeps the default,
+            max(maxEcc * 30, 300) + 1, which is coarse for a print figure. A
+            non-default value gets its own cache file so the two do not collide.
 
     Returns:
         np.ndarray: The calculated coverage map.
@@ -279,7 +275,8 @@ def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
             self.session,
         )
 
-        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}_covmapData.npy"
+        Nstr = f"-n{n_points}" if n_points else ""
+        savePathF = f"{self.subject}_{self.session}_{self._task}_{self._run}{hemiStr}_desc-{areaStr}{VEstr}{Estr}{Bstr}{Mstr}{Sistr}{Sstr}{methodStr}{Nstr}_covmapData.npy"
 
     savePath = path.join(savePathB, savePathF)
 
@@ -293,7 +290,8 @@ def _calcCovMap(self, maxEcc, method="max", force=False, background="black"):
         if not path.isdir(savePathB):
             makedirs(savePathB)
 
-        xx = np.linspace(-1 * maxEcc, maxEcc, max(int(maxEcc * 30), 300) + 1)
+        n = n_points if n_points else max(int(maxEcc * 30), 300) + 1
+        xx = np.linspace(-1 * maxEcc, maxEcc, n)
 
         covMap = np.zeros((len(xx), len(xx)))
 
@@ -426,6 +424,7 @@ def plot_covMap(
     output_format="svg",
     plot_colorbar=True,
     background="white",
+    n_points=None,
 ):
     """
     Plot the pRF coverage map and optionally save it.
@@ -469,7 +468,9 @@ def plot_covMap(
             )
 
         # calculate the coverage map
-        self._calcCovMap(maxEcc, method, force=force, background=background)
+        self._calcCovMap(
+            maxEcc, method, force=force, background=background, n_points=n_points
+        )
 
         # set method-specific stuff
         if method == "max":
@@ -629,6 +630,128 @@ def _prepare_mrVista_for_surface_plot(self):
     pass
 
 
+#: Shared colorbars already written in this process, so a batch does not
+#: rewrite the same file once per figure.
+_WRITTEN_COLORBARS = set()
+
+
+# ----------------------------------------------------------------------------#
+def _build_surface_overlay(
+    self, param, hemi, nVertices, maxEcc, pmin=None, pmax=None, _volume_ctx=None
+):
+    """
+    Build the per-vertex overlay array for one hemisphere, with its colormap.
+
+    Shared by plot_toSurface (3D) and plot_toFlatmap (pycortex), so both show
+    exactly the same values, colours and masking.
+
+    Args:
+        param (str or np.ndarray): 'ecc', 'pol', 'sig', 'var', or an array in
+            BOLD index space.
+        hemi (str): Hemisphere, 'L' or 'R' (only the first letter is used).
+        nVertices (int): Vertex count of the target surface.
+        maxEcc (float): Upper end of the eccentricity colour range.
+        pmin, pmax (float, optional): Manual colour limits. Defaults to None.
+        _volume_ctx (dict, optional): Internal. When set, the data is projected
+            from a volume with nilearn's vol_to_surf instead of being indexed
+            from surface data. Defaults to None.
+
+    Returns:
+        tuple: ``(plotData, cmap, datMin, datMax)``. Vertices outside the mask
+        are NaN, which renders fully transparent.
+
+    Raises:
+        RuntimeError: If the ROI mask has not been created yet.
+        ValueError: If ``param`` is not recognised.
+    """
+    need_to_convert = _volume_ctx is not None
+
+    if need_to_convert:
+        data_in_3d = _volume_ctx["data_in_3d"]
+
+        def _project(key):
+            return vol_to_surf(
+                data_in_3d[key],
+                surf_mesh=_volume_ctx["fs_pial"],
+                inner_mesh=_volume_ctx["fs_white"],
+                mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
+            )
+
+    else:
+        if not hasattr(self, "_roiWhichHemi"):
+            raise RuntimeError("Please mask for visual area with instance.maskROI()!")
+
+        hemiM = self._roiWhichHemi == hemi[0].upper()
+        roiIndOrigHemi = self._roiIndOrig[hemiM]
+        roiIndBoldHemi = self._roiIndBold[hemiM]
+        plotData = np.ones(nVertices) * np.nan
+
+    if isinstance(param, str):
+        if param in ["r", "ecc", "eccentricity", "radius"]:
+            plotData = _project("r0") if need_to_convert else plotData
+            if not need_to_convert:
+                plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
+            cmap = "rainbow_r"
+            datMin, datMax = 0, maxEcc
+
+        elif param in ["pol", "polar", "polar angle"]:
+            plotData = _project("phi0") if need_to_convert else plotData
+            if not need_to_convert:
+                plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
+            cmap = colors.LinearSegmentedColormap.from_list(
+                "prf_polar", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
+            )
+            datMin, datMax = 0, 2 * np.pi
+
+        elif param in ["s", "sig", "sigma", "size", "pRF size"]:
+            plotData = _project("s0") if need_to_convert else plotData
+            if not need_to_convert:
+                plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
+            cmap = "rainbow_r"
+            datMin, datMax = 0, 4
+
+        elif param in ["var", "variance", "variance explained", "varexp", "R2", "r2"]:
+            plotData = _project("varexp0") if need_to_convert else plotData
+            if not need_to_convert:
+                plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
+            cmap = "hot"
+            datMin, datMax = 0, 1
+
+        else:
+            raise ValueError(
+                'Parameter string must be in ["ecc", "pol", "sig", "var"] or a '
+                "np.array of the same size with values!"
+            )
+
+    elif isinstance(param, (np.ndarray, np.generic)):
+        plotData[roiIndOrigHemi] = param[roiIndBoldHemi]
+        cmap = "hot"
+        datMin, datMax = param[roiIndBoldHemi].min(), param[roiIndBoldHemi].max()
+
+    else:
+        raise ValueError(
+            'Parameter string must be in ["ecc", "pol", "sig", "var"] or a '
+            "np.array of the same size with values!"
+        )
+
+    # manually set plot max and min
+    if pmax is not None:
+        datMax = pmax
+    if pmin is not None:
+        datMin = pmin
+
+    # set everything outside mask (ROI, VarExp, ...) to nan
+    if not self._dataFrom == "mrVista":
+        plotData = deepcopy(plotData)
+        if isinstance(param, str):
+            if not param == "var":
+                plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
+        else:
+            plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
+
+    return plotData, cmap, datMin, datMax
+
+
 # ----------------------------------------------------------------------------#
 def plot_toSurface(
     self,
@@ -649,29 +772,92 @@ def plot_toSurface(
     output_format="pdf",
     pmax=None,
     pmin=None,
+    window_size=(800, 800),
+    scale=4,
+    dpi=300,
+    transparent_background=False,
+    anti_aliasing="ssaa",
+    cortex="classic",
+    very_inflated_t=0.35,
+    border_style="contour",
+    border_width=4.0,
+    border_color="black",
+    border_alpha=20.0,
+    border_smooth=2,
+    border_offset=None,
+    colorbar_style="auto",
+    colorbar_format="svg",
+    colorbar_shared=True,
+    cbar_figsize=(2.5, 2.5),
+    cbar_fontsize=12,
+    gif_scale=1,
+    notebook=False,
 ):
     """
     Plot a parameter (eccentricity, polar angle, sigma, or variance explained) to the cortical surface.
 
+    Rendered with PyVista/VTK (no mayavi, no Qt). Off-screen rendering works
+    everywhere, including macOS, which mayavi could not do.
+
     Args:
         param (str or np.ndarray, optional): Parameter to plot ('ecc', 'pol', 'sig', 'var') or array. Defaults to 'ecc'.
         hemi (str, optional): Hemisphere to plot ('L', 'R', or 'both'). Defaults to 'left'.
-        fmriprepAna (str, optional): fMRIPrep analysis number. Defaults to '01'.
         save (bool, optional): Whether to save the screenshot. Defaults to False.
         forceNewPosition (bool, optional): Force manual positioning. Defaults to False.
         force (bool, optional): Overwrite existing files. Defaults to False.
-        surface (str, optional): Surface type (e.g., 'inflated', 'sphere'). Defaults to 'inflated'.
+        surface (str, optional): Surface to render on. Native FreeSurfer surfaces
+            ('pial', 'white', 'smoothwm', 'inflated', 'sphere', ...) plus the
+            aliases 'grey'/'gray' (= pial), 'cortex' (= inflated), and the
+            derived surfaces 'midthickness' (= mean of white and pial) and
+            'very_inflated'. Defaults to 'inflated'.
         showBordersAtlas (list or str, optional): Atlases to show area borders from. Defaults to None.
         showBordersArea (list or str, optional): Areas to show borders for. Defaults to None.
-        interactive (bool, optional): Enable interactive mode. Defaults to True.
+        interactive (bool, optional): Open a window at the end. Defaults to True.
         create_gif (bool, optional): Create a GIF instead of a static image. Defaults to False.
-        headless (bool, optional): Suppress pop-ups. Defaults to False.
+        headless (bool, optional): Render off-screen, never open a window. Defaults to False.
         maxEcc (float, optional): Maximum eccentricity for plotting. Defaults to None.
         plot_colorbar (bool, optional): Show colorbar. Defaults to True.
         background (str, optional): Background color. Defaults to 'black'.
         output_format (str, optional): Output file format. Defaults to 'pdf'.
         pmax (float, optional): Maximum value for color scaling. Defaults to None.
         pmin (float, optional): Minimum value for color scaling. Defaults to None.
+        window_size (tuple, optional): Base render size in pixels. Defaults to (800, 800).
+        scale (int, optional): Supersampling factor for the saved image, so the
+            output is ``scale * window_size`` pixels. Defaults to 4 (3200x3200).
+        dpi (int, optional): Resolution used when wrapping the raster into a
+            pdf/svg/eps container. Defaults to 300.
+        transparent_background (bool, optional): Transparent background, for
+            compositing figures. Defaults to False.
+        anti_aliasing (str, optional): 'ssaa', 'msaa', 'fxaa' or None. Defaults to 'ssaa'.
+        cortex (str, optional): Curvature preset: 'classic', 'high_contrast',
+            'low_contrast', 'bone'. Defaults to 'classic'.
+        very_inflated_t (float, optional): Inflated-to-sphere blend used when
+            ``surface='very_inflated'`` and no such file exists. Defaults to 0.35.
+        border_style (str, optional): 'contour' for crisp screen-space lines, or
+            'painted' for the old pysurfer vertex-painting look. Defaults to 'contour'.
+        border_width (float, optional): Border line width in pixels. Defaults to 4.0.
+        border_color (str, optional): Border colour. Defaults to 'black'.
+        border_alpha (float, optional): Border opacity. Defaults to 20.0.
+        border_smooth (int, optional): Laplacian smoothing passes applied to the
+            contour, to remove mesh-edge stair-stepping. Defaults to 2.
+        border_offset (float, optional): How far to lift the border off the
+            surface. None picks a per-surface default. Defaults to None.
+        colorbar_style (str, optional): 'auto' (colour wheel for ecc/pol, bar
+            otherwise, written to a separate file), 'scene' (drawn into the
+            image, the old behaviour), or 'none'. Defaults to 'auto'.
+        colorbar_format (str, optional): Format for the separate colorbar file. Defaults to 'svg'.
+        colorbar_shared (bool, optional): Write one colorbar per parameter and
+            colour range instead of one per figure. A colorbar only depends on
+            those two things, so per-figure copies are identical and waste
+            space. Delete the file to regenerate it. Defaults to True.
+        cbar_figsize (tuple, optional): Colorbar figure size in inches. Defaults to (2.5, 2.5).
+        cbar_fontsize (int, optional): Colorbar font size. Defaults to 12.
+        gif_scale (int, optional): Supersampling for GIF frames. Defaults to 1.
+        notebook (bool, optional): Render inline in a Jupyter / VS Code
+            interactive window instead of opening an OS window. Defaults to
+            False, which is required for interactive positioning to work -- an
+            inline plot cannot be rotated and does not block, so the position
+            would never be captured.
 
     Raises:
         RuntimeError: If plotting is not supported for the data type or space.
@@ -679,12 +865,6 @@ def plot_toSurface(
     """
 
     maxEcc = maxEcc if maxEcc else self.maxEcc
-
-    if headless:
-        mlab.options.offscreen = True
-        # mlab.init_notebook('x3d', 800, 800)
-    else:
-        mlab.options.offscreen = False
 
     if surface == "sphere":
         create_gif = False
@@ -696,6 +876,9 @@ def plot_toSurface(
         interactive = True
     else:
         manualPosition = True if not surface == "sphere" else False
+
+    # no window is needed when headless, or when nothing here would show one
+    offscreen = bool(headless) or (not interactive and not manualPosition)
 
     if self._dataFrom in ["docker", "samsrf", "hdf5"]:
         if self.analysisSpace == "volume":
@@ -777,23 +960,20 @@ def plot_toSurface(
             p,
         ) = _resolve_fs_subject_dir(fsP, plot_subject, self.session)
 
-        pialP = path.join(
-            p,
-            "surf",
-            f"{hemi[0].lower()}h.pial",
-        )
-        if not path.isfile(pialP):
-            pialP = path.join(
-                p,
-                "surf",
-                f"{hemi[0].lower()}h.pial.T1",
+        # all surfaces of a subject share vertex count and faces, so this also
+        # fixes the length of the overlay array
+        try:
+            surf_coords, _ = resolve_surface(
+                fsP,
+                a,
+                f"{hemi[0].lower()}h",
+                surface,
+                very_inflated_t=very_inflated_t,
             )
-        if not path.isfile(pialP):
-            raise RuntimeError(f"Pial surface not found, {pialP}!")
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"Could not load surface {surface!r}: {exc}") from exc
 
-        pial = nib.freesurfer.read_geometry(pialP)
-
-        nVertices = len(pial[0])
+        nVertices = len(surf_coords)
 
         # create mask dependent on used hemisphere
         if need_to_convert:
@@ -812,110 +992,22 @@ def plot_toSurface(
                 "surf",
                 f"{hemi[0].lower()}h.white",
             )
-        else:
-            if not hasattr(self, "_roiWhichHemi"):
-                raise RuntimeError(
-                    "Please mask for visual area with instance.maskROI()!"
-                )
-
-            hemiM = self._roiWhichHemi == hemi[0].upper()
-
-            roiIndOrigHemi = self._roiIndOrig[hemiM]
-            roiIndBoldHemi = self._roiIndBold[hemiM]
-
-            # write data array to plot
-            plotData = np.ones(nVertices) * np.nan
 
         # depending on used parameter set the plot data, colormap und ranges
-        if isinstance(param, str):
-            if param in ["r", "ecc", "eccentricity", "radius"]:
-                if need_to_convert:
-                    plotData = vol_to_surf(
-                        data_in_3d["r0"],
-                        surf_mesh=fs_pial,
-                        inner_mesh=fs_white,
-                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
-                    )
-                else:
-                    plotData[roiIndOrigHemi] = self.r0[roiIndBoldHemi]
-                cmap = "rainbow_r"
-                datMin, datMax = 0, maxEcc
-
-            elif param in ["pol", "polar", "polar angle"]:
-                if need_to_convert:
-                    plotData = vol_to_surf(
-                        data_in_3d["phi0"],
-                        surf_mesh=fs_pial,
-                        inner_mesh=fs_white,
-                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
-                    )
-                else:
-                    plotData[roiIndOrigHemi] = self.phi0[roiIndBoldHemi]
-                cmap = colors.LinearSegmentedColormap.from_list(
-                    "", ["yellow", (0, 0, 1), (0, 1, 0), (1, 0, 0), "yellow"]
-                )
-                datMin, datMax = 0, 2 * np.pi
-
-            elif param in ["s", "sig", "sigma", "size", "pRF size"]:
-                if need_to_convert:
-                    plotData = vol_to_surf(
-                        data_in_3d["s0"],
-                        surf_mesh=fs_pial,
-                        inner_mesh=fs_white,
-                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
-                    )
-                else:
-                    plotData[roiIndOrigHemi] = self.s0[roiIndBoldHemi]
-                cmap = "rainbow_r"
-                datMin, datMax = 0, 4
-
-            elif param in [
-                "var",
-                "variance",
-                "variance explained",
-                "varexp",
-                "R2",
-                "r2",
-            ]:
-                if need_to_convert:
-                    plotData = vol_to_surf(
-                        data_in_3d["varexp0"],
-                        surf_mesh=fs_pial,
-                        inner_mesh=fs_white,
-                        mask_img=data_in_3d["mask"] if "mask" in data_in_3d else None,
-                    )
-                else:
-                    plotData[roiIndOrigHemi] = self.varexp0[roiIndBoldHemi]
-                cmap = "hot"
-                datMin, datMax = 0, 1
-
-        elif isinstance(param, (np.ndarray, np.generic)):
-            plotData[roiIndOrigHemi] = param[roiIndBoldHemi]
-            cmap = "hot"
-            datMin, datMax = (
-                param[roiIndBoldHemi].min(),
-                param[roiIndBoldHemi].max(),
-            )
-
-        else:
-            raise ValueError(
-                'Parameter string must be in ["ecc", "pol", "sig", "var"] or a np.array of the same size with values!'
-            )
-
-        # manually set plot max and min
-        if pmax is not None:
-            datMax = pmax
-        if pmin is not None:
-            datMin = pmin
-
-        # set everything outside mask (ROI, VarExp, ...) to nan
-        if not self._dataFrom == "mrVista":
-            plotData = deepcopy(plotData)
-            if isinstance(param, str):
-                if not param == "var":
-                    plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
-            else:
-                plotData[roiIndOrigHemi[~self.mask[roiIndBoldHemi]]] = np.nan
+        plotData, cmap, datMin, datMax = _build_surface_overlay(
+            self,
+            param,
+            hemi,
+            nVertices,
+            maxEcc,
+            pmin,
+            pmax,
+            _volume_ctx=(
+                dict(data_in_3d=data_in_3d, fs_pial=fs_pial, fs_white=fs_white)
+                if need_to_convert
+                else None
+            ),
+        )
 
         # plot the brain
         brain = Brain(
@@ -924,26 +1016,22 @@ def plot_toSurface(
             surface,
             subjects_dir=fsP,
             background=background,
+            size=window_size,
+            offscreen=offscreen,
+            cortex=cortex,
+            anti_aliasing=anti_aliasing,
+            very_inflated_t=very_inflated_t,
+            notebook=notebook,
         )
-        # plot the data
+        # plot the data; NaN vertices render fully transparent
         brain.add_data(
-            np.float16(plotData),
+            np.asarray(plotData, dtype=np.float32),
             colormap=cmap,
             min=datMin,
             max=datMax,
-            smoothing_steps="nearest",
             remove_existing=True,
-            colorbar=plot_colorbar,
+            colorbar=plot_colorbar and colorbar_style == "scene",
         )
-
-        # set nan to transparent
-        brain.data["surfaces"][0].module_manager.scalar_lut_manager.lut.nan_color = (
-            0,
-            0,
-            0,
-            0,
-        )
-        brain.data["surfaces"][0].update_pipeline()
 
         # print borders (freesurfer)
         if showBordersArea is not None and showBordersAtlas is not None:
@@ -974,8 +1062,12 @@ def plot_toSurface(
                     brain.add_label(
                         label(ar, at, hemi, roi_info, left_hemi),
                         borders=True,
-                        color="black",
-                        alpha=0.7,
+                        color=border_color,
+                        alpha=border_alpha,
+                        style=border_style,
+                        line_width=border_width,
+                        offset=border_offset,
+                        smooth=border_smooth,
                     )
 
         # save the positioning for left and right once per subject
@@ -1002,16 +1094,27 @@ def plot_toSurface(
 
             areaStr = "multipleAreas" if len(self._area) > 10 else "".join(self._area)
 
+            # a view framed on the inflated surface does not suit the pial or
+            # a very_inflated one, so positions are stored per surface
             posSaveFile = (
+                f"{positioning_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}"
+                f"_surf-{surface}_cortex.h5"
+            )
+            # posPath is the write target; readPath may fall back to the older
+            # surface-less filename so existing positions keep working
+            posPath = path.join(posSavePath, posSaveFile)
+            legacySaveFile = (
                 f"{positioning_subject}_hemi-{hemi[0].upper()}_desc-{areaStr}_cortex.h5"
             )
-            posPath = path.join(posSavePath, posSaveFile)
-            posPath_npy = path.join(posSavePath, posSaveFile.replace(".h5", ".npy"))
+            candidates = [
+                posPath,
+                posPath.replace(".h5", ".npy"),
+                path.join(posSavePath, legacySaveFile),
+                path.join(posSavePath, legacySaveFile.replace(".h5", ".npy")),
+            ]
+            readPath = next((c for c in candidates if path.isfile(c)), None)
 
-            if (
-                not (path.isfile(posPath) or path.isfile(posPath_npy))
-                or forceNewPosition
-            ):
+            if readPath is None or forceNewPosition:
                 if hemi[0].upper() == "L":
                     brain.show_view(
                         {
@@ -1033,18 +1136,26 @@ def plot_toSurface(
                         roll=142,
                     )
 
-                print(posPath)
-
-                print(
-                    "\nPosition the brain, then close the window to save the position.\n"
-                )
-                mlab.show(stop=True)
-
-                # Read position after window close
-                try:
-                    _captured_view = brain.show_view()
-                except Exception:
+                if offscreen:
+                    # do not persist this: a placeholder would make a later
+                    # interactive run think a position had been picked already
+                    print(
+                        f"Warning: no saved position at {posPath} and rendering is "
+                        "headless; using the default view. Run once with "
+                        "headless=False to pick a position."
+                    )
                     _captured_view = None
+                else:
+                    print(posPath)
+                    print(
+                        "\nPosition the brain, then close the window to save the position.\n"
+                    )
+                    try:
+                        # blocks until the window is closed, then absorbs the camera
+                        _captured_view = brain.show()
+                    except Exception as exc:
+                        print(f"Warning: interactive positioning failed: {exc}")
+                        _captured_view = None
 
                 if _captured_view is not None:
                     view_info, roll_val = _captured_view
@@ -1056,6 +1167,10 @@ def plot_toSurface(
                             "focalpoint": view_info[3],
                         }
                     with h5py.File(posPath, "w") as f:
+                        f.attrs["format_version"] = 2
+                        f.attrs["backend"] = "pyvista"
+                        f.attrs["surface"] = str(surface)
+                        # spherical block, for readers of the older format
                         f.create_dataset("azimuth", data=float(view_info["azimuth"]))
                         f.create_dataset(
                             "elevation", data=float(view_info["elevation"])
@@ -1065,67 +1180,68 @@ def plot_toSurface(
                             "focalpoint", data=np.array(view_info["focalpoint"])
                         )
                         f.create_dataset("roll", data=float(roll_val))
-                else:
+                        # exact VTK state, for a lossless round-trip
+                        brain.camera_state.to_h5(f.create_group("camera"))
+                elif not offscreen:
                     print(f"Warning: Could not save brain position to {posPath}")
 
-            else:
-                if path.isfile(posPath):
-                    # Load from h5 (current format)
-                    with h5py.File(posPath, "r") as f:
-                        view_info = {
-                            "azimuth": float(f["azimuth"][()]),
-                            "elevation": float(f["elevation"][()]),
-                            "distance": float(f["distance"][()]),
-                            "focalpoint": f["focalpoint"][()],
-                        }
-                        roll_val = float(f["roll"][()])
-                    brain.show_view(view_info, roll=roll_val)
-                else:
-                    # Backward compat: load legacy .npy file
-                    pos = np.load(posPath_npy, allow_pickle=True)
-                    view_info = pos[0]
-                    roll_val = pos[1]
-                    if isinstance(view_info, dict):
-                        brain.show_view(view_info, roll=roll_val)
+            elif readPath.endswith(".h5"):
+                with h5py.File(readPath, "r") as f:
+                    if "camera" in f:
+                        # exact VTK state
+                        brain.camera_state = CameraState.from_h5(f["camera"])
                     else:
+                        # older spherical format
                         brain.show_view(
                             {
-                                "azimuth": view_info[0],
-                                "elevation": view_info[1],
-                                "distance": view_info[2],
-                                "focalpoint": view_info[3],
+                                "azimuth": float(f["azimuth"][()]),
+                                "elevation": float(f["elevation"][()]),
+                                "distance": float(f["distance"][()]),
+                                "focalpoint": f["focalpoint"][()],
                             },
-                            roll=roll_val,
+                            roll=float(f["roll"][()]),
                         )
+            else:
+                # oldest format: .npy
+                pos = np.load(readPath, allow_pickle=True)
+                view_info = pos[0]
+                roll_val = pos[1]
+                if isinstance(view_info, dict):
+                    brain.show_view(view_info, roll=roll_val)
+                else:
+                    brain.show_view(
+                        {
+                            "azimuth": view_info[0],
+                            "elevation": view_info[1],
+                            "distance": view_info[2],
+                            "focalpoint": view_info[3],
+                        },
+                        roll=roll_val,
+                    )
         else:
             if create_gif:
                 plot_out_p, n = self._get_surfaceSavePath(param, hemi)
+                left = hemi[0].upper() == "L"
 
-                if hemi[0].upper() == "L":
-                    for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                        brain.show_view(
-                            {
-                                "azimuth": -i,
-                                "elevation": 90,
-                                "distance": 350,
-                                "focalpoint": np.array([30, -130, -60]),
-                            },
-                            roll=-90,
-                        )
-                        brain.save_image(path.join(p, f"frame-{iI}.png"))
-
-                elif hemi[0].upper() == "R":
-                    for iI, i in enumerate(np.linspace(-1, 89, 10)):
-                        brain.show_view(
-                            {
-                                "azimuth": i,
-                                "elevation": -90,
-                                "distance": 350,
-                                "focalpoint": np.array([-30, -130, -60]),
-                            },
-                            roll=90,
-                        )
-                        brain.save_image(path.join(plot_out_p, f"frame-{iI}.png"))
+                for iI, i in enumerate(np.linspace(-1, 89, 10)):
+                    brain.show_view(
+                        {
+                            "azimuth": -i if left else i,
+                            "elevation": 90 if left else -90,
+                            "distance": 350,
+                            "focalpoint": (
+                                np.array([30, -130, -60])
+                                if left
+                                else np.array([-30, -130, -60])
+                            ),
+                        },
+                        roll=-90 if left else 90,
+                    )
+                    # zero-padded so _make_gif's sorted(glob(...)) stays correct
+                    # past ten frames
+                    brain.save_image(
+                        path.join(plot_out_p, f"frame-{iI:03d}.png"), scale=gif_scale
+                    )
 
                 self._make_gif(plot_out_p, n + ".gif")
 
@@ -1174,16 +1290,56 @@ def plot_toSurface(
                             roll=142,
                         )
 
-        if save:
-            brain.save_image(path.join(plot_out_p, n + f".{output_format}"))
-            print(
-                f'new Cortex Map saved to {path.join(plot_out_p, n + "." + output_format)}'
-            )
+        try:
+            if save:
+                out_file = path.join(plot_out_p, n + f".{output_format}")
+                brain.save_image(
+                    out_file,
+                    scale=scale,
+                    dpi=dpi,
+                    transparent_background=transparent_background,
+                )
+                print(f"new Cortex Map saved to {out_file}")
 
-        if interactive:
-            mlab.show(stop=True)
-        else:
-            mlab.clf()
+                # a separate file keeps the brain image clean; 'scene' draws
+                # the bar into the image instead
+                if plot_colorbar and colorbar_style not in ("scene", "none", None):
+                    style = (
+                        colorbar_style_for(param)
+                        if colorbar_style == "auto"
+                        else colorbar_style
+                    )
+                    if colorbar_shared:
+                        # a colorbar only depends on the parameter and the
+                        # colour range, so one file serves every figure that
+                        # shares them
+                        pstr = param if isinstance(param, str) else "manualParam"
+                        rng = f"{round(datMin, 2):g}-{round(datMax, 2):g}"
+                        cbar_file = path.join(
+                            plot_out_p,
+                            f"colorbar_desc-{pstr}_range-{rng}.{colorbar_format}",
+                        )
+                    else:
+                        cbar_file = path.join(
+                            plot_out_p, n + f"_colorbar.{colorbar_format}"
+                        )
+                    if cbar_file not in _WRITTEN_COLORBARS and (
+                        force or not path.isfile(cbar_file)
+                    ):
+                        brain.save_colorbar(
+                            cbar_file,
+                            style=style,
+                            dpi=dpi,
+                            figsize=cbar_figsize,
+                            fontsize=cbar_fontsize,
+                        )
+                        _WRITTEN_COLORBARS.add(cbar_file)
+                        print(f"colorbar saved to {cbar_file}")
+
+            if interactive and not offscreen:
+                brain.show()
+        finally:
+            brain.close()
 
 
 # ----------------------------------------------------------------------------#
