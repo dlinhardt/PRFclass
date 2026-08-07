@@ -12,6 +12,19 @@ except ImportError:
     print("hdf5 not available, do not use from_hdf5!")
 
 
+def _h5_text(value):
+    """Decode an h5py string scalar.
+
+    str() on the bytes h5py hands back would keep the b'...' wrapper, which
+    then travels into file paths and comparisons.
+    """
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, np.ndarray) and value.dtype.kind in "SO":
+        return _h5_text(value.item())
+    return str(value)
+
+
 def init_variables(self):
     """
     Initialize variables loaded by the PRF.from_ methods, depending on data source.
@@ -110,6 +123,10 @@ def init_variables(self):
                 self._gem_input_files = self._estimates[0]["_input_files"]
             if "_stimulus_filepath" in self._estimates[0]:
                 self._gem_stimulus_filepath = self._estimates[0]["_stimulus_filepath"]
+            if "_searchSpace" in self._estimates[0]:
+                self._gem_search_space = self._estimates[0]["_searchSpace"]
+            if "_stimulus" in self._estimates[0]:
+                self._gem_stimulus = self._estimates[0]["_stimulus"]
 
         else:
             if "Centerx0" in self._estimates[0][0].keys():
@@ -459,20 +476,50 @@ def from_docker(
         if path.isfile(h5_path):
             with h5py.File(h5_path, "r") as f:
                 this_est = {k: f["parameters"][k][()] for k in f["parameters"].keys()}
-                if "metadata/search_space/visual_field_radius" in f:
-                    this_est["_maxEcc"] = float(f["metadata/search_space/visual_field_radius"][()])
+                # maxEcc is the stimulus radius, not the fitting grid: gem
+                # searches beyond the aperture edge so pRFs can sit partly
+                # outside the stimulus, and using that larger radius would
+                # stretch every eccentricity scale and coverage map.
+                if "metadata/stimulus/visual_field" in f:
+                    this_est["_maxEcc"] = float(f["metadata/stimulus/visual_field"][()])
+                elif "metadata/search_space/visual_field_radius" in f:
+                    this_est["_maxEcc"] = float(
+                        f["metadata/search_space/visual_field_radius"][()]
+                    )
+                    print(
+                        f"Warning: {path.basename(h5_path)} has no "
+                        "metadata/stimulus/visual_field; falling back to the "
+                        "search-space radius as maxEcc, which is usually larger "
+                        "than the stimulus."
+                    )
+                # the search radius is where boundary artefacts accumulate,
+                # so keep the grid around for masking them out
+                if "metadata/search_space" in f:
+                    this_est["_searchSpace"] = {
+                        k: f[f"metadata/search_space/{k}"][()]
+                        for k in f["metadata/search_space"].keys()
+                    }
+                if "metadata/stimulus" in f:
+                    this_est["_stimulus"] = {
+                        k: f[f"metadata/stimulus/{k}"][()]
+                        for k in f["metadata/stimulus"].keys()
+                    }
                 if "metadata/analysis/model" in f:
-                    this_est["_model"] = str(f["metadata/analysis/model"][()])
+                    this_est["_model"] = _h5_text(f["metadata/analysis/model"][()])
                 if "metadata/hrf" in f:
                     this_est["_hrf"] = {k: f[f"metadata/hrf/{k}"][()] for k in f["metadata/hrf"].keys()}
                 if "metadata/run_info/run_type" in f:
-                    this_est["_run_type"] = str(f["metadata/run_info/run_type"][()])
+                    this_est["_run_type"] = _h5_text(f["metadata/run_info/run_type"][()])
                 if "metadata/run_info/analysis_duration_sec" in f:
                     this_est["_duration_sec"] = float(f["metadata/run_info/analysis_duration_sec"][()])
                 if "metadata/input_files/measured_data" in f:
-                    this_est["_input_files"] = list(f["metadata/input_files/measured_data"][()])
+                    this_est["_input_files"] = [
+                        _h5_text(v) for v in f["metadata/input_files/measured_data"][()]
+                    ]
                 if "metadata/input_files/stimulus_filepath" in f:
-                    this_est["_stimulus_filepath"] = str(f["metadata/input_files/stimulus_filepath"][()])
+                    this_est["_stimulus_filepath"] = _h5_text(
+                        f["metadata/input_files/stimulus_filepath"][()]
+                    )
         elif path.isfile(json_path):
             with open(json_path, "r") as fl:
                 this_est = json.load(fl)
