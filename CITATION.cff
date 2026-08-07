@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: "PRFclass: a Python interface for population receptive field results"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - given-names: David
+    family-names: Linhardt
+    affiliation: "Medical University of Vienna"
+repository-code: "https://github.com/dlinhardt/PRFclass"
+version: "2.0"
+license: MIT
+keywords:
+  - population receptive field
+  - pRF
+  - fMRI
+  - retinotopy
+  - visual cortex
+  - neuroimaging
