@@ -30,8 +30,8 @@ import warnings
 from dataclasses import dataclass
 from os import path
 
-import numpy as np
 import nibabel as nib
+import numpy as np
 import pyvista as pv
 import vtk
 from matplotlib import colors as mcolors
@@ -308,9 +308,7 @@ def load_curvature(subjects_dir, subject, hemi, n_points):
 
 def _make_polydata(coords, faces):
     faces = np.asarray(faces, dtype=np.int64)
-    padded = np.hstack(
-        [np.full((faces.shape[0], 1), 3, dtype=np.int64), faces]
-    ).ravel()
+    padded = np.hstack([np.full((faces.shape[0], 1), 3, dtype=np.int64), faces]).ravel()
     return pv.PolyData(np.ascontiguousarray(coords, dtype=np.float32), padded)
 
 
@@ -650,7 +648,9 @@ class Brain:
         self.alpha = float(alpha)
 
         self._background = background
-        self._foreground = foreground if foreground is not None else _contrast(background)
+        self._foreground = (
+            foreground if foreground is not None else _contrast(background)
+        )
         self._size = _as_size(size)
         self._cortex = cortex
         self._offscreen = bool(offscreen)
@@ -676,9 +676,7 @@ class Brain:
         self.faces = np.asarray(faces, dtype=np.int64)
         self.n_vertices = self.mesh.n_points
 
-        curv = load_curvature(
-            self.subjects_dir, subject_id, self.hemi, self.n_vertices
-        )
+        curv = load_curvature(self.subjects_dir, subject_id, self.hemi, self.n_vertices)
         self.geo = {"coords": coords, "faces": self.faces, "curv": curv}
         if curv is not None:
             self.mesh.point_data["bin_curv"] = (curv > 0).astype(np.float32)
@@ -931,7 +929,10 @@ class Brain:
             off = default_offset if lab.offset is None else lab.offset
             if lab.borders and lab.style == "contour":
                 cont = roi_contour(
-                    self.mesh, lab.vertices, self._normals, offset=off,
+                    self.mesh,
+                    lab.vertices,
+                    self._normals,
+                    offset=off,
                     smooth=lab.smooth,
                 )
                 if cont is None:
@@ -995,9 +996,7 @@ class Brain:
         next ``save_image`` uses it.  Returns ``show_view()``'s tuple.
         """
         if self._offscreen:
-            warnings.warn(
-                "Brain.show() called with offscreen=True; no window opened."
-            )
+            warnings.warn("Brain.show() called with offscreen=True; no window opened.")
             return camera_to_mayavi_view(self._camera)
 
         p = self._build_plotter(off_screen=False)
@@ -1081,9 +1080,7 @@ class Brain:
         lay = self._data_layers[-1]
         if style == "auto":
             style = colorbar_style_for(param, lay.cmap)
-        fig = make_colorbar(
-            style, lay.cmap, vmin=lay.vmin, vmax=lay.vmax, **kwargs
-        )
+        fig = make_colorbar(style, lay.cmap, vmin=lay.vmin, vmax=lay.vmax, **kwargs)
         fig.savefig(str(filename), dpi=dpi, bbox_inches="tight", transparent=True)
         import matplotlib.pyplot as plt
 
@@ -1121,7 +1118,9 @@ def _label_vertices(label):
     if hasattr(label, "vertices"):
         return np.asarray(label.vertices).ravel().astype(np.int64)
     if isinstance(label, (str, bytes)) or hasattr(label, "__fspath__"):
-        return np.asarray(nib.freesurfer.read_label(str(label))).ravel().astype(np.int64)
+        return (
+            np.asarray(nib.freesurfer.read_label(str(label))).ravel().astype(np.int64)
+        )
     return np.asarray(label).ravel().astype(np.int64)
 
 

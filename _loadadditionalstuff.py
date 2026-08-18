@@ -1,3 +1,4 @@
+import warnings
 from glob import glob
 from os import makedirs, path
 
@@ -7,7 +8,6 @@ from scipy.io import loadmat
 from scipy.ndimage import zoom
 from scipy.signal import fftconvolve
 from tqdm import tqdm
-import warnings
 
 # imported as a plain function: PRF exposes it as a class attribute, so
 # self.spm_hrf_compat would bind self as the time vector
@@ -399,7 +399,11 @@ def _gem_modelsignal(self, force=False, chunk=2000):
 
     mux = self.x0.astype(np.float64)
     # gem stores Centery0; PRFclass flips it for visual field orientation
-    muy = -self.y0.astype(np.float64) if self._orientation == "VF" else self.y0.astype(np.float64)
+    muy = (
+        -self.y0.astype(np.float64)
+        if self._orientation == "VF"
+        else self.y0.astype(np.float64)
+    )
     sig = self.s0.astype(np.float64)
 
     out = np.zeros((len(mux), conv.shape[1]), dtype=np.float32)
@@ -411,10 +415,7 @@ def _gem_modelsignal(self, force=False, chunk=2000):
     ):
         sel = idx_ok[i0 : i0 + chunk]
         g = np.exp(
-            -(
-                (xf[None, :] - mux[sel, None]) ** 2
-                + (yf[None, :] - muy[sel, None]) ** 2
-            )
+            -((xf[None, :] - mux[sel, None]) ** 2 + (yf[None, :] - muy[sel, None]) ** 2)
             / (2 * sig[sel, None] ** 2)
         ).astype(np.float32)
         out[sel] = g @ conv

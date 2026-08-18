@@ -64,18 +64,23 @@ def _fs_paths(self):
     """FreeSurfer subjects dir and the resolved subject name for this instance."""
     if self._dataFrom == "mrVista":
         fsP = path.join(
-            self._baseP, self._study, "subjects", self.subject, self.session,
+            self._baseP,
+            self._study,
+            "subjects",
+            self.subject,
+            self.session,
             "segmentation",
         )
         fs_subject = "freesurfer"
     else:
         fsP = path.join(
-            self._derivatives_path, "fmriprep",
-            f"analysis-{self.fmriprep_analysis}", "sourcedata", "freesurfer",
+            self._derivatives_path,
+            "fmriprep",
+            self.fmriprep_analysis,
+            "sourcedata",
+            "freesurfer",
         )
-        fs_subject = (
-            "fsaverage" if self.analysisSpace == "fsaverage" else self.subject
-        )
+        fs_subject = "fsaverage" if self.analysisSpace == "fsaverage" else self.subject
     resolved, _ = _resolve_fs_subject_dir(fsP, fs_subject, self.session)
     return fsP, resolved
 
@@ -127,22 +132,29 @@ def _import_subj_surfaces_only(cortex, fsP, fs_subject, cortex_subject):
     import nibabel as nib
 
     filestore = path.join(cortex.database.default_filestore, cortex_subject)
-    for sub in ("transforms", "anatomicals", "cache", "surfaces", "surface-info",
-                "views"):
+    for sub in (
+        "transforms",
+        "anatomicals",
+        "cache",
+        "surfaces",
+        "surface-info",
+        "views",
+    ):
         makedirs(path.join(filestore, sub), exist_ok=True)
 
     surf_dir = path.join(fsP, fs_subject, "surf")
 
     # pycortex name <- freesurfer name
-    for fs_name, cx_name in (("smoothwm", "wm"), ("pial", "pia"),
-                             ("inflated", "inflated")):
+    for fs_name, cx_name in (
+        ("smoothwm", "wm"),
+        ("pial", "pia"),
+        ("inflated", "inflated"),
+    ):
         for hemi in ("lh", "rh"):
             src = path.join(surf_dir, f"{hemi}.{fs_name}")
             if not path.isfile(src):
                 raise RuntimeError(f"Missing surface required by pycortex: {src}")
-            coords, faces, meta = nib.freesurfer.read_geometry(
-                src, read_metadata=True
-            )
+            coords, faces, meta = nib.freesurfer.read_geometry(src, read_metadata=True)
             # replicate `mris_convert --to-scanner`: shift out of TKR space
             cras = meta.get("cras")
             if cras is not None:
@@ -154,8 +166,11 @@ def _import_subj_surfaces_only(cortex, fsP, fs_subject, cortex_subject):
             )
 
     # curvature/sulc/thickness -- pycortex stores these NEGATED
-    for fs_name, cx_name in (("sulc", "sulcaldepth"), ("thickness", "thickness"),
-                             ("curv", "curvature")):
+    for fs_name, cx_name in (
+        ("sulc", "sulcaldepth"),
+        ("thickness", "thickness"),
+        ("curv", "curvature"),
+    ):
         try:
             lh = nib.freesurfer.read_morph_data(path.join(surf_dir, f"lh.{fs_name}"))
             rh = nib.freesurfer.read_morph_data(path.join(surf_dir, f"rh.{fs_name}"))
@@ -259,8 +274,12 @@ def _ensure_flat(cortex, fsP, fs_subject, cortex_subject, patch="cortex"):
     # auto_overwrite avoids an interactive prompt that would deadlock any
     # non-tty run
     cortex.freesurfer.import_flat(
-        fs_subject, patch, hemis=["lh", "rh"], cx_subject=cortex_subject,
-        freesurfer_subject_dir=import_dir, auto_overwrite=True,
+        fs_subject,
+        patch,
+        hemis=["lh", "rh"],
+        cx_subject=cortex_subject,
+        freesurfer_subject_dir=import_dir,
+        auto_overwrite=True,
     )
     cortex.db.reload_subjects()
 
@@ -296,7 +315,12 @@ def _draw_flat_borders(cortex, fig, cortex_subject, vert_lists, color, width):
         roi = np.zeros(len(pts), dtype=float)
         roi[idx] = 1.0
         ax.tricontour(
-            tri, roi, levels=[0.5], colors=[color], linewidths=width, zorder=5,
+            tri,
+            roi,
+            levels=[0.5],
+            colors=[color],
+            linewidths=width,
+            zorder=5,
         )
 
     ax.set_xlim(left, right)
@@ -382,7 +406,10 @@ def plot_toFlatmap(
     """
     cortex = _import_cortex()
 
-    if self._dataFrom in ["docker", "samsrf", "hdf5"] and self.analysisSpace == "volume":
+    if (
+        self._dataFrom in ["docker", "samsrf", "hdf5"]
+        and self.analysisSpace == "volume"
+    ):
         raise RuntimeError("plot_toFlatmap is not supported for volumetric data!")
 
     maxEcc = maxEcc if maxEcc else self.maxEcc
@@ -420,9 +447,7 @@ def plot_toFlatmap(
     cmap_name = _register_cmap(cmap)
 
     inline_cbar = plot_colorbar and colorbar_style == "inline"
-    vol = cortex.Vertex(
-        full, cortex_subject, vmin=datMin, vmax=datMax, cmap=cmap_name
-    )
+    vol = cortex.Vertex(full, cortex_subject, vmin=datMin, vmax=datMax, cmap=cmap_name)
     fig = cortex.quickflat.make_figure(
         vol,
         height=height,
@@ -454,9 +479,7 @@ def plot_toFlatmap(
         else:
             ats = [showBordersAtlas]
         ars = (
-            showBordersArea
-            if isinstance(showBordersArea, list)
-            else [showBordersArea]
+            showBordersArea if isinstance(showBordersArea, list) else [showBordersArea]
         )
 
         vert_lists = []
@@ -491,8 +514,12 @@ def plot_toFlatmap(
             )
             cbar_file = path.join(plot_out_p, n + f"_colorbar.{colorbar_format}")
             cfig = make_colorbar(
-                style, cmap, vmin=datMin, vmax=datMax,
-                figsize=cbar_figsize, fontsize=cbar_fontsize,
+                style,
+                cmap,
+                vmin=datMin,
+                vmax=datMax,
+                figsize=cbar_figsize,
+                fontsize=cbar_fontsize,
             )
             cfig.savefig(cbar_file, dpi=dpi, bbox_inches="tight", transparent=True)
             plt.close(cfig)
@@ -538,9 +565,9 @@ def prepare_flatmap_surface(
     """
     fsP, fs_subject = _fs_paths(self)
     surf_dir = path.join(fsP, fs_subject, "surf")
-    hemis = ["lh", "rh"] if str(hemi).lower() in ("both", "b") else [
-        f"{hemi[0].lower()}h"
-    ]
+    hemis = (
+        ["lh", "rh"] if str(hemi).lower() in ("both", "b") else [f"{hemi[0].lower()}h"]
+    )
     log_dir = log_dir or surf_dir
     makedirs(log_dir, exist_ok=True)
 
@@ -595,13 +622,13 @@ def prepare_flatmap_surface(
             status[h] = "printed"
             continue
 
-        print(
-            f"{h}: flattening -- this takes hours. Progress: tail -f {logf}"
-        )
+        print(f"{h}: flattening -- this takes hours. Progress: tail -f {logf}")
         try:
             with open(logf, "w") as fl:
                 subprocess.Popen(
-                    cmd, stdout=fl, stderr=subprocess.STDOUT,
+                    cmd,
+                    stdout=fl,
+                    stderr=subprocess.STDOUT,
                     start_new_session=True,
                 )
             status[h] = "started"

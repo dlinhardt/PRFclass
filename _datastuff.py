@@ -83,9 +83,9 @@ def init_variables(self):
                         [e["centerx0"] for ee in self._estimates for e in ee]
                     )
 
-                self._s0 = np.abs(np.array(
-                    [e["sigmaMajor"] for ee in self._estimates for e in ee]
-                ))
+                self._s0 = np.abs(
+                    np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
+                )
                 try:
                     self._varexp0 = np.array(
                         [e["R2"] for ee in self._estimates for e in ee]
@@ -102,13 +102,13 @@ def init_variables(self):
             and "Centerx0" in self._estimates[0]
             and isinstance(self._estimates[0]["Centerx0"], np.ndarray)
         ):
-            self._x0      = np.hstack([e["Centerx0"]  for e in self._estimates])
-            self._s0      = np.abs(np.hstack([e["sigmaMajor"] for e in self._estimates]))
-            self._varexp0 = np.hstack([e["R2"]         for e in self._estimates])
+            self._x0 = np.hstack([e["Centerx0"] for e in self._estimates])
+            self._s0 = np.abs(np.hstack([e["sigmaMajor"] for e in self._estimates]))
+            self._varexp0 = np.hstack([e["R2"] for e in self._estimates])
             if self._orientation == "VF":
                 self._y0 = -np.hstack([e["Centery0"] for e in self._estimates])
             else:
-                self._y0 =  np.hstack([e["Centery0"] for e in self._estimates])
+                self._y0 = np.hstack([e["Centery0"] for e in self._estimates])
             if "_maxEcc" in self._estimates[0]:
                 self._maxEcc = np.float32(self._estimates[0]["_maxEcc"])
             if "_model" in self._estimates[0]:
@@ -147,9 +147,9 @@ def init_variables(self):
                         "Choose orientation form [VF, MP], you specified {self._orientation}"
                     )
 
-                self._s0 = np.abs(np.array(
-                    [e["sigmaMajor"] for ee in self._estimates for e in ee]
-                ))
+                self._s0 = np.abs(
+                    np.array([e["sigmaMajor"] for ee in self._estimates for e in ee])
+                )
 
                 try:
                     self._varexp0 = np.array(
@@ -176,9 +176,9 @@ def init_variables(self):
                         "Choose orientation form [VF, MP], you specified {self._orientation}"
                     )
 
-                self._s0 = np.abs(np.array(
-                    [e["sigmamajor"] for ee in self._estimates for e in ee]
-                ))
+                self._s0 = np.abs(
+                    np.array([e["sigmamajor"] for ee in self._estimates for e in ee])
+                )
 
                 try:
                     self._varexp0 = np.array(
@@ -470,7 +470,7 @@ def from_docker(
             session,
             f"{subject}_{session}_{task}_{run}_hemi-{h}_estimates",
         )
-        h5_path   = stem + ".h5"
+        h5_path = stem + ".h5"
         json_path = stem + ".json"
 
         if path.isfile(h5_path):
@@ -507,11 +507,17 @@ def from_docker(
                 if "metadata/analysis/model" in f:
                     this_est["_model"] = _h5_text(f["metadata/analysis/model"][()])
                 if "metadata/hrf" in f:
-                    this_est["_hrf"] = {k: f[f"metadata/hrf/{k}"][()] for k in f["metadata/hrf"].keys()}
+                    this_est["_hrf"] = {
+                        k: f[f"metadata/hrf/{k}"][()] for k in f["metadata/hrf"].keys()
+                    }
                 if "metadata/run_info/run_type" in f:
-                    this_est["_run_type"] = _h5_text(f["metadata/run_info/run_type"][()])
+                    this_est["_run_type"] = _h5_text(
+                        f["metadata/run_info/run_type"][()]
+                    )
                 if "metadata/run_info/analysis_duration_sec" in f:
-                    this_est["_duration_sec"] = float(f["metadata/run_info/analysis_duration_sec"][()])
+                    this_est["_duration_sec"] = float(
+                        f["metadata/run_info/analysis_duration_sec"][()]
+                    )
                 if "metadata/input_files/measured_data" in f:
                     this_est["_input_files"] = [
                         _h5_text(v) for v in f["metadata/input_files/measured_data"][()]
@@ -682,7 +688,7 @@ def from_hdf5(
     session,
     task,
     run,
-    method='',
+    method="",
     analysis="01",
     baseP=None,
     orientation="VF",
@@ -711,7 +717,11 @@ def from_hdf5(
         FileNotFoundError: If required files are missing.
     """
 
-    prfanaMe = '' if method == '' else method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
+    prfanaMe = (
+        ""
+        if method == ""
+        else method if method.startswith("prfanalyze-") else f"prfanalyze-{method}"
+    )
     prfanaAn = analysis if analysis.startswith("analysis-") else f"analysis-{analysis}"
     subject = subject if subject.startswith("sub-") else f"sub-{subject}"
     session = session if session.startswith("ses-") else f"ses-{session}"
@@ -742,7 +752,7 @@ def from_hdf5(
     est = []
     hs = ["L", "R"] if hemi == "" else [hemi]
     for h in hs:
-        print('WARNING: i hardcoded a strange name here!!')
+        print("WARNING: i hardcoded a strange name here!!")
         estimates = path.join(
             derivatives_path,
             prfanaMe,
