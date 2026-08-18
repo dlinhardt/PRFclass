@@ -7,8 +7,8 @@ authors:
     family-names: Linhardt
     affiliation: "Medical University of Vienna"
 repository-code: "https://github.com/dlinhardt/PRFclass"
-version: "2.0"
-license: MIT
+version: "2.1"
+license: Apache-2.0
 keywords:
   - population receptive field
   - pRF

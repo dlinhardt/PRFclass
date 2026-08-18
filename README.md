@@ -137,6 +137,53 @@ ana.maskROI("V1", "benson")   # …inside V1  (a list of ROIs also works)
 ana.x, ana.y, ana.ecc, ana.pol, ana.sigma, ana.varexp   # masked parameters
 ```
 
+### Hand-drawn ROIs
+
+When the atlas delineation is not good enough for a subject, draw the ROIs by hand and drop
+the label GIFTIs into a per-subject folder — subject level, since a hand-drawn ROI follows the
+anatomy and not the session or task:
+
+```
+<study>/derivatives/manual_rois/sub-01/
+├── lh.V1.label.gii
+├── rh.V1.label.gii
+└── lh.V2.label.gii
+```
+
+They then behave like any other atlas, under the name `manual`:
+
+```python
+ana.maskROI("V1", "manual")     # ingests them on first use, then just works
+ana.plot_toSurface("ecc", hemi="L", showBordersAtlas="manual", showBordersArea="V1")
+```
+
+`maskROI` writes them into the prfprepare ROI pack (`all_roi_masks.h5`) the first time it needs
+them, so no separate step is required. The explicit calls are there when you want them:
+
+```python
+ana.manual_roi_files()      # what is on disk, without touching the pack
+ana.sync_manual_rois()      # ingest / re-ingest; idempotent, cheap to call in a script
+ana.check_manual_rois()     # per-ROI report: how much of each ROI is inside the analysed space
+anas.sync_manual_rois()     # same for a whole PRFgroup, once per subject
+```
+
+The label files stay the source of truth. Rerunning prfprepare regenerates the pack and drops
+the `manual` atlas; the next `sync_manual_rois()` (or `maskROI(..., "manual")`) notices and puts
+it back.
+
+**Use a `full_brain` prfprepare analysis for hand-drawn work.** The pack stores ROIs in the
+analysed space, so if prfprepare cropped the analysis to an atlas, the part of your delineation
+outside that crop cannot carry pRF parameters and is dropped from the mask. `sync_manual_rois`
+reports exactly how many vertices that costs, and `check_manual_rois` keeps the numbers around.
+With `atlases: full_brain` every vertex is analysed and nothing is lost. The full delineation is
+stored either way, so the ROI borders in the surface and flatmap plots always show what you
+actually drew.
+
+Two details worth knowing: `maskROI(area="all", atlas="all")` includes the `manual` atlas, and
+where a vertex belongs to both `benson/V1` and `manual/V1` it is attributed to the
+alphabetically first atlas, so `_roiWhichAtlas` says `benson`. And hand-drawn ROIs need a
+surface analysis — a surface label has no meaning in a volume one.
+
 ### A whole study
 
 ```python
@@ -187,6 +234,7 @@ ana.doVarExpMsk = False   # also doROIMsk, doEccMsk, doSigMsk, doBetaMsk, doManu
 |---|---|
 | **Load** | prfanalyze results (gem, vistasoft) via Docker/BIDS derivatives, mrVista sessions, SAMSrf, HDF5, or individual files |
 | **Mask** | by ROI and atlas, variance explained, eccentricity, pRF size, beta amplitude, a dartboard segmentation, or an interactive hand-drawn mask |
+| **Manual ROIs** | ingest hand-drawn `lh.V1.label.gii` delineations into the ROI pack and use them as the `manual` atlas |
 | **Parameters** | `x`, `y`, `ecc`, `pol`, `sigma`, `beta`, `varexp` — masked or unmasked, per dataset or pooled across a group |
 | **Time courses** | measured BOLD (`voxelTC`), the fitted model signal (`modelsignal`, `modelpred`), and `r2_against()` to score a model against any run |
 | **Stimulus & motion** | load the stimulus apertures, eye-tracker jitter, and realignment/framewise-displacement parameters |
@@ -260,7 +308,7 @@ ready-made APA and BibTeX entries:
 @software{prfclass,
   author  = {Linhardt, David},
   title   = {PRFclass: a Python interface for population receptive field results},
-  version = {2.0},
+  version = {2.1},
   url     = {https://github.com/dlinhardt/PRFclass},
 }
 ```
@@ -270,5 +318,9 @@ used it, [GEM-pRF](https://github.com/fmriat/gemprf).
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Do whatever you like with it; just keep the
-copyright notice, and cite the repository if you use it in published work.
+Apache License 2.0 — see [LICENSE](LICENSE). Do whatever you like with it; the
+license asks only that you keep the copyright notice, pass on the
+[NOTICE](NOTICE) file, and state any significant changes you made.
+
+Citing is a request, not a license condition: if you use PRFclass in published
+work, please cite it as described in [CITATION.cff](CITATION.cff).
