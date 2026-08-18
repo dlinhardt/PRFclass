@@ -66,6 +66,101 @@ def _resolve_fs_subject_dir(
     return f"{sub}", str(old_path)
 
 
+def _resolve_fsP(self):
+    """
+    Path to the FreeSurfer SUBJECTS_DIR used by this analysis, and the subject
+    to look up inside it ('fsaverage' for fsaverage analyses).
+    """
+    fsP = path.join(
+        self._derivatives_path,
+        "fmriprep",
+        self.fmriprep_analysis,
+        "sourcedata",
+        "freesurfer",
+    )
+    fs_subject = "fsaverage" if self.analysisSpace == "fsaverage" else self.subject
+    return fsP, fs_subject
+
+
+def _resolve_surface_hemi_size(self, hemi):
+    """
+    Number of vertices of the original (unmasked) surface of one hemisphere.
+
+    Tries, in order, the fmriprep GIFTI of the analysed run, the legacy
+    prfprepare maskinfo.json (absent for RoiPack-era runs) and finally the
+    FreeSurfer white surface, which is the authoritative vertex count.
+
+    Parameters
+    ----------
+    hemi : str
+        Hemisphere, 'L' or 'R' (only the first letter is used).
+
+    Returns
+    -------
+    int
+        Vertex count of the hemisphere.
+
+    Raises
+    ------
+    FileNotFoundError
+        If none of the sources could be resolved; the message lists everything
+        that was tried.
+    """
+    h = hemi[0].upper()
+    tried = []
+
+    # --- 1) fmriprep GIFTI of the analysed run -----------------------------
+    anaSpace = "fsnative" if self.analysisSpace == "surface" else self.analysisSpace
+    for entities in (
+        f"hemi-{h}_space-{anaSpace}",  # fmriprep >= 21, BIDS entity order
+        f"space-{anaSpace}_hemi-{h}",  # fmriprep < 21
+    ):
+        pattern = path.join(
+            self._derivatives_path,
+            "fmriprep",
+            self.fmriprep_analysis,
+            self.subject,
+            self.session,
+            "func",
+            f"*{self.task}*{entities}_bold.func.gii",
+        )
+        tried.append(pattern)
+        hits = glob(pattern)
+        if hits:
+            return int(nib.load(hits[0]).agg_data().shape[0])
+
+    # --- 2) legacy prfprepare maskinfo.json --------------------------------
+    pattern = path.join(
+        self._derivatives_path,
+        "prfprepare",
+        f"analysis-{self.prfprepare_analysis}",
+        self._subject,
+        self._session,
+        "func",
+        f"{self._subject}_{self._session}_hemi-{h}_desc-*-*_maskinfo.json",
+    )
+    tried.append(pattern)
+    hits = glob(pattern)
+    if hits:
+        with open(hits[0], "r") as f:
+            return int(json.load(f)["thisHemiSize"])
+
+    # --- 3) FreeSurfer white surface ---------------------------------------
+    fsP, fs_subject = _resolve_fsP(self)
+    fs_resolved, _ = _resolve_fs_subject_dir(fsP, fs_subject, self.session)
+    tried.append(path.join(fsP, fs_resolved, "surf", f"{h.lower()}h.white"))
+    try:
+        surf_coords, _ = resolve_surface(fsP, fs_resolved, f"{h.lower()}h", "white")
+        return int(len(surf_coords))
+    except (FileNotFoundError, OSError):
+        pass
+
+    raise FileNotFoundError(
+        f"Could not determine the surface size of hemisphere {h}. Tried:\n  "
+        + "\n  ".join(tried)
+    )
+
+
 class label:
     """
     Mini class that defines a label, needed to plot borders.
@@ -80,9 +175,15 @@ class label:
         source = roi_info.get("source", "legacy")
 
         if source == "roipack":
-            # Pull original-space vertex indices directly from the h5
+            # Pull original-space vertex indices directly from the h5.
+            # Hand-drawn ROIs also store their unclipped extent, so their border
+            # shows the whole delineation and not just the part that fell inside
+            # the analysed mask.
             rp = roi_info["roipack"]
-            self.vertices = rp.get_original_space_indices(at, ar, h)
+            if hasattr(rp, "get_full_extent_indices"):
+                self.vertices = rp.get_full_extent_indices(at, ar, h)
+            else:
+                self.vertices = rp.get_original_space_indices(at, ar, h)
 
         elif source in ("legacy", "samsrf"):
             area_files = roi_info["area_files"]
@@ -780,10 +881,10 @@ def plot_toSurface(
     cortex="classic",
     very_inflated_t=0.35,
     border_style="contour",
-    border_width=4.0,
+    border_width=20.0,
     border_color="black",
-    border_alpha=20.0,
-    border_smooth=2,
+    border_alpha=1.0,
+    border_smooth=3,
     border_offset=None,
     colorbar_style="auto",
     colorbar_format="svg",
@@ -890,10 +991,16 @@ def plot_toSurface(
         fsP = path.join(
             self._derivatives_path,
             "fmriprep",
-            f"analysis-{self.fmriprep_analysis}",
+            self.fmriprep_analysis,
             "sourcedata",
             "freesurfer",
         )
+        if not path.isdir(fsP):
+            raise FileNotFoundError(
+                f"FreeSurfer SUBJECTS_DIR not found: {fsP}\n"
+                f"'{self.fmriprep_analysis}' comes from the 'fmriprep_analysis' "
+                f"entry of prfprepare/analysis-{self.prfprepare_analysis}/options.json."
+            )
 
         # define the subject as fsaverage
         if self.analysisSpace == "fsaverage":
@@ -1541,6 +1648,9 @@ def _save_results_volume_docker(self, params, force, save):
     )
     makedirs(outFpath, exist_ok=True)
 
+    if not hasattr(self, "_roiIndOrig"):
+        raise RuntimeError("Please mask for visual area with instance.maskROI()!")
+
     try:
         dummy_file = nib.load(
             glob(
@@ -1647,52 +1757,25 @@ def _save_results_surface_docker(self, params, force, save):
     )
     makedirs(outFpath, exist_ok=True)
 
-    if self._hemis.lower() == "both":
+    if not hasattr(self, "_roiWhichHemi"):
+        raise RuntimeError("Please mask for visual area with instance.maskROI()!")
+
+    # an empty _hemis means both hemispheres, same as everywhere else
+    both_hemis = self._hemis == "" or self._hemis.lower() == "both"
+    if both_hemis:
         if self._study == "hcpret":
             hemis = ["b"]
         else:
             hemis = ["L", "R"]
     else:
-        hemis = [self._hemis]
+        hemis = [*self._hemis]
 
     all_hemis_params = {}
     for hemi in hemis:
-        if self._study == "hcpret" and self._hemis.lower() == "both":
+        if self._study == "hcpret" and both_hemis:
             img_shape = 91282
         else:
-            try:
-                dummyFile = nib.load(
-                    glob(
-                        path.join(
-                            self._derivatives_path,
-                            "fmriprep",
-                            self.fmriprep_analysis,
-                            self.subject,
-                            self.session,
-                            "func",
-                            f"*task-{self.task}*hemi-{hemi}_space-{self.analysisSpace}_bold.func.gii",
-                        )
-                    )[0]
-                )
-            except (KeyError, IndexError) as e:
-                with open(
-                    glob(
-                        path.join(
-                            self._derivatives_path,
-                            "prfprepare",
-                            f"analysis-{self.prfprepare_analysis}",
-                            self._subject,
-                            self._session,
-                            "func",
-                            f"{self._subject}_{self._session}_hemi-{hemi}_desc-*-*_maskinfo.json",
-                        )
-                    )[0],
-                    "r",
-                ) as f:
-                    maskinfo = json.load(f)
-                img_shape = maskinfo["thisHemiSize"]
-            else:
-                img_shape = dummyFile.agg_data().shape
+            img_shape = _resolve_surface_hemi_size(self, hemi)
 
         all_params = {}
         for param in params:
@@ -1745,10 +1828,10 @@ def _save_results_surface_docker(self, params, force, save):
                     nib.save(newGii, outF)
                 all_params[param] = newGii
 
-        # if not saving, return all params for this hemisphere
         all_hemis_params[hemi] = all_params
-    # if not saving, return all params for this hemisphere
-    return all_params
+
+    # return all params, per hemisphere
+    return all_hemis_params
 
 
 def _save_results_mrVista(self, params, force, save):
@@ -1872,8 +1955,13 @@ def save_results(
         if self.analysisSpace == "volume":
             return _save_results_volume_docker(self, params, force, save)
 
-        elif self.analysisSpace == "fsnative" or self.analysisSpace == "fsaverage":
+        elif self.analysisSpace in ["fsnative", "fsaverage", "surface"]:
             return _save_results_surface_docker(self, params, force, save)
+
+        else:
+            raise NotImplementedError(
+                f"Unknown analysisSpace: {self.analysisSpace}. Cannot save results."
+            )
 
     # data from mrVista
     elif self._dataFrom == "mrVista":

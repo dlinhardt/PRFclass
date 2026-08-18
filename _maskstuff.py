@@ -122,13 +122,17 @@ def list_atlases_and_rois(self, atlas=None):
 
     # Apply atlas filter
     if atlas is not None:
-        filter_list = [atlas] if isinstance(atlas, str) and atlas.lower() != "all" else (
-            atlas if isinstance(atlas, list) else list(atlases.keys())
+        filter_list = (
+            [atlas]
+            if isinstance(atlas, str) and atlas.lower() != "all"
+            else (atlas if isinstance(atlas, list) else list(atlases.keys()))
         )
         atlases = {k: v for k, v in atlases.items() if k in filter_list}
 
     print(f"\n{'='*70}")
-    print(f"AVAILABLE ATLASES AND ROIs for {self._subject}  [{info['source']}, space: {self.analysisSpace}]")
+    print(
+        f"AVAILABLE ATLASES AND ROIs for {self._subject}  [{info['source']}, space: {self.analysisSpace}]"
+    )
     print(f"{'='*70}")
     for at, rois in atlases.items():
         print(f"\n  {at}  ({len(rois)} ROIs)")
@@ -136,6 +140,79 @@ def list_atlases_and_rois(self, atlas=None):
     print(f"\n{'='*70}\n")
 
     return atlases
+
+
+def _autoingest_manual_atlas(self, atlas, roipack_dir):
+    """Put hand-drawn ROIs into the pack when they are asked for but missing.
+
+    Called from maskROI so that maskROI("V1", "manual") works the first time,
+    without a separate ingest step. prfprepare regenerating the pack drops the
+    added atlas, and this puts it straight back.
+
+    Only an explicit request triggers the ingest. An atlas="all" sweep just
+    prints a hint, since a sweep is not a statement of intent, and listing
+    functions never write at all.
+
+    Args:
+        atlas (str or list): The atlas(es) that were requested.
+        roipack_dir (str): Folder holding all_roi_masks.h5.
+
+    Raises:
+        FileNotFoundError: When 'manual' was requested but no label files exist.
+    """
+    from ._manualroistuff import (
+        MANUAL_ATLAS,
+        _manual_roi_dir,
+        manual_roi_files,
+        sync_manual_rois,
+    )
+
+    requested = [str(a) for a in (atlas if isinstance(atlas, list) else [atlas])]
+    explicit = MANUAL_ATLAS in requested
+    sweep = any(a.lower() == "all" for a in requested)
+    if not (explicit or sweep):
+        return
+    if getattr(self, "_manual_autoingest_tried", False):
+        return
+
+    # Nothing to do when the atlas is already in the pack
+    try:
+        with open(path.join(roipack_dir, "all_roi_masks_meta.json"), "r") as f:
+            meta = json.load(f)
+        rp = RoiPack(
+            key=meta["key"],
+            h5_path=path.join(roipack_dir, "all_roi_masks.h5"),
+            meta=meta,
+        )
+        rp.select_grid_for_input(self.analysisSpace)
+        if MANUAL_ATLAS in rp.list_atlases():
+            return
+    except Exception:
+        return  # let the normal masking path report whatever is wrong
+
+    files = manual_roi_files(self, verbose=False)
+
+    if not explicit:
+        if files:
+            print(
+                f"[note] {len(files)} manual label files are not ingested yet; "
+                "run ana.sync_manual_rois() to include them"
+            )
+        return
+
+    self._manual_autoingest_tried = True
+
+    if not files:
+        raise FileNotFoundError(
+            f"no manual ROIs for {self._subject}: put lh.V1.label.gii / "
+            f"rh.V1.label.gii into {_manual_roi_dir(self)}"
+        )
+
+    print(
+        f"atlas '{MANUAL_ATLAS}' not in the pack; found {len(files)} label files, "
+        "ingesting..."
+    )
+    sync_manual_rois(self)
 
 
 # ----------------------------------MASKING-----------------------------------#
@@ -281,6 +358,10 @@ def maskROI(
         meta_file = path.join(roipack_dir, "all_roi_masks_meta.json")
 
         if RoiPack is not None and path.isfile(h5_file) and path.isfile(meta_file):
+            # Hand-drawn ROIs live in the same pack, but have to be put there
+            # once. Do it transparently so maskROI(..., "manual") just works.
+            _autoingest_manual_atlas(self, atlas, roipack_dir)
+
             # Try new RoiPack-based path; pass space from analysisSpace by default
             _used = _maskROI_from_roipack(
                 self,
@@ -723,7 +804,7 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
     self._roiMsk = roi_mask
 
     self._isROIMasked = 1
-    
+
     return True
 
 

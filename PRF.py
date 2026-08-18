@@ -6,6 +6,7 @@ import nibabel as nib
 import numpy as np
 from scipy.io import loadmat
 
+
 class PRF:
     """
     Population Receptive Field (pRF) analysis object.
@@ -14,8 +15,6 @@ class PRF:
     pRF mapping results from various sources (mrVista, docker, samsrf, hdf5).
     Use the alternative constructors (from_mrVista, from_docker, etc.) to initialize.
     """
-
-    from ._version import __version__
 
     # load in all the other files with functions
     from ._calculatestuff import (
@@ -33,6 +32,7 @@ class PRF:
         init_variables,
         spm_hrf_compat,
     )
+    from ._flatmapstuff import plot_toFlatmap, prepare_flatmap_surface
     from ._loadadditionalstuff import (
         _gem_convolved_stimulus,
         _gem_modelsignal,
@@ -45,6 +45,12 @@ class PRF:
         loadStim,
         r2_against,
     )
+    from ._manualroistuff import (
+        add_manual_rois,
+        check_manual_rois,
+        manual_roi_files,
+        sync_manual_rois,
+    )
     from ._maskstuff import (
         _calcMask,
         _get_available_atlases_and_rois,
@@ -56,7 +62,6 @@ class PRF:
         maskSigma,
         maskVarExp,
     )
-    from ._flatmapstuff import plot_toFlatmap, prepare_flatmap_surface
     from ._plotstuff import (
         _build_surface_overlay,
         _calcCovMap,
@@ -69,6 +74,7 @@ class PRF:
         plot_toSurface,
         save_results,
     )
+    from ._version import __version__
 
     from_docker = classmethod(from_docker)
     from_mrVista = classmethod(from_mrVista)
@@ -691,11 +697,14 @@ class PRF:
 
     @property
     def prfprepare_analysis(self):
-        return self.prfanalyzeOpts["prfprepareAnalysis"]
+        # callers add the 'analysis-' prefix themselves, so strip it here
+        ana = str(self.prfanalyzeOpts["prfprepareAnalysis"])
+        return ana[len("analysis-") :] if ana.startswith("analysis-") else ana
 
     @property
     def fmriprep_analysis(self):
-        return self.prfprepareOpts["fmriprep_analysis"]
+        ana = str(self.prfprepareOpts["fmriprep_analysis"])
+        return ana if ana.startswith("analysis-") else f"analysis-{ana}"
 
     @property
     def prfprepareOpts(self):

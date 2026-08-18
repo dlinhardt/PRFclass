@@ -665,6 +665,66 @@ class PRFgroup:
         """
         self.iterate("maskROI", area, atlas, doV123, forcePath)
 
+    def _iterate_per_pack(self, method_name, **kwargs):
+        """Call a method once per ROI pack instead of once per run.
+
+        The group holds one row per run, while the ROI pack is per subject and
+        prfprepare analysis, so iterating rows would repeat the same work for
+        every run of a subject.
+
+        Args:
+            method_name (str): PRF method to call.
+            **kwargs: Passed straight through.
+
+        Returns:
+            dict: ``{(subject, analysis): return value}``.
+        """
+        seen, out = set(), {}
+        for _, a in self.data.iterrows():
+            p = a["prf"]
+            key = (p._derivatives_path, p.prfprepare_analysis, p._subject)
+            if key in seen:
+                continue
+            seen.add(key)
+            out[(p._subject, p.prfprepare_analysis)] = getattr(p, method_name)(**kwargs)
+        return out
+
+    def sync_manual_rois(self, **kwargs):
+        """Sync hand-drawn ROIs into the ROI pack of every subject in the group.
+
+        Runs once per subject and prfprepare analysis, and skips subjects with a
+        volume analysis instead of raising, so a mixed study still goes through.
+
+        Args:
+            **kwargs: Passed to PRF.sync_manual_rois.
+
+        Returns:
+            dict: ``{(subject, analysis): result}``.
+        """
+        return self._iterate_per_pack("sync_manual_rois", **kwargs)
+
+    def check_manual_rois(self, **kwargs):
+        """Report the hand-drawn ROIs of every subject in the group.
+
+        Args:
+            **kwargs: Passed to PRF.check_manual_rois.
+
+        Returns:
+            dict: ``{(subject, analysis): report}``.
+        """
+        return self._iterate_per_pack("check_manual_rois", **kwargs)
+
+    def manual_roi_files(self, **kwargs):
+        """Find the hand-drawn label files of every subject in the group.
+
+        Args:
+            **kwargs: Passed to PRF.manual_roi_files.
+
+        Returns:
+            dict: ``{(subject, analysis): {(roi, hemi): filepath}}``.
+        """
+        return self._iterate_per_pack("manual_roi_files", **kwargs)
+
     def maskVarExp(
         self, varExpThresh, varexp_easy=False, highThresh=None, spmPath=None
     ):
