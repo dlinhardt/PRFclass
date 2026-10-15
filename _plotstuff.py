@@ -271,9 +271,14 @@ def _draw_grid(ax, maxEcc):
         [np.round(maxEcc13, 1), np.round(maxEcc23, 1), np.round(maxEcc, 1)]
     )
 
-    ax.tick_params(axis="y", direction="in", pad=-ax.get_window_extent().height * 0.48)
+    # centre the radius labels on the vertical meridian. A tick pad is in points and the
+    # window extent in pixels, so the width is converted before it is halved.
+    width_pt = ax.get_window_extent().width / ax.figure.dpi * 72
+    ax.tick_params(axis="y", direction="in", pad=-width_pt / 2)
 
-    plt.setp(ax.yaxis.get_majorticklabels(), va="bottom")
+    plt.setp(ax.yaxis.get_majorticklabels(), ha="center", va="bottom")
+    # the labels sit on the vertical meridian, so they have to be drawn over it
+    ax.set_axisbelow(False)
 
     ax.tick_params(axis="both", which="both", length=0)
 

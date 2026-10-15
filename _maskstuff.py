@@ -700,6 +700,18 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
         )
         return False
 
+    # Volume: flat original-space indices are turned into (i, j, k) on the BOLD grid
+    vol_shape = None
+    if self.analysisSpace not in ["fsnative", "fsaverage", "surface"]:
+        if hasattr(self, "_vol_shape"):
+            vol_shape = tuple(self._vol_shape)
+        else:
+            try:
+                vol_shape = self.rp.get_grid_shape()
+            except Exception as e:
+                print(f"Could not read the volume grid shape from the ROI pack: {e}")
+                return False
+
     # Precompute offsets for combined masked space ordering (l then r)
     offsets = {}
     running = 0
@@ -749,25 +761,10 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
                     if self.analysisSpace in ["fsnative", "fsaverage", "surface"]:
                         orig_indices_list.extend(roi_orig_indices.tolist())
                     else:  # volume - convert flat indices to (i,j,k) coordinates
-                        # We need the volume shape - try to get it from meta or infer
-                        try:
-                            # Try to get shape from first dense mask
-                            dummy_shape = (100, 100, 100)  # fallback
-                            if hasattr(self, "_vol_shape"):
-                                vol_shape = self._vol_shape
-                            else:
-                                # Try to infer from meta or use a reasonable default
-                                vol_shape = dummy_shape
-
-                            ijk = np.vstack(
-                                np.unravel_index(roi_orig_indices, vol_shape)
-                            ).T
-                            orig_indices_list.extend(
-                                [tuple(map(int, row)) for row in ijk]
-                            )
-                        except Exception:
-                            # Fallback: just store flat indices
-                            orig_indices_list.extend(roi_orig_indices.tolist())
+                        ijk = np.vstack(
+                            np.unravel_index(roi_orig_indices, vol_shape)
+                        ).T
+                        orig_indices_list.extend([tuple(map(int, row)) for row in ijk])
 
                 except Exception as e:
                     print(f"Failed to process ROI {a}/{r}/{h}: {e}")
