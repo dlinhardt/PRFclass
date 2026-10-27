@@ -23,6 +23,21 @@ except Exception:
         RoiPack = None
 
 
+def _select_grid_lenient(self, rp, roipack_dir):
+    """Select a grid for reading ROI names; False instead of raising."""
+    try:
+        rp.select_grid_for_input(self.analysisSpace)
+        return True
+    except Exception:
+        pass
+    try:
+        return self.analysisSpace == "volume" and _select_grid_for_run(
+            self, rp, roipack_dir
+        )
+    except Exception:
+        return False
+
+
 # ----------------------------------INFO/LISTING FUNCTIONS -------------------------#
 def _get_available_atlases_and_rois(self):
     """Return all available atlases/ROIs and legacy maskinfo files as a plain data dict.
@@ -66,7 +81,8 @@ def _get_available_atlases_and_rois(self):
             with open(meta_file, "r") as f:
                 meta = json.load(f)
             rp = RoiPack(key=meta["key"], h5_path=h5_file, meta=meta)
-            rp.select_grid_for_input(self.analysisSpace)
+            if not _select_grid_lenient(self, rp, roipack_dir):
+                raise RuntimeError("no readable grid in the ROI pack")
             for at in rp.list_atlases():
                 result["atlases"][at] = sorted(rp.list_rois(at))
             result["source"] = "roipack"
@@ -184,7 +200,8 @@ def _autoingest_manual_atlas(self, atlas, roipack_dir):
             h5_path=path.join(roipack_dir, "all_roi_masks.h5"),
             meta=meta,
         )
-        rp.select_grid_for_input(self.analysisSpace)
+        if not _select_grid_lenient(self, rp, roipack_dir):
+            return
         if MANUAL_ATLAS in rp.list_atlases():
             return
     except Exception:
@@ -217,7 +234,13 @@ def _autoingest_manual_atlas(self, atlas, roipack_dir):
 
 # ----------------------------------MASKING-----------------------------------#
 def maskROI(
-    self, area="V1", atlas="benson", doV123=False, forcePath=False, masking_style=None
+    self,
+    area="V1",
+    atlas="benson",
+    doV123=False,
+    forcePath=False,
+    masking_style=None,
+    img=None,
 ):
     """
     Masks the data with defined ROIs
@@ -227,6 +250,11 @@ def maskROI(
         atlas (str or list, optional): Define atlases to load (benson, wang, custom annots). Only used when docker data. Use 'all' for all available areas.. Defaults to 'benson'.
         doV123 (bool, optional): Load V1, V2 and V3, otherwise only V1. Only used when matlab mrVista data. Defaults to False.
         forcePath (bool, optional): Force path for coords.mat, again?. Only used when matlab mrVista data. Defaults to False.
+        img (str or nibabel image, optional): Volume defining which grid to read
+            from the ROI pack, for packs holding more than one. Only needed when
+            the grid cannot be worked out automatically. Give the full-grid
+            fMRIPrep space-T1w volume: prfprepare's own BOLD outputs are already
+            flattened to (nVoxels, 1, 1, nTRs) and match no grid.
     """
 
     if masking_style is None:
@@ -368,7 +396,7 @@ def maskROI(
                 area=area,
                 atlas=atlas,
                 roipack_path=roipack_dir,
-                img=None,
+                img=img,
             )
             if _used:
                 self._isROIMasked = 1
@@ -542,8 +570,17 @@ def maskROI(
                         self._roiMsk[np.array(maskinfo["roiIndBold"]) + lHemiSize] = 1
 
         if self._roiMsk.sum() == 0:
-            print(f"WARNING: No data in ROI {self._area} in {self._atlas}!")
-            print("Check if the area and atlas are available in the maskinfo files!")
+            # Nothing was masked, so the data stays whole-brain and every value
+            # read afterwards is wrong. Warn rather than print: a print scrolls
+            # past in a batch log, which is how this went unnoticed before.
+            warnings.warn(
+                f"No data in ROI {self._area} in {self._atlas} for "
+                f"{self._subject} {self.session} {self.task}! The data is NOT "
+                "masked, so anything read from it covers the whole brain. "
+                "Check that the area and atlas exist in the maskinfo files.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     elif data_from == "samsrf":
         # get the occ mask used in samsrf
@@ -618,6 +655,72 @@ def maskROI(
     self._isROIMasked = 1
 
 
+def _select_grid_for_run(self, rp, roipack_path) -> bool:
+    """Pick the volume grid this run is on, when the pack holds several.
+
+    prfprepare writes one grid per BOLD geometry (shape and affine) into a
+    single per-subject pack, so runs acquired with different geometries share a
+    file and select_grid_for_input("volume") cannot choose without an image.
+
+    1. Provenance: prfprepare lists the runs feeding each grid in the meta JSON
+       as "ses-X_task-Y_run-Z", so this run names its grid exactly.
+    2. Masked length, for packs written before provenance existed: each BOLD is
+       masked to its grid's union index, so len(x0) equals that grid's
+       flat_index_l + flat_index_r.
+
+    A provenance pick whose length does not match len(x0) raises: the pack was
+    rebuilt after the fit and its indices no longer describe the estimates.
+
+    Returns True when rp.grid_id was set, False to let the caller fall back.
+    """
+    import h5py
+
+    hemis = ["l", "r"] if self._hemis == "" else [h.lower() for h in self._hemis]
+    with h5py.File(path.join(roipack_path, "all_roi_masks.h5"), "r") as f:
+        grids = f.get("grids")
+        if grids is None or len(grids) < 2:
+            return False
+        lengths = {
+            g: sum(len(grids[g][f"masked_space/flat_index_{h}"]) for h in hemis)
+            for g in grids
+        }
+    n = len(self.x0)
+
+    try:
+        with open(path.join(roipack_path, "all_roi_masks_meta.json"), "r") as fl:
+            prov = json.load(fl).get("grids") or {}
+    except Exception:
+        prov = {}
+    # PRF keeps the BIDS prefixes, matching how prfprepare writes the names
+    name = "_".join(str(v) for v in (self.session, self.task, self.run) if v)
+    by_run = [g for g, info in prov.items() if g in lengths and name in info.get("runs", [])]
+    by_len = [g for g, l in lengths.items() if l == n]
+
+    if len(by_run) == 1:
+        gid = by_run[0]
+        if lengths[gid] != n:
+            raise RuntimeError(
+                f"ROI pack does not match the loaded estimates for {self._subject} "
+                f"{self.session} {self.task} {self.run}: the pack puts this run on "
+                f"grid {gid} ({lengths[gid]} voxels) but the estimates have {n}"
+                + (f", which matches grid {by_len[0]}" if len(by_len) == 1 else "")
+                + ". The pack was probably rebuilt after the pRF fit; rerun the "
+                "analysis or restore the pack it was fit against."
+            )
+    elif len(by_len) == 1:
+        gid = by_len[0]
+    else:
+        print(
+            f"Could not tell which grid {self._subject} {self.session} {self.task} "
+            f"is on: {n} voxels, grid sizes {lengths}"
+        )
+        return False
+
+    rp.grid_id = gid
+    rp.meta["analysis_space"] = "volume"
+    return True
+
+
 def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
     """Internal: fill ROI fields using RoiPack when available.
 
@@ -641,23 +744,27 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
             h5_path=path.join(roipack_path, "all_roi_masks.h5"),
             meta=meta,
         )
-        # Choose grid selection using either provided image or explicit space label
-        try:
-            if self.analysisSpace == "volume":
-                if img is not None:
-                    self.rp.select_grid_for_input(img)
-                else:
-                    self.rp.select_grid_for_input(self.analysisSpace)
-            else:
-                self.rp.select_grid_for_input(self.analysisSpace)
-        except Exception as e:
-            print(
-                f"RoiPack grid selection failed (analysisSpace={self.analysisSpace}): {e}"
-            )
-            return False
     except Exception as e:
         print(f"Failed to open ROI pack: {e}")
         return False
+
+    # Choose grid selection using either provided image or explicit space label
+    try:
+        if self.analysisSpace == "volume" and img is not None:
+            self.rp.select_grid_for_input(img)
+        else:
+            self.rp.select_grid_for_input(self.analysisSpace)
+    except Exception as e:
+        # A pack with several volume grids cannot be resolved from the space
+        # label alone, so work out which grid this run is on. Outside the try
+        # above on purpose: a pack/estimates mismatch must reach the caller.
+        if not (
+            self.analysisSpace == "volume"
+            and img is None
+            and _select_grid_for_run(self, self.rp, roipack_path)
+        ):
+            print(f"RoiPack grid selection failed (analysisSpace={self.analysisSpace}): {e}")
+            return False
 
     # ---------------- Normalize atlas/area filters ----------------
     self._atlas = atlas if isinstance(atlas, list) else [atlas]
@@ -703,14 +810,13 @@ def _maskROI_from_roipack(self, area, atlas, roipack_path, img=None) -> bool:
     # Volume: flat original-space indices are turned into (i, j, k) on the BOLD grid
     vol_shape = None
     if self.analysisSpace not in ["fsnative", "fsaverage", "surface"]:
-        if hasattr(self, "_vol_shape"):
-            vol_shape = tuple(self._vol_shape)
-        else:
-            try:
-                vol_shape = self.rp.get_grid_shape()
-            except Exception as e:
-                print(f"Could not read the volume grid shape from the ROI pack: {e}")
-                return False
+        try:
+            # Reads the grid picked above, so this is the geometry of this run
+            vol_shape = tuple(self.rp.get_grid_shape())
+        except Exception as e:
+            print(f"Could not read the volume grid shape from the ROI pack: {e}")
+            return False
+        self._vol_shape = vol_shape
 
     # Precompute offsets for combined masked space ordering (l then r)
     offsets = {}

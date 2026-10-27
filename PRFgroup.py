@@ -653,7 +653,7 @@ class PRFgroup:
         )
 
     # ---------------------------------- MASKING ---------------------------------#
-    def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False):
+    def maskROI(self, area="V1", atlas="benson", doV123=False, forcePath=False, img=None):
         """
         Apply ROI masking to all PRF objects in the group.
 
@@ -662,8 +662,12 @@ class PRFgroup:
             atlas (str): Atlas name.
             doV123 (bool, optional): Flag to include V1, V2, V3.
             forcePath (bool, optional): Flag to force path.
+            img (str or nibabel image, optional): Volume defining which grid to
+                read from the ROI pack, for packs holding more than one. Only
+                needed when the grid cannot be worked out automatically, and
+                only sensible when every run in the group is on that one grid.
         """
-        self.iterate("maskROI", area, atlas, doV123, forcePath)
+        self.iterate("maskROI", area, atlas, doV123, forcePath, img=img)
 
     def _iterate_per_pack(self, method_name, **kwargs):
         """Call a method once per ROI pack instead of once per run.
